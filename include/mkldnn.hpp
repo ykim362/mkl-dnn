@@ -291,6 +291,9 @@ struct memory: public primitive  {
         goihw = c_api::mkldnn_goihw,
         gOIhw8i8o = c_api::mkldnn_gOIhw8i8o,
         gOIhw8o8i = c_api::mkldnn_gOIhw8o8i,
+#ifdef MKLDNN_RNN
+        rnx = c_api::mkldnn_rnx,
+#endif // MKLDNN_RNN
     };
 
     /// A memory descriptor.
@@ -453,6 +456,9 @@ enum query {
     batch_normalization_d = c_api::mkldnn_query_batch_normalization_d,
     inner_product_d = c_api::mkldnn_query_inner_product_d,
     convolution_relu_d = c_api::mkldnn_query_convolution_relu_d,
+#ifdef MKLDNN_RNN
+    rnn_d = c_api::mkldnn_query_rnn_d,
+#endif // MKLDNN_RNN
 
     input_pd = c_api::mkldnn_query_input_pd,
     output_pd = c_api::mkldnn_query_output_pd,
@@ -494,12 +500,35 @@ enum algorithm {
     lrn_across_channels = c_api::mkldnn_lrn_across_channels,
     lrn_within_channel  = c_api::mkldnn_lrn_within_channel,
     pooling_max = c_api::mkldnn_pooling_max,
-    pooling_avg = c_api::mkldnn_pooling_avg
+    pooling_avg = c_api::mkldnn_pooling_avg,
+#ifdef MKLDNN_RNN
+    rnn_relu = c_api::mkldnn_rnn_relu,
+    rnn_tanh = c_api::mkldnn_rnn_tanh,
+    rnn_lstm = c_api::mkldnn_rnn_lstm,
+    rnn_gru = c_api::mkldnn_rnn_gru,
+#endif // MKLDNN_RNN
 };
-
 static c_api::mkldnn_alg_kind_t convert_to_c(algorithm aalgorithm) {
     return static_cast<c_api::mkldnn_alg_kind_t>(aalgorithm);
 }
+
+#ifdef MKLDNN_RNN
+enum direction {
+    rnn_unidirectional = c_api::mkldnn_rnn_unidirectional,
+    rnn_bidirectional = c_api::mkldnn_rnn_bidirectional,
+};
+static c_api::mkldnn_rnn_direction_t convert_to_c(direction adirection) {
+    return static_cast<c_api::mkldnn_rnn_direction_t>(adirection);
+}
+
+enum input_mode {
+    rnn_linear_input = c_api::mkldnn_rnn_linear_input,
+    rnn_skip_input = c_api::mkldnn_rnn_skip_input,
+};
+static c_api::mkldnn_rnn_input_mode_t convert_to_c(input_mode ainputmode) {
+    return static_cast<c_api::mkldnn_rnn_input_mode_t>(ainputmode);
+}
+#endif // MKLDNN_RNN
 
 struct reorder : public primitive {
     struct primitive_desc : public handle<c_api::mkldnn_primitive_desc_t>{
@@ -2088,6 +2117,83 @@ struct inner_product_backward_weights: public primitive {
         reset(result);
     }
 };
+#ifdef MKLDNN_RNN
+struct rnn_forward : public primitive {
+    struct desc {
+        c_api::mkldnn_rnn_desc_t data;
+        template <typename T1, typename T2>
+        desc(prop_kind aprop_kind, algorithm aalgorithm,
+             direction adirection, input_mode ainputmode,
+             T1 num_states, T1 num_layers, T1 num_seqs, T2 dropout_prob,
+                const memory::desc &x_desc,
+                const memory::desc &hx_desc,
+                const memory::desc &cx_desc,
+                const memory::desc &y_desc,
+                const memory::desc &hy_desc,
+                const memory::desc &cy_desc,
+                const memory::desc &weights_desc) {
+            error::wrap_c_api(c_api::mkldnn_rnn_forward_desc_init(&data,
+                        convert_to_c(aprop_kind),
+                        convert_to_c(aalgorithm),
+                        convert_to_c(adirection),
+                        convert_to_c(ainputmode),
+                        static_cast<long>(num_states),
+                        static_cast<long>(num_layers),
+                        static_cast<long>(num_seqs),
+                        static_cast<float>(dropout_prob),
+                        &x_desc.data, &hx_desc.data,
+                        &cx_desc.data, &y_desc.data,
+                        &hy_desc.data, &cy_desc.data,
+                        &weights_desc.data),
+                    "could not init a forward rnn descriptor");
+        }
+    };
+
+    struct primitive_desc : public handle<c_api::mkldnn_primitive_desc_t>{
+        primitive_desc(const desc &adesc, const engine &aengine) {
+        c_api::mkldnn_primitive_desc_t result;
+            error::wrap_c_api(c_api::mkldnn_primitive_desc_create(
+                        &result, &adesc.data, aengine.get(), nullptr),
+                    "could not create a forward rnn primitive descriptor");
+            reset(result);
+        }
+
+        memory::primitive_desc workspace_primitive_desc() const {
+            memory::primitive_desc adesc;
+            c_api::mkldnn_primitive_desc_t cdesc;
+            c_api::const_mkldnn_primitive_desc_t const_cdesc =
+                c_api::mkldnn_primitive_desc_query_pd(get(),
+                               mkldnn::convert_to_c(workspace_pd), 0);
+            error::wrap_c_api(c_api::mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
+                    "could not clone a workspace primititve descriptor");
+            adesc.reset(cdesc);
+            return adesc;
+        }
+    };
+
+    rnn_forward(const primitive_desc &aprimitive_desc, const primitive::at &src,
+            const memory &dst) {
+        c_api::mkldnn_primitive_t result;
+        c_api::mkldnn_primitive_at_t inputs[] = { src.data };
+        c_api::const_mkldnn_primitive_t outputs[] = { dst.get(), nullptr };
+        error::wrap_c_api(c_api::mkldnn_primitive_create(&result,
+                    aprimitive_desc.get(), inputs, outputs),
+                "could not create an rnn forward primitive");
+        reset(result);
+    }
+
+    rnn_forward(const primitive_desc &aprimitive_desc, const primitive::at &src,
+            const memory &dst, const memory &workspace) {
+        c_api::mkldnn_primitive_t result;
+        c_api::mkldnn_primitive_at_t inputs[] = { src.data };
+        c_api::const_mkldnn_primitive_t outputs[] = { dst.get(), workspace.get() };
+        error::wrap_c_api(c_api::mkldnn_primitive_create(&result,
+                    aprimitive_desc.get(), inputs, outputs),
+                "could not create an rnn forward primitive");
+        reset(result);
+    }
+};
+#endif // MKLDNN_RNN
 } // namespace mkldnn
 
 #endif

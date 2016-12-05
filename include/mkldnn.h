@@ -540,6 +540,84 @@ mkldnn_status_t MKLDNN_API mkldnn_convolution_relu_desc_init(
 
 /** @} */
 
+#ifdef MKLDNN_RNN
+/** @addtogroup c_api_rnn RNN (Including vanilla RNN, LSTM, GRU)
+ * A primitive to compute RNN's inference only.
+ * @{ */
+
+/** Initializes an rnn descriptor @p rnn_desc for forward propagation using
+ * @p prop_kind (possible values are #mkldnn_forward_training or
+ * #mkldnn_forward_inference), @p alg_kind (possible values are 
+ * #mkldnn_rnn_relu, #mkldnn_rnn_tanh, #mkldnn_rnn_lstm or #mkldnn_rnn_gru), 
+ * @p direction (possible values are #mkldnn_rnn_unidirectional or 
+ * #mkldnn_rnn_bidirectional), @p input_mode for the input mode,
+ * @p num_states for the number of hidden states, @p num_layers 
+ * for the number of stacked layers, @p num_seqs for the length of the
+ * sequences, @p dropout_prob for the fraction of the input that gets dropped out 
+ * at training time, and memory descriptors */
+mkldnn_status_t MKLDNN_API mkldnn_rnn_forward_desc_init(
+        mkldnn_rnn_desc_t *rnn_desc, mkldnn_prop_kind_t prop_kind,
+        mkldnn_alg_kind_t alg_kind, mkldnn_rnn_direction_t direction,
+        mkldnn_rnn_input_mode_t input_mode, long num_states, 
+        long num_layers, long num_seqs, float dropout_prob,
+        const mkldnn_memory_desc_t *x_desc,
+        const mkldnn_memory_desc_t *hx_desc,
+        const mkldnn_memory_desc_t *cx_desc,
+        const mkldnn_memory_desc_t *y_desc,
+        const mkldnn_memory_desc_t *hy_desc,
+        const mkldnn_memory_desc_t *cy_desc,
+        const mkldnn_memory_desc_t *weights_desc);
+
+/** Initializes an rnn descriptor @p rnn_desc for backward propagation using
+ * @p prop_kind (possible value is #mkldnn_backward_data),
+ * @p alg_kind (possible values are #mkldnn_rnn_relu, #mkldnn_rnn_tanh, 
+ * #mkldnn_rnn_lstm or #mkldnn_rnn_gru), 
+ * @p direction (possible values are #mkldnn_rnn_unidirectional or 
+ * #mkldnn_rnn_bidirectional), @p input_mode for the input mode,
+ * @p num_states for the number of hidden states, @p num_layers 
+ * for the number of stacked layers, @p num_seqs for the length of the
+ * sequences, @p dropout_prob for the fraction of the input that gets dropped out 
+ * at training time, and memory descriptors */
+mkldnn_status_t MKLDNN_API mkldnn_rnn_backward_data_desc_init(
+        mkldnn_rnn_desc_t *rnn_desc, mkldnn_prop_kind_t prop_kind,
+        mkldnn_alg_kind_t alg_kind, mkldnn_rnn_direction_t direction,
+        mkldnn_rnn_input_mode_t input_mode, long num_states, 
+        long num_layers, long num_seqs, float dropout_prob,
+        const mkldnn_memory_desc_t *diff_x_desc,
+        const mkldnn_memory_desc_t *y_desc,
+        const mkldnn_memory_desc_t *diff_y_desc,
+        const mkldnn_memory_desc_t *hx_desc,
+        const mkldnn_memory_desc_t *diff_hx_desc,
+        const mkldnn_memory_desc_t *cx_desc,
+        const mkldnn_memory_desc_t *diff_cx_desc,
+        const mkldnn_memory_desc_t *diff_hy_desc,
+        const mkldnn_memory_desc_t *cy_desc,
+        const mkldnn_memory_desc_t *diff_cy_desc,
+        const mkldnn_memory_desc_t *weights_desc);
+
+/** Initializes an rnn descriptor @p rnn_desc for backward propagation using
+ * @p prop_kind (possible value is #mkldnn_backward_weights),
+ * @p alg_kind (possible values are #mkldnn_rnn_relu, #mkldnn_rnn_tanh, 
+ * #mkldnn_rnn_lstm or #mkldnn_rnn_gru), 
+ * @p direction (possible values are #mkldnn_rnn_unidirectional or 
+ * #mkldnn_rnn_bidirectional), @p input_mode for the input mode,
+ * @p num_states for the number of hidden states, @p num_layers 
+ * for the number of stacked layers, @p num_seqs for the length of the
+ * sequences, @p dropout_prob for the fraction of the input that gets dropped out 
+ * at training time, and memory descriptors */
+mkldnn_status_t MKLDNN_API mkldnn_rnn_backward_weights_desc_init(
+        mkldnn_rnn_desc_t *rnn_desc, mkldnn_prop_kind_t prop_kind,
+        mkldnn_alg_kind_t alg_kind, mkldnn_rnn_direction_t direction,
+        mkldnn_rnn_input_mode_t input_mode, long num_states, 
+        long num_layers, long num_seqs, float dropout_prob,
+        const mkldnn_memory_desc_t *x_desc,
+        const mkldnn_memory_desc_t *y_desc,
+        const mkldnn_memory_desc_t *hx_desc,
+        const mkldnn_memory_desc_t *diff_weights_desc);
+
+/** @} */
+#endif // MKLDNN_RNN
+
 /** @} */
 
 /** @addtogroup c_api_engine Engine operations

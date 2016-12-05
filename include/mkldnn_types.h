@@ -140,6 +140,10 @@ typedef enum {
     /** 4D weights tensor in the oihw format with input channels data laid out
      * in memory in 8-element blocks. */
     mkldnn_oIhw8i = mkldnn_nChw8c,
+#ifdef MKLDNN_RNN
+    /** 3D RNN input, output tensor in the @c rnx format (recurrence, batch, inputs). */
+    mkldnn_rnx,
+#endif // MKLDNN_RNN    
 } mkldnn_memory_format_t;
 
 /** Kinds of padding. Define how to interpret the data in padding regions. */
@@ -207,6 +211,10 @@ typedef enum {
     mkldnn_inner_product,
     /** A convolution primitive merged with relu */
     mkldnn_convolution_relu,
+#ifdef MKLDNN_RNN
+    /** An RNN primitive */
+    mkldnn_rnn,
+#endif // MKLDNN_RNN
 } mkldnn_primitive_kind_t;
 
 /** Kinds of algorithms. */
@@ -221,8 +229,37 @@ typedef enum {
     mkldnn_lrn_across_channels = 65,
     /** LRN within a single channel */
     mkldnn_lrn_within_channel = 66,
+#ifdef MKLDNN_RNN
+    /** A vanillar-RNN with relu */
+    mkldnn_rnn_relu,
+    /** A vanillar-RNN with tanh */
+    mkldnn_rnn_tanh,
+    /** An LSTM (Long Short-Term Memory) */
+    mkldnn_rnn_lstm,
+    /** A GRU (Gated Recurrent Unit) */
+    mkldnn_rnn_gru,
+#endif // MKLDNN_RNN
 } mkldnn_alg_kind_t;
 
+#ifdef MKLDNN_RNN
+/** Kinds of directions for RNN. */
+typedef enum {
+    /** Uni-directional */
+    mkldnn_rnn_unidirectional = 1,
+    /** Bi-directional */
+    mkldnn_rnn_bidirectional = 2,
+} mkldnn_rnn_direction_t;
+#endif // MKLDNN_RNN
+
+#ifdef MKLDNN_RNN
+/** Kinds of input mode for RNN. */
+typedef enum {
+    /** Linear input - an operation is performed for the first layer's input */
+    mkldnn_rnn_linear_input = 1,
+    /** Skip input - no operation is performed for the first layer's input */
+    mkldnn_rnn_skip_input = 2,
+} mkldnn_rnn_input_mode_t;
+#endif // MKLDNN_RNN
 /** @} */
 
 /** @addtogroup c_api_types_memory Auxiliary types for memory description
@@ -481,6 +518,66 @@ typedef struct {
     double negative_slope;
 } mkldnn_convolution_relu_desc_t;
 
+#ifdef MKLDNN_RNN
+/** A descriptor of an RNN operation. */
+typedef struct {
+    /** The kind of primitive. Used for self identifying the primitive
+     * descriptor. Must be #mkldnn_rnn. */
+    mkldnn_primitive_kind_t primitive_kind;
+    /** The kind of propagation. Possible values: #mkldnn_forward_training,
+     * #mkldnn_forward_inference, #mkldnn_backward_data,
+     * and #mkldnn_backward_weights. */
+    mkldnn_prop_kind_t prop_kind;
+    /** The kind of the RNN algorithm. Possible values:
+     * #mkldnn_rnn_relu, #mkldnn_rnn_tanh, #mkldnn_rnn_lstm, #mkldnn_rnn_gru. */
+    mkldnn_alg_kind_t alg_kind;
+    /** The direction of the RNN. Possible values:
+     * #mkldnn_rnn_unidirectional, #mkldnn_rnn_bidirectional.*/
+    mkldnn_rnn_direction_t direction;
+    /** The input mode of the RNN. Possible values:
+     * #mkldnn_rnn_linear_input, #mkldnn_rnn_skip_input.*/
+    mkldnn_rnn_input_mode_t input_mode;
+    /** The number of hidden states in one cell */
+    long num_states;
+    /** The number of layers in entire RNN network */
+    long num_layers;
+    /** The length of sequences in entire RNN network */
+    long num_seqs;
+    /** The fraction of the input that gets dropped out at training time */
+    float dropout_prob;
+    /** Input(x) memory descriptor. */
+    mkldnn_memory_desc_t x_desc;
+    /** Input gradient(dx) memory descriptor. */
+    mkldnn_memory_desc_t diff_x_desc;
+    /** Output(y) memory descriptor. */
+    mkldnn_memory_desc_t y_desc;
+    /** Output gradient(dy) memory descriptor. */
+    mkldnn_memory_desc_t diff_y_desc;
+    /** State input(hx) memory descriptor. */
+    mkldnn_memory_desc_t hx_desc;
+    /** State input gradient(dhx) memory descriptor. */
+    mkldnn_memory_desc_t diff_hx_desc;
+    /** Cell state input(cx) memory descriptor. */
+    mkldnn_memory_desc_t cx_desc;
+    /** Cell state input gradient(dcx) memory descriptor. */
+    mkldnn_memory_desc_t diff_cx_desc;
+    /** State output(hy) memory descriptor. */
+    mkldnn_memory_desc_t hy_desc;
+    /** State output gradient(dhy) memory descriptor. */
+    mkldnn_memory_desc_t diff_hy_desc;
+    /** Cell state output(cy) memory descriptor. */
+    mkldnn_memory_desc_t cy_desc;
+    /** Cell state output gradient(dcy) memory descriptor. */
+    mkldnn_memory_desc_t diff_cy_desc;
+    /** Weights memory descriptor. */
+    mkldnn_memory_desc_t weights_desc;
+    /** Weights gradient memory descriptor. */
+    mkldnn_memory_desc_t diff_weights_desc;
+    // @TODO check if we need dropout descriptor
+    // @TODO check if we need input mode
+} mkldnn_rnn_desc_t;
+#endif // MKLDNN_RNN
+
 /** @} */
 
 /** @addtogroup c_api_engine_types Engine
@@ -613,6 +710,9 @@ typedef enum {
     mkldnn_query_batch_normalization_d, /**< batch normalization descriptor */
     mkldnn_query_inner_product_d, /**< inner product descriptor */
     mkldnn_query_convolution_relu_d, /**< convolution-relu descriptor */
+#ifdef MKLDNN_RNN
+    mkldnn_query_rnn_d, /**< rnn descriptor */
+#endif // MKLDNN_RNN
 
     /* (memory) primitive descriptor section */
     mkldnn_query_some_pd = 128, /**< stub */
@@ -625,6 +725,9 @@ typedef enum {
     mkldnn_query_dst_pd, /**< destination memory primitive desc */
     mkldnn_query_diff_dst_pd, /**< destination grad. memory primitive desc */
     mkldnn_query_workspace_pd, /**< workspace memory primitive desc */
+#ifdef MKLDNN_RNN
+    // mkldnn_query_x
+#endif // MKLDNN_RNN
 } mkldnn_query_t;
 
 /** @} */
