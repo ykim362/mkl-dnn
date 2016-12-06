@@ -538,43 +538,42 @@ typedef struct {
      * #mkldnn_rnn_linear_input, #mkldnn_rnn_skip_input.*/
     mkldnn_rnn_input_mode_t input_mode;
     /** The number of hidden states in one cell */
-    long num_states;
+    size_t num_states;
     /** The number of layers in entire RNN network */
-    long num_layers;
+    size_t num_layers;
     /** The length of sequences in entire RNN network */
-    long num_seqs;
+    size_t num_seqs;
     /** The fraction of the input that gets dropped out at training time */
-    float dropout_prob;
+    double dropout_prob;
     /** Input(x) memory descriptor. */
     mkldnn_memory_desc_t x_desc;
     /** Input gradient(dx) memory descriptor. */
-    mkldnn_memory_desc_t diff_x_desc;
+    // mkldnn_memory_desc_t diff_x_desc;
     /** Output(y) memory descriptor. */
     mkldnn_memory_desc_t y_desc;
     /** Output gradient(dy) memory descriptor. */
-    mkldnn_memory_desc_t diff_y_desc;
+    // mkldnn_memory_desc_t diff_y_desc;
     /** State input(hx) memory descriptor. */
     mkldnn_memory_desc_t hx_desc;
     /** State input gradient(dhx) memory descriptor. */
-    mkldnn_memory_desc_t diff_hx_desc;
+    // mkldnn_memory_desc_t diff_hx_desc;
     /** Cell state input(cx) memory descriptor. */
     mkldnn_memory_desc_t cx_desc;
     /** Cell state input gradient(dcx) memory descriptor. */
-    mkldnn_memory_desc_t diff_cx_desc;
+    // mkldnn_memory_desc_t diff_cx_desc;
     /** State output(hy) memory descriptor. */
     mkldnn_memory_desc_t hy_desc;
     /** State output gradient(dhy) memory descriptor. */
-    mkldnn_memory_desc_t diff_hy_desc;
+    // mkldnn_memory_desc_t diff_hy_desc;
     /** Cell state output(cy) memory descriptor. */
     mkldnn_memory_desc_t cy_desc;
     /** Cell state output gradient(dcy) memory descriptor. */
-    mkldnn_memory_desc_t diff_cy_desc;
+    // mkldnn_memory_desc_t diff_cy_desc;
     /** Weights memory descriptor. */
     mkldnn_memory_desc_t weights_desc;
     /** Weights gradient memory descriptor. */
-    mkldnn_memory_desc_t diff_weights_desc;
+    // mkldnn_memory_desc_t diff_weights_desc;
     // @TODO check if we need dropout descriptor
-    // @TODO check if we need input mode
 } mkldnn_rnn_desc_t;
 #endif // MKLDNN_RNN
 

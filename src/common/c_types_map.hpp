@@ -63,6 +63,12 @@ namespace alg_kind {
     const alg_kind_t pooling_avg = mkldnn_pooling_avg;
     const alg_kind_t lrn_across_channels = mkldnn_lrn_across_channels;
     const alg_kind_t lrn_within_channel = mkldnn_lrn_within_channel;
+#ifdef MKLDNN_RNN
+    const alg_kind_t rnn_relu = mkldnn_rnn_relu;
+    const alg_kind_t rnn_tanh = mkldnn_rnn_tanh;
+    const alg_kind_t rnn_lstm = mkldnn_rnn_lstm;
+    const alg_kind_t rnn_gru = mkldnn_rnn_gru;
+#endif // MKLDNN_RNN
 }
 
 using data_type_t = mkldnn_data_type_t;
@@ -91,6 +97,9 @@ namespace memory_format {
     const memory_format_t goihw = mkldnn_goihw;
     const memory_format_t gOIhw8i8o = mkldnn_gOIhw8i8o;
     const memory_format_t gOIhw8o8i = mkldnn_gOIhw8o8i;
+#ifdef MKLDNN_RNN
+    const memory_format_t rnx = mkldnn_rnx;
+#endif // MKLDNN_RNN
 }
 
 using padding_kind_t = mkldnn_padding_kind_t;
@@ -103,6 +112,20 @@ namespace engine_kind {
     const engine_kind_t any_engine = mkldnn_any_engine;
     const engine_kind_t cpu = mkldnn_cpu;
 }
+
+#ifdef MKLDNN_RNN
+using rnn_direction_t = mkldnn_rnn_direction_t;
+namespace rnn_direction {
+    const rnn_direction_t rnn_unidirectional = mkldnn_rnn_unidirectional;
+    const rnn_direction_t rnn_bidirectional = mkldnn_rnn_bidirectional;
+}
+
+using rnn_input_mode_t = mkldnn_rnn_input_mode_t;
+namespace rnn_input_mode {
+    const rnn_input_mode rnn_linear_input = mkldnn_rnn_linear_input;
+    const rnn_input_mode rnn_skip_input = mkldnn_rnn_skip_input;
+}
+#endif // MKLDNN_RNN
 
 using primitive_kind_t = mkldnn_primitive_kind_t;
 namespace primitive_kind {
@@ -121,6 +144,9 @@ namespace primitive_kind {
     const primitive_kind_t batch_normalization = mkldnn_batch_normalization;
     const primitive_kind_t inner_product = mkldnn_inner_product;
     const primitive_kind_t convolution_relu = mkldnn_convolution_relu;
+#ifdef MKLDNN_RNN
+    const primitive_kind_t rnn = mkldnn_rnn;
+#endif // MKLDNN_RNN
 }
 
 using query_t = mkldnn_query_t;
@@ -146,6 +172,9 @@ namespace query {
     const query_t batch_normalization_d = mkldnn_query_batch_normalization_d;
     const query_t inner_product_d = mkldnn_query_inner_product_d;
     const query_t convolution_relu_d = mkldnn_query_convolution_relu_d;
+#ifdef MKLDNN_RNN
+    const query_t query_rnn_d = mkldnn_query_rnn_d,
+#endif // MKLDNN_RNN
 
     const query_t some_pd = mkldnn_query_some_pd;
     const query_t input_pd = mkldnn_query_input_pd;
@@ -170,6 +199,9 @@ using lrn_desc_t = mkldnn_lrn_desc_t;
 using batch_normalization_desc_t = mkldnn_batch_normalization_desc_t;
 using inner_product_desc_t = mkldnn_inner_product_desc_t;
 using convolution_relu_desc_t = mkldnn_convolution_relu_desc_t;
+#ifdef MKLDNN_RNN
+using rnn_desc_t = mkldnn_rnn_desc_t;
+#endif // MKLDNN_RNN
 
 /* C op_desc_t, which eventually are just (void*) */
 using c_op_desc_t = mkldnn_op_desc_t;
@@ -187,6 +219,9 @@ struct op_desc_t {
         batch_normalization_desc_t batch_normalization;
         inner_product_desc_t inner_product;
         convolution_relu_desc_t convolution_relu;
+#ifdef MKLDNN_RNN
+        rnn_desc_t rnn;
+#endif // MKLDNN_RNN
     };
 
     op_desc_t(const primitive_kind_t &_): kind(_) {}
@@ -207,6 +242,9 @@ struct op_desc_t {
     DECL_CTOR_AND_CONVERTERS(batch_normalization_desc_t, batch_normalization);
     DECL_CTOR_AND_CONVERTERS(inner_product_desc_t, inner_product);
     DECL_CTOR_AND_CONVERTERS(convolution_relu_desc_t, convolution_relu);
+#ifdef MKLDNN_RNN
+    DECL_CTOR_AND_CONVERTERS(rnn_desc_t, rnn);
+#endif // MKLDNN_RNN
 
 #   undef DECL_CTOR_AND_CONVERTERS
 };
