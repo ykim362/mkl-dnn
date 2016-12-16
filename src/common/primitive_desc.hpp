@@ -46,6 +46,14 @@ struct mkldnn_primitive_desc: public mkldnn::impl::c_compatible {
     DECLARE_PD_STUB(dst_pd); DECLARE_PD_STUB(diff_dst_pd);
     DECLARE_PD_STUB(weights_pd); DECLARE_PD_STUB(diff_weights_pd);
     DECLARE_PD_STUB(workspace_pd);
+#ifdef MKLDNN_RNN
+    DECLARE_PD_STUB(x_pd); DECLARE_PD_STUB(dx_pd);
+    DECLARE_PD_STUB(hx_pd); DECLARE_PD_STUB(dhx_pd);
+    DECLARE_PD_STUB(cx_pd); DECLARE_PD_STUB(dcx_pd);
+    DECLARE_PD_STUB(y_pd); DECLARE_PD_STUB(dy_pd);
+    DECLARE_PD_STUB(hy_pd); DECLARE_PD_STUB(dhy_pd);
+    DECLARE_PD_STUB(cy_pd); DECLARE_PD_STUB(dcy_pd);
+#endif // MKLDNN_RNN
 #   undef DECLARE_PD_STUB
 
     virtual int n_inputs() const { return 0; }

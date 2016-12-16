@@ -543,36 +543,15 @@ typedef struct {
     size_t num_layers;
     /** The length of sequences in entire RNN network */
     size_t num_seqs;
-    /** The fraction of the input that gets dropped out at training time */
-    double dropout_prob;
-    /** Input(x) memory descriptor. */
+    /** Input(x) memory descriptor. [seq, batch, input_size] */
     mkldnn_memory_desc_t x_desc;
-    /** Input gradient(dx) memory descriptor. */
-    // mkldnn_memory_desc_t diff_x_desc;
-    /** Output(y) memory descriptor. */
-    mkldnn_memory_desc_t y_desc;
-    /** Output gradient(dy) memory descriptor. */
-    // mkldnn_memory_desc_t diff_y_desc;
-    /** State input(hx) memory descriptor. */
+    /** State input(hx) memory descriptor. [layer, batch, hidden_size] */
     mkldnn_memory_desc_t hx_desc;
-    /** State input gradient(dhx) memory descriptor. */
-    // mkldnn_memory_desc_t diff_hx_desc;
-    /** Cell state input(cx) memory descriptor. */
-    mkldnn_memory_desc_t cx_desc;
-    /** Cell state input gradient(dcx) memory descriptor. */
-    // mkldnn_memory_desc_t diff_cx_desc;
-    /** State output(hy) memory descriptor. */
-    mkldnn_memory_desc_t hy_desc;
-    /** State output gradient(dhy) memory descriptor. */
-    // mkldnn_memory_desc_t diff_hy_desc;
-    /** Cell state output(cy) memory descriptor. */
-    mkldnn_memory_desc_t cy_desc;
-    /** Cell state output gradient(dcy) memory descriptor. */
-    // mkldnn_memory_desc_t diff_cy_desc;
+    /** Output(y) memory descriptor. [seq, batch, hidden_size] */
+    mkldnn_memory_desc_t y_desc;
     /** Weights memory descriptor. */
     mkldnn_memory_desc_t weights_desc;
-    /** Weights gradient memory descriptor. */
-    // mkldnn_memory_desc_t diff_weights_desc;
+
     // @TODO check if we need dropout descriptor
 } mkldnn_rnn_desc_t;
 #endif // MKLDNN_RNN
@@ -711,6 +690,18 @@ typedef enum {
     mkldnn_query_convolution_relu_d, /**< convolution-relu descriptor */
 #ifdef MKLDNN_RNN
     mkldnn_query_rnn_d, /**< rnn descriptor */
+    mkldnn_query_x_pd,
+    mkldnn_query_hx_pd,
+    mkldnn_query_cx_pd,
+    mkldnn_query_y_pd,
+    mkldnn_query_hy_pd,
+    mkldnn_query_cy_pd,
+    mkldnn_query_diff_x_pd,
+    mkldnn_query_diff_hx_pd,
+    mkldnn_query_diff_cx_pd,
+    mkldnn_query_diff_y_pd,
+    mkldnn_query_diff_hy_pd,
+    mkldnn_query_diff_cy_pd,
 #endif // MKLDNN_RNN
 
     /* (memory) primitive descriptor section */

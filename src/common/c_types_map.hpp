@@ -122,8 +122,8 @@ namespace rnn_direction {
 
 using rnn_input_mode_t = mkldnn_rnn_input_mode_t;
 namespace rnn_input_mode {
-    const rnn_input_mode rnn_linear_input = mkldnn_rnn_linear_input;
-    const rnn_input_mode rnn_skip_input = mkldnn_rnn_skip_input;
+    const rnn_input_mode_t rnn_linear_input = mkldnn_rnn_linear_input;
+    const rnn_input_mode_t rnn_skip_input = mkldnn_rnn_skip_input;
 }
 #endif // MKLDNN_RNN
 
@@ -173,7 +173,20 @@ namespace query {
     const query_t inner_product_d = mkldnn_query_inner_product_d;
     const query_t convolution_relu_d = mkldnn_query_convolution_relu_d;
 #ifdef MKLDNN_RNN
-    const query_t query_rnn_d = mkldnn_query_rnn_d,
+    const query_t rnn_d = mkldnn_query_rnn_d;
+    const query_t x_pd = mkldnn_query_x_pd;
+    const query_t hx_pd = mkldnn_query_hx_pd;
+    const query_t cx_pd = mkldnn_query_cx_pd;
+    const query_t y_pd = mkldnn_query_y_pd;
+    const query_t hy_pd = mkldnn_query_hy_pd;
+    const query_t cy_pd = mkldnn_query_cy_pd;
+    const query_t dx_pd = mkldnn_query_diff_x_pd;
+    const query_t dhx_pd = mkldnn_query_diff_hx_pd;
+    const query_t dcx_pd = mkldnn_query_diff_cx_pd;
+    const query_t dy_pd = mkldnn_query_diff_y_pd;
+    const query_t dhy_pd = mkldnn_query_diff_hy_pd;
+    const query_t dcy_pd = mkldnn_query_diff_cy_pd;
+
 #endif // MKLDNN_RNN
 
     const query_t some_pd = mkldnn_query_some_pd;

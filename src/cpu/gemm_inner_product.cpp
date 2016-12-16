@@ -18,62 +18,64 @@
 #include "type_helpers.hpp"
 
 #include "gemm_inner_product.hpp"
+#include "cpu_math_util.hpp"
 
 namespace mkldnn {
 namespace impl {
 namespace cpu {
 
 // TODO: move BLAS wrappers to a separate header?
-#ifdef USE_MKL
-#include "mkl_cblas.h"
-typedef MKL_INT cblas_int;
-#endif
+// #ifdef USE_MKL
+// #include "mkl_cblas.h"
+// typedef MKL_INT cblas_int;
+// #endif
 
-#ifdef USE_CBLAS
-namespace {
+// #ifdef USE_CBLAS
+// namespace {
 
-template <data_type_t data_type>
-using data_t = typename prec_trait<data_type>::type;
+// template <data_type_t data_type>
+// using data_t = typename prec_trait<data_type>::type;
 
-template <data_type_t data_type>
-inline void cblas_gemm(CBLAS_LAYOUT layout,
-        CBLAS_TRANSPOSE transa, CBLAS_TRANSPOSE transb,
-        cblas_int M, cblas_int N, cblas_int K,
-        data_t<data_type> alpha, const data_t<data_type> *A, cblas_int lda,
-        const data_t<data_type> *B, cblas_int ldb,
-        data_t<data_type> beta, data_t<data_type> *C, cblas_int ldc);
+// template <data_type_t data_type>
+// inline void cblas_gemm(CBLAS_LAYOUT layout,
+//         CBLAS_TRANSPOSE transa, CBLAS_TRANSPOSE transb,
+//         cblas_int M, cblas_int N, cblas_int K,
+//         data_t<data_type> alpha, const data_t<data_type> *A, cblas_int lda,
+//         const data_t<data_type> *B, cblas_int ldb,
+//         data_t<data_type> beta, data_t<data_type> *C, cblas_int ldc);
 
-template <>
-inline void cblas_gemm<data_type::f32>(CBLAS_LAYOUT layout,
-        CBLAS_TRANSPOSE transa, CBLAS_TRANSPOSE transb,
-        cblas_int M, cblas_int N, cblas_int K,
-        float alpha, const float *A, cblas_int lda,
-        const float *B, cblas_int ldb,
-        float beta, float *C, cblas_int ldc) {
-    cblas_sgemm(layout, transa, transb,
-            M, N, K, alpha, A, lda, B, ldb, beta, C, ldc);
-}
+// template <>
+// inline void cblas_gemm<data_type::f32>(CBLAS_LAYOUT layout,
+//         CBLAS_TRANSPOSE transa, CBLAS_TRANSPOSE transb,
+//         cblas_int M, cblas_int N, cblas_int K,
+//         float alpha, const float *A, cblas_int lda,
+//         const float *B, cblas_int ldb,
+//         float beta, float *C, cblas_int ldc) {
+//     cblas_sgemm(layout, transa, transb,
+//             M, N, K, alpha, A, lda, B, ldb, beta, C, ldc);
+// }
 
-template <data_type_t data_type>
-inline void cblas_axpy(cblas_int N,
-        data_t<data_type> alpha, const data_t<data_type> *X, cblas_int incx,
-        data_t<data_type> *Y, cblas_int incy);
+// template <data_type_t data_type>
+// inline void cblas_axpy(cblas_int N,
+//         data_t<data_type> alpha, const data_t<data_type> *X, cblas_int incx,
+//         data_t<data_type> *Y, cblas_int incy);
 
-template <>
-inline void cblas_axpy<data_type::f32>(cblas_int N,
-        float alpha, const float *X, cblas_int incx,
-        float *Y, cblas_int incy) {
-    cblas_saxpy(N, alpha, X, incx, Y, incy);
-}
+// template <>
+// inline void cblas_axpy<data_type::f32>(cblas_int N,
+//         float alpha, const float *X, cblas_int incx,
+//         float *Y, cblas_int incy) {
+//     cblas_saxpy(N, alpha, X, incx, Y, incy);
+// }
 
-}
-#endif
+// }
+// #endif
 
 using namespace mkldnn::impl::status;
 using namespace mkldnn::impl::prop_kind;
 using namespace mkldnn::impl::data_type;
 using namespace mkldnn::impl::memory_format;
 using namespace mkldnn::impl::primitive_kind;
+using namespace mkldnn::impl::cpu::cpu_blas;
 
 template <impl::data_type_t data_type>
 void gemm_inner_product_fwd_t<data_type>::execute_forward() {

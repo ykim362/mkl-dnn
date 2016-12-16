@@ -36,7 +36,7 @@
 #include "cpu/ref_batch_normalization.hpp"
 #include "cpu/ref_inner_product.hpp"
 #include "cpu/gemm_inner_product.hpp"
-
+#include "cpu/gemm_rnn.hpp"
 #include "cpu/simple_reorder.hpp"
 
 namespace mkldnn {
@@ -139,6 +139,10 @@ static const pd_create_f cpu_impl_list[] = {
     /* conv_relu */
     INSTANCE(jit_avx2_convolution_relu_t),
     INSTANCE(ref_convolution_relu_t<data_type::f32>),
+#ifdef MKLDNN_RNN
+    INSTANCE(gemm_rnn_fwd_t<data_type::f32>),
+    INSTANCE(gemm_rnn_bwd_t<data_type::f32>),
+#endif // MKLDNN_RNN
     nullptr,
 };
 #undef INSTANCE

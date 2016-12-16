@@ -458,6 +458,19 @@ enum query {
     convolution_relu_d = c_api::mkldnn_query_convolution_relu_d,
 #ifdef MKLDNN_RNN
     rnn_d = c_api::mkldnn_query_rnn_d,
+    x_pd = c_api::mkldnn_query_x_pd,
+    hx_pd = c_api::mkldnn_query_hx_pd,
+    cx_pd = c_api::mkldnn_query_cx_pd,
+    y_pd = c_api::mkldnn_query_y_pd,
+    hy_pd = c_api::mkldnn_query_hy_pd,
+    cy_pd = c_api::mkldnn_query_cy_pd,
+    dx_pd = c_api::mkldnn_query_diff_x_pd,
+    dhx_pd = c_api::mkldnn_query_diff_hx_pd,
+    dcx_pd = c_api::mkldnn_query_diff_cx_pd,
+    dy_pd = c_api::mkldnn_query_diff_y_pd,
+    dhy_pd = c_api::mkldnn_query_diff_hy_pd,
+    dcy_pd = c_api::mkldnn_query_diff_cy_pd,
+
 #endif // MKLDNN_RNN
 
     input_pd = c_api::mkldnn_query_input_pd,
@@ -517,7 +530,7 @@ enum direction {
     rnn_unidirectional = c_api::mkldnn_rnn_unidirectional,
     rnn_bidirectional = c_api::mkldnn_rnn_bidirectional,
 };
-static c_api::mkldnn_rnn_direction_t convert_to_c(direction adirection) {
+inline c_api::mkldnn_rnn_direction_t convert_to_c(direction adirection) {
     return static_cast<c_api::mkldnn_rnn_direction_t>(adirection);
 }
 
@@ -525,7 +538,7 @@ enum input_mode {
     rnn_linear_input = c_api::mkldnn_rnn_linear_input,
     rnn_skip_input = c_api::mkldnn_rnn_skip_input,
 };
-static c_api::mkldnn_rnn_input_mode_t convert_to_c(input_mode ainputmode) {
+inline c_api::mkldnn_rnn_input_mode_t convert_to_c(input_mode ainputmode) {
     return static_cast<c_api::mkldnn_rnn_input_mode_t>(ainputmode);
 }
 #endif // MKLDNN_RNN
@@ -2121,41 +2134,119 @@ struct inner_product_backward_weights: public primitive {
 struct rnn_forward : public primitive {
     struct desc {
         c_api::mkldnn_rnn_desc_t data;
-        template <typename T1, typename T2>
+        template <typename T1>
         desc(prop_kind aprop_kind, algorithm aalgorithm,
              direction adirection, input_mode ainputmode,
-             T1 num_states, T1 num_layers, T1 num_seqs, T2 dropout_prob,
+             T1 num_states, T1 num_layers, T1 num_seqs,
                 const memory::desc &x_desc,
                 const memory::desc &hx_desc,
-                const memory::desc &cx_desc,
                 const memory::desc &y_desc,
-                const memory::desc &hy_desc,
-                const memory::desc &cy_desc,
                 const memory::desc &weights_desc) {
             error::wrap_c_api(c_api::mkldnn_rnn_forward_desc_init(&data,
                         convert_to_c(aprop_kind),
                         convert_to_c(aalgorithm),
-                        convert_to_c(adirection),
-                        convert_to_c(ainputmode),
+                        mkldnn::convert_to_c(adirection),
+                        mkldnn::convert_to_c(ainputmode),
                         static_cast<size_t>(num_states),
                         static_cast<size_t>(num_layers),
                         static_cast<size_t>(num_seqs),
-                        static_cast<double>(dropout_prob),
                         &x_desc.data, &hx_desc.data,
-                        &cx_desc.data, &y_desc.data,
-                        &hy_desc.data, &cy_desc.data,
-                        &weights_desc.data),
+                        &y_desc.data, &weights_desc.data),
                     "could not init a forward rnn descriptor");
         }
     };
 
     struct primitive_desc : public handle<c_api::mkldnn_primitive_desc_t>{
         primitive_desc(const desc &adesc, const engine &aengine) {
-        c_api::mkldnn_primitive_desc_t result;
+            c_api::mkldnn_primitive_desc_t result;
             error::wrap_c_api(c_api::mkldnn_primitive_desc_create(
-                        &result, &adesc.data, aengine.get(), nullptr),
-                    "could not create a forward rnn primitive descriptor");
+                    &result, &adesc.data, aengine.get(), nullptr),
+                "could not create a rnn forward primitive descriptor");
             reset(result);
+        }
+
+        memory::primitive_desc x_primitive_desc() const {
+            memory::primitive_desc adesc;
+            c_api::mkldnn_primitive_desc_t cdesc;
+            c_api::const_mkldnn_primitive_desc_t const_cdesc =
+                c_api::mkldnn_primitive_desc_query_pd(get(),
+                               mkldnn::convert_to_c(x_pd), 0);
+            error::wrap_c_api(c_api::mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
+                    "could not clone a x primititve descriptor");
+            adesc.reset(cdesc);
+            return adesc;
+        }
+
+        memory::primitive_desc hx_primitive_desc() const {
+            memory::primitive_desc adesc;
+            c_api::mkldnn_primitive_desc_t cdesc;
+            c_api::const_mkldnn_primitive_desc_t const_cdesc =
+                c_api::mkldnn_primitive_desc_query_pd(get(),
+                               mkldnn::convert_to_c(hx_pd), 0);
+            error::wrap_c_api(c_api::mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
+                    "could not clone a hx primititve descriptor");
+            adesc.reset(cdesc);
+            return adesc;
+        }
+
+        memory::primitive_desc cx_primitive_desc() const {
+            memory::primitive_desc adesc;
+            c_api::mkldnn_primitive_desc_t cdesc;
+            c_api::const_mkldnn_primitive_desc_t const_cdesc =
+                c_api::mkldnn_primitive_desc_query_pd(get(),
+                               mkldnn::convert_to_c(cx_pd), 0);
+            error::wrap_c_api(c_api::mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
+                    "could not clone a cx primititve descriptor");
+            adesc.reset(cdesc);
+            return adesc;
+        }
+
+        memory::primitive_desc y_primitive_desc() const {
+            memory::primitive_desc adesc;
+            c_api::mkldnn_primitive_desc_t cdesc;
+            c_api::const_mkldnn_primitive_desc_t const_cdesc =
+                c_api::mkldnn_primitive_desc_query_pd(get(),
+                               mkldnn::convert_to_c(y_pd), 0);
+            error::wrap_c_api(c_api::mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
+                    "could not clone a y primititve descriptor");
+            adesc.reset(cdesc);
+            return adesc;
+        }
+
+        memory::primitive_desc hy_primitive_desc() const {
+            memory::primitive_desc adesc;
+            c_api::mkldnn_primitive_desc_t cdesc;
+            c_api::const_mkldnn_primitive_desc_t const_cdesc =
+                c_api::mkldnn_primitive_desc_query_pd(get(),
+                               mkldnn::convert_to_c(hy_pd), 0);
+            error::wrap_c_api(c_api::mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
+                    "could not clone a hy primititve descriptor");
+            adesc.reset(cdesc);
+            return adesc;
+        }
+
+        memory::primitive_desc cy_primitive_desc() const {
+            memory::primitive_desc adesc;
+            c_api::mkldnn_primitive_desc_t cdesc;
+            c_api::const_mkldnn_primitive_desc_t const_cdesc =
+                c_api::mkldnn_primitive_desc_query_pd(get(),
+                               mkldnn::convert_to_c(cy_pd), 0);
+            error::wrap_c_api(c_api::mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
+                    "could not clone a cy primititve descriptor");
+            adesc.reset(cdesc);
+            return adesc;
+        }
+
+        memory::primitive_desc weights_primitive_desc() const {
+            memory::primitive_desc adesc;
+            c_api::mkldnn_primitive_desc_t cdesc;
+            c_api::const_mkldnn_primitive_desc_t const_cdesc =
+                c_api::mkldnn_primitive_desc_query_pd(get(),
+                               mkldnn::convert_to_c(weights_pd), 0);
+            error::wrap_c_api(c_api::mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
+                    "could not clone a weights primititve descriptor");
+            adesc.reset(cdesc);
+            return adesc;
         }
 
         memory::primitive_desc workspace_primitive_desc() const {
@@ -2169,27 +2260,210 @@ struct rnn_forward : public primitive {
             adesc.reset(cdesc);
             return adesc;
         }
+
     };
 
-    rnn_forward(const primitive_desc &aprimitive_desc, const primitive::at &src,
-            const memory &dst) {
+    rnn_forward(const primitive_desc &aprimitive_desc, const primitive::at &x,
+            const primitive::at &hx, const primitive::at &cx, const primitive::at &weights, 
+            const memory &y, const memory &hy, const memory &cy,
+            const memory &workspace) {
         c_api::mkldnn_primitive_t result;
-        c_api::mkldnn_primitive_at_t inputs[] = { src.data };
-        c_api::const_mkldnn_primitive_t outputs[] = { dst.get(), nullptr };
+        c_api::mkldnn_primitive_at_t inputs[] = { x.data, hx.data, cx.data, weights.data };
+        c_api::const_mkldnn_primitive_t outputs[] = { y.get(), hy.get(), cy.get(), workspace.get() };
         error::wrap_c_api(c_api::mkldnn_primitive_create(&result,
                     aprimitive_desc.get(), inputs, outputs),
                 "could not create an rnn forward primitive");
         reset(result);
     }
+};
 
-    rnn_forward(const primitive_desc &aprimitive_desc, const primitive::at &src,
-            const memory &dst, const memory &workspace) {
+struct rnn_backward : public primitive {
+    struct desc {
+        c_api::mkldnn_rnn_desc_t data;
+        template <typename T1>
+        desc(prop_kind aprop_kind, algorithm aalgorithm,
+             direction adirection, input_mode ainputmode,
+             T1 num_states, T1 num_layers, T1 num_seqs,
+                const memory::desc &x_desc,
+                const memory::desc &hx_desc,
+                const memory::desc &y_desc,
+                const memory::desc &weights_desc) {
+            error::wrap_c_api(c_api::mkldnn_rnn_backward_desc_init(&data,
+                        convert_to_c(aprop_kind),
+                        convert_to_c(aalgorithm),
+                        mkldnn::convert_to_c(adirection),
+                        mkldnn::convert_to_c(ainputmode),
+                        static_cast<size_t>(num_states),
+                        static_cast<size_t>(num_layers),
+                        static_cast<size_t>(num_seqs),
+                        &x_desc.data, &hx_desc.data,
+                        &y_desc.data, &weights_desc.data),
+                    "could not init a forward rnn descriptor");
+        }
+    };
+
+    struct primitive_desc : public handle<c_api::mkldnn_primitive_desc_t>{
+        primitive_desc(const desc &adesc, const engine &aengine) {
+            c_api::mkldnn_primitive_desc_t result;
+            error::wrap_c_api(c_api::mkldnn_primitive_desc_create(
+                    &result, &adesc.data, aengine.get(), nullptr),
+                "could not create a rnn backward primitive descriptor");
+            reset(result);
+        }
+
+        memory::primitive_desc x_primitive_desc() const {
+            memory::primitive_desc adesc;
+            c_api::mkldnn_primitive_desc_t cdesc;
+            c_api::const_mkldnn_primitive_desc_t const_cdesc =
+                c_api::mkldnn_primitive_desc_query_pd(get(),
+                               mkldnn::convert_to_c(x_pd), 0);
+            error::wrap_c_api(c_api::mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
+                    "could not clone a x primititve descriptor");
+            adesc.reset(cdesc);
+            return adesc;
+        }
+
+        memory::primitive_desc hx_primitive_desc() const {
+            memory::primitive_desc adesc;
+            c_api::mkldnn_primitive_desc_t cdesc;
+            c_api::const_mkldnn_primitive_desc_t const_cdesc =
+                c_api::mkldnn_primitive_desc_query_pd(get(),
+                               mkldnn::convert_to_c(hx_pd), 0);
+            error::wrap_c_api(c_api::mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
+                    "could not clone a hx primititve descriptor");
+            adesc.reset(cdesc);
+            return adesc;
+        }
+
+        memory::primitive_desc cx_primitive_desc() const {
+            memory::primitive_desc adesc;
+            c_api::mkldnn_primitive_desc_t cdesc;
+            c_api::const_mkldnn_primitive_desc_t const_cdesc =
+                c_api::mkldnn_primitive_desc_query_pd(get(),
+                               mkldnn::convert_to_c(cx_pd), 0);
+            error::wrap_c_api(c_api::mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
+                    "could not clone a cx primititve descriptor");
+            adesc.reset(cdesc);
+            return adesc;
+        }
+
+        memory::primitive_desc dy_primitive_desc() const {
+            memory::primitive_desc adesc;
+            c_api::mkldnn_primitive_desc_t cdesc;
+            c_api::const_mkldnn_primitive_desc_t const_cdesc =
+                c_api::mkldnn_primitive_desc_query_pd(get(),
+                               mkldnn::convert_to_c(dy_pd), 0);
+            error::wrap_c_api(c_api::mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
+                    "could not clone a dy primititve descriptor");
+            adesc.reset(cdesc);
+            return adesc;
+        }
+
+        memory::primitive_desc dhy_primitive_desc() const {
+            memory::primitive_desc adesc;
+            c_api::mkldnn_primitive_desc_t cdesc;
+            c_api::const_mkldnn_primitive_desc_t const_cdesc =
+                c_api::mkldnn_primitive_desc_query_pd(get(),
+                               mkldnn::convert_to_c(dhy_pd), 0);
+            error::wrap_c_api(c_api::mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
+                    "could not clone a dhy primititve descriptor");
+            adesc.reset(cdesc);
+            return adesc;
+        }
+
+        memory::primitive_desc dcy_primitive_desc() const {
+            memory::primitive_desc adesc;
+            c_api::mkldnn_primitive_desc_t cdesc;
+            c_api::const_mkldnn_primitive_desc_t const_cdesc =
+                c_api::mkldnn_primitive_desc_query_pd(get(),
+                               mkldnn::convert_to_c(dcy_pd), 0);
+            error::wrap_c_api(c_api::mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
+                    "could not clone a dcy primititve descriptor");
+            adesc.reset(cdesc);
+            return adesc;
+        }
+
+        memory::primitive_desc weights_primitive_desc() const {
+            memory::primitive_desc adesc;
+            c_api::mkldnn_primitive_desc_t cdesc;
+            c_api::const_mkldnn_primitive_desc_t const_cdesc =
+                c_api::mkldnn_primitive_desc_query_pd(get(),
+                               mkldnn::convert_to_c(weights_pd), 0);
+            error::wrap_c_api(c_api::mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
+                    "could not clone a weights primititve descriptor");
+            adesc.reset(cdesc);
+            return adesc;
+        }
+
+        memory::primitive_desc dx_primitive_desc() const {
+            memory::primitive_desc adesc;
+            c_api::mkldnn_primitive_desc_t cdesc;
+            c_api::const_mkldnn_primitive_desc_t const_cdesc =
+                c_api::mkldnn_primitive_desc_query_pd(get(),
+                               mkldnn::convert_to_c(dx_pd), 0);
+            error::wrap_c_api(c_api::mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
+                    "could not clone a dx primititve descriptor");
+            adesc.reset(cdesc);
+            return adesc;
+        }
+
+        memory::primitive_desc dhx_primitive_desc() const {
+            memory::primitive_desc adesc;
+            c_api::mkldnn_primitive_desc_t cdesc;
+            c_api::const_mkldnn_primitive_desc_t const_cdesc =
+                c_api::mkldnn_primitive_desc_query_pd(get(),
+                               mkldnn::convert_to_c(dhx_pd), 0);
+            error::wrap_c_api(c_api::mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
+                    "could not clone a dhx primititve descriptor");
+            adesc.reset(cdesc);
+            return adesc;
+        }
+
+        memory::primitive_desc dcx_primitive_desc() const {
+            memory::primitive_desc adesc;
+            c_api::mkldnn_primitive_desc_t cdesc;
+            c_api::const_mkldnn_primitive_desc_t const_cdesc =
+                c_api::mkldnn_primitive_desc_query_pd(get(),
+                               mkldnn::convert_to_c(dcx_pd), 0);
+            error::wrap_c_api(c_api::mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
+                    "could not clone a dcx primititve descriptor");
+            adesc.reset(cdesc);
+            return adesc;
+        } 
+        memory::primitive_desc workspace_primitive_desc() const {
+            memory::primitive_desc adesc;
+            c_api::mkldnn_primitive_desc_t cdesc;
+            c_api::const_mkldnn_primitive_desc_t const_cdesc =
+                c_api::mkldnn_primitive_desc_query_pd(get(),
+                               mkldnn::convert_to_c(workspace_pd), 0);
+            error::wrap_c_api(c_api::mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
+                    "could not clone a workspace primititve descriptor");
+            adesc.reset(cdesc);
+            return adesc;
+        }
+    };
+
+    rnn_backward(const primitive_desc &aprimitive_desc, 
+            const primitive::at &x,
+            const primitive::at &hx,
+            const primitive::at &cx,
+            const primitive::at &dy,
+            const primitive::at &dhy,
+            const primitive::at &dcy,
+            const primitive::at &weights,
+            const memory &dx,
+            const memory &dhx,
+            const memory &dcx,
+            const memory &workspace) {
         c_api::mkldnn_primitive_t result;
-        c_api::mkldnn_primitive_at_t inputs[] = { src.data };
-        c_api::const_mkldnn_primitive_t outputs[] = { dst.get(), workspace.get() };
+        c_api::mkldnn_primitive_at_t inputs[] = { x.data, hx.data, cx.data,
+                                                dy.data, dhy.data, dcy.data,
+                                                weights.data };
+        c_api::const_mkldnn_primitive_t outputs[] = { dx.get(), dhx.get(), dcx.get(), 
+                                                workspace.get() };
         error::wrap_c_api(c_api::mkldnn_primitive_create(&result,
                     aprimitive_desc.get(), inputs, outputs),
-                "could not create an rnn forward primitive");
+                "could not create an rnn backward primitive");
         reset(result);
     }
 };
