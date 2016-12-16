@@ -44,6 +44,7 @@ struct gemm_rnn_fwd_t: public cpu_primitive_t {
             using namespace alg_kind;
             assert(engine()->kind() == engine_kind::cpu);
             bool ok = true
+                && this->set_default_params() == status::success
                 && utils::one_of(desc()->prop_kind, forward_training,
                         forward_inference)
                 && utils::one_of(desc()->alg_kind, rnn_relu,
@@ -108,6 +109,7 @@ struct gemm_rnn_bwd_t: public cpu_primitive_t {
             using namespace alg_kind;
             assert(engine()->kind() == engine_kind::cpu);
             bool ok = true
+                && this->set_default_params() == status::success
                 && utils::one_of(desc()->prop_kind, backward)
                 && utils::one_of(desc()->alg_kind, rnn_relu,
                         rnn_tanh, rnn_lstm, rnn_gru)
