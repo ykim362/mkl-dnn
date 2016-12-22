@@ -72,7 +72,6 @@ void gemm_rnn_fwd_t<data_type>::execute_forward() {
     const size_t c_space_off = ws_d.blk_off(hout_space_off + hout_space_size);
     const size_t tanc_space_off = ws_d.blk_off(c_space_off + c_space_size);
 
-    array_set(ws, 0, conf_.Workspace_size());
     for (size_t t = 0; t < seq_length; t++) {
       for (size_t l = 0; l < num_layers; l++) {
         // Hin
@@ -187,22 +186,22 @@ void gemm_rnn_fwd_t<data_type>::execute_forward() {
         vMul<data_type>(h_size,
               ws + gates_space_off + l * gates_size + t * gates_nlayer_size,
               ws + gates_space_off + l * gates_size + t * gates_nlayer_size + 3 * h_size,
-              ws + tanc_space_off + l * h_size + t * h_nlayer_size);
+              ts_);
 
         // Ct=ft*Ct-1 + Tanh(gt)*It
         vAdd<data_type>(h_size,
             ws + c_space_off + l * h_size + t * h_nlayer_size,
-            ws + tanc_space_off + l * h_size + t * h_nlayer_size,
+            ts_,
             ws + c_space_off + l * h_size + t * h_nlayer_size);
 
         // h_t = ot * tan(ct)
         vTanh<data_type>(h_size,
             ws + c_space_off + l * h_size + t * h_nlayer_size,
-            ws + tanc_space_off + l * h_size + t * h_nlayer_size);
+            ts_);
 
         vMul<data_type>(h_size,
             ws + gates_space_off + l * gates_size + t * gates_nlayer_size + 2 * h_size,
-            ws + tanc_space_off + l * h_size + t * h_nlayer_size,
+            ts_,
             ws + hout_space_off + l * h_size + t * h_nlayer_size);
 
         // save output
@@ -285,7 +284,7 @@ void gemm_rnn_bwd_t<data_type>::execute_backward() {
         omatcopy<data_type>('R', 'T', batch_size, state_size, 1.0,
                       dy + seq * h_size,
                       state_size,
-                      bts_ + dhout_space_off
+                      ts_ + dhout_space_off
                       + (h_nlayer_size - h_size) + seq * h_nlayer_size,
                       batch_size);
       }
@@ -296,7 +295,7 @@ void gemm_rnn_bwd_t<data_type>::execute_backward() {
             omatcopy<data_type>('R', 'T', batch_size, state_size, 1.0,
                           dhy + ly * h_size,
                           state_size,
-                          bts_ + dhout_space_off + (seq_length - 1) * h_nlayer_size + ly * h_size,
+                          ts_ + dhout_space_off + (seq_length - 1) * h_nlayer_size + ly * h_size,
                           batch_size);
           }
     }
@@ -305,7 +304,7 @@ void gemm_rnn_bwd_t<data_type>::execute_backward() {
       omatcopy<data_type>('R', 'T', batch_size, state_size, 1.0,
                     dcy + ly * h_size,
                     state_size,
-                    bts_ + dc_space_off +
+                    ts_ + dc_space_off +
                     (seq_length - 1) * h_nlayer_size + ly * h_size,
                     batch_size);
     }
@@ -321,37 +320,37 @@ void gemm_rnn_bwd_t<data_type>::execute_backward() {
         vMul<data_type>(h_size,
               ws + tanc_space_off
                 + l * h_size + t * h_nlayer_size,
-              bts_ + dhout_space_off
+              ts_ + dhout_space_off
                 + l * h_size + t * h_nlayer_size,
-              bts_ + dgates_space_off
+              ts_ + dgates_space_off
                 + 2 * h_size + (l * gates_size)
                 + (t * gates_nlayer_size));
 
         // formula: dc[t] += (1-tanh(c[t] **2) * dh[t] * o[t]
         // Impl: dC_space[t,l,s,b] += (1-tanC_space[t][l][s][b] ** 2)
         //           * (IFOGf_space[t,l,s3,b] * dHout_space[t,l,s,b])
-        array_set(bts_ + temp_space_off, 1.0, h_size);
+        array_set(ts_ + temp_space_off, 1.0, h_size);
         vSqr<data_type>(h_size,
               ws + tanc_space_off
                 + l * h_size + t * h_nlayer_size,
-              bts_ + temp_space_off
+              ts_ + temp_space_off
                 + h_size);
         vSub<data_type>(h_size,
-              bts_ + temp_space_off,
-              bts_ + temp_space_off
+              ts_ + temp_space_off,
+              ts_ + temp_space_off
                 + h_size,
-              bts_ + temp_space_off);
+              ts_ + temp_space_off);
         vMul<data_type>(h_size,
-              bts_ + temp_space_off,
+              ts_ + temp_space_off,
               ws + gates_space_off
                 + 2 * h_size + l * gates_size
                 + t * gates_nlayer_size,
-              bts_ + temp_space_off);
+              ts_ + temp_space_off);
         vMul<data_type>(h_size,
-              bts_ + temp_space_off,
-              bts_ + dhout_space_off
+              ts_ + temp_space_off,
+              ts_ + dhout_space_off
                 + l * h_size + t * h_nlayer_size,
-              bts_ + dc_space_off
+              ts_ + dc_space_off
                 + l * h_size + t * h_nlayer_size);
         // ws + temp_space_off);
         // vsAdd(h_size,
@@ -371,18 +370,18 @@ void gemm_rnn_bwd_t<data_type>::execute_backward() {
         //      trans(dcx[l,b,s]) = dC_space[0,l,s,b] * IFOGf_space[0,l,s2,b]
         if (t > 0) {
           vMul<data_type>(h_size,
-                bts_ + dc_space_off
+                ts_ + dc_space_off
                   + l * h_size + t * h_nlayer_size,
                 ws + c_space_off
                   + l * h_size + (t - 1) * h_nlayer_size,
-                bts_ + dgates_space_off
+                ts_ + dgates_space_off
                   + h_size + l * gates_size + t * gates_nlayer_size);
           vMul<data_type>(h_size,
                 ws + gates_space_off
                   + h_size + l * gates_size + t * gates_nlayer_size,
-                bts_ + dc_space_off
+                ts_ + dc_space_off
                   + l * h_size + t * h_nlayer_size,
-                bts_ + dc_space_off
+                ts_ + dc_space_off
                   + l * h_size + (t - 1) * h_nlayer_size);
         } else {
           omatcopy<data_type>('R', 'T',
@@ -390,24 +389,24 @@ void gemm_rnn_bwd_t<data_type>::execute_backward() {
                         1.0,
                         cx + l * h_size,
                         state_size,
-                        bts_ + temp_space_off,
+                        ts_ + temp_space_off,
                         batch_size);
           vMul<data_type>(h_size,
-                bts_ + dc_space_off
+                ts_ + dc_space_off
                   + l * h_size,
-                bts_ + temp_space_off,
-                bts_ + dgates_space_off
+                ts_ + temp_space_off,
+                ts_ + dgates_space_off
                   + h_size + l * gates_size);
           vMul<data_type>(h_size,
                 ws + gates_space_off
                   + h_size + l * gates_size,
-                bts_ + dc_space_off
+                ts_ + dc_space_off
                   + l * h_size,
-                bts_ + temp_space_off);
+                ts_ + temp_space_off);
           omatcopy<data_type>('R', 'T',
                         state_size, batch_size,
                         1.0,
-                        bts_ + temp_space_off,
+                        ts_ + temp_space_off,
                         batch_size,
                         dcx + l * h_size,
                         state_size);
@@ -419,9 +418,9 @@ void gemm_rnn_bwd_t<data_type>::execute_backward() {
               ws + gates_space_off
                 + 3 * h_size + l * gates_size
                 + t * gates_nlayer_size,
-              bts_ + dc_space_off
+              ts_ + dc_space_off
                 + l * h_size + t * h_nlayer_size,
-              bts_ + dgates_space_off
+              ts_ + dgates_space_off
                 + l * gates_size
                 + t * gates_nlayer_size);
 
@@ -430,9 +429,9 @@ void gemm_rnn_bwd_t<data_type>::execute_backward() {
         vMul<data_type>(h_size,
               ws + gates_space_off
                 + l * gates_size + t * gates_nlayer_size,
-              bts_ + dc_space_off
+              ts_ + dc_space_off
                 + l * h_size + t * h_nlayer_size,
-              bts_ + dgates_space_off
+              ts_ + dgates_space_off
                 + 3 * h_size + l * gates_size
                 + t * gates_nlayer_size);
 
@@ -442,19 +441,19 @@ void gemm_rnn_bwd_t<data_type>::execute_backward() {
               ws + gates_space_off
                 + 3 * h_size + l * gates_size
                 + t * gates_nlayer_size,
-              bts_ + temp_space_off);
+              ts_ + temp_space_off);
         vMul<data_type>(h_size,
-              bts_ + temp_space_off,
-              bts_ + dgates_space_off
+              ts_ + temp_space_off,
+              ts_ + dgates_space_off
                 + 3 * h_size + l * gates_size
                 + t * gates_nlayer_size,
-              bts_ + temp_space_off);
+              ts_ + temp_space_off);
         vSub<data_type>(h_size,
-              bts_ + dgates_space_off
+              ts_ + dgates_space_off
                 + 3 * h_size + l * gates_size
                 + t * gates_nlayer_size,
-              bts_ + temp_space_off,
-              bts_ + dgates_space_off
+              ts_ + temp_space_off,
+              ts_ + dgates_space_off
                 + 3 * h_size + l * gates_size
                 + t * gates_nlayer_size);
 
@@ -462,22 +461,22 @@ void gemm_rnn_bwd_t<data_type>::execute_backward() {
         //      df'[t] = df[t] * f[t] * (1-f[t])
         //      do'[t] = do[t] * o[t] * (1-o[t])
         // Impl: dIFOGf[t,l,s1-3,b] = dIFOGf[t,l,s1-3,b] * IFOGf[t,l,s1-3,b] * (1-IFOGf[t,l,s1-3,b])
-        array_set(bts_ + temp_space_off, 1.0, h_size * 3);
+        array_set(ts_ + temp_space_off, 1.0, h_size * 3);
         vSub<data_type>(h_size * 3,
-              bts_ + temp_space_off,
+              ts_ + temp_space_off,
               ws + gates_space_off
                 + l * gates_size + t * gates_nlayer_size,
-              bts_ + temp_space_off);
+              ts_ + temp_space_off);
         vMul<data_type>(h_size * 3,
               ws + gates_space_off
                 + l * gates_size + t * gates_nlayer_size,
-              bts_ + temp_space_off,
-              bts_ + temp_space_off);
+              ts_ + temp_space_off,
+              ts_ + temp_space_off);
         vMul<data_type>(h_size * 3,
-              bts_ + dgates_space_off
+              ts_ + dgates_space_off
                 + l * gates_size + t * gates_nlayer_size,
-              bts_ + temp_space_off,
-              bts_ + dgates_space_off
+              ts_ + temp_space_off,
+              ts_ + dgates_space_off
                 + l * gates_size + t * gates_nlayer_size);
 
         if ((t > 0) && (l > 0)) {
@@ -488,7 +487,7 @@ void gemm_rnn_bwd_t<data_type>::execute_backward() {
                         ws + hout_space_off
                           + (l - 1) * h_size + t * h_nlayer_size,
                         batch_size,
-                        bts_ + temp_space_off,
+                        ts_ + temp_space_off,
                         batch_size);
           omatcopy<data_type>('R', 'N',
                         state_size, batch_size,
@@ -496,9 +495,9 @@ void gemm_rnn_bwd_t<data_type>::execute_backward() {
                         ws + hout_space_off
                           + l * h_size + (t - 1) * h_nlayer_size,
                         batch_size,
-                        bts_ + temp_space_off + h_size,
+                        ts_ + temp_space_off + h_size,
                         batch_size);
-          array_set(bts_ + temp_space_off
+          array_set(ts_ + temp_space_off
                       + 2 * h_size, 1.0, 2 * batch_size);
         } else if ((t == 0) && (l > 0)) {
           // HinX
@@ -508,16 +507,16 @@ void gemm_rnn_bwd_t<data_type>::execute_backward() {
                         ws + hout_space_off
                           + (l - 1) * h_size,
                         batch_size,
-                        bts_ + temp_space_off,
+                        ts_ + temp_space_off,
                         batch_size);
           omatcopy<data_type>('R', 'T',
                         batch_size, state_size,
                         1.0,
                         hx + l * h_size,
                         state_size,
-                        bts_ + temp_space_off + h_size,
+                        ts_ + temp_space_off + h_size,
                         batch_size);
-          array_set(bts_ + temp_space_off
+          array_set(ts_ + temp_space_off
             + 2 * h_size, 1.0, 2 * batch_size);
         } else if ((l == 0) && (t > 0)) {
           // Hin1
@@ -526,7 +525,7 @@ void gemm_rnn_bwd_t<data_type>::execute_backward() {
                         1.0,
                         x + t * x_size,
                         input_size,
-                        bts_ + temp_space_off,
+                        ts_ + temp_space_off,
                         batch_size);
           omatcopy<data_type>('R', 'N',
                         state_size, batch_size,
@@ -534,9 +533,9 @@ void gemm_rnn_bwd_t<data_type>::execute_backward() {
                         ws + hout_space_off
                           + (t - 1) * h_nlayer_size,
                         batch_size,
-                        bts_ + temp_space_off + x_size,
+                        ts_ + temp_space_off + x_size,
                         batch_size);
-          array_set(bts_ + temp_space_off
+          array_set(ts_ + temp_space_off
                       + (input_size + state_size) * batch_size,
                       1.0, 2 * batch_size);
         } else {
@@ -546,16 +545,16 @@ void gemm_rnn_bwd_t<data_type>::execute_backward() {
                         1.0,
                         x,
                         input_size,
-                        bts_ + temp_space_off,
+                        ts_ + temp_space_off,
                         batch_size);
           omatcopy<data_type>('R', 'T',
                         batch_size, state_size,
                         1.0,
                         hx,
                         state_size,
-                        bts_ + temp_space_off + x_size,
+                        ts_ + temp_space_off + x_size,
                         batch_size);
-          array_set(bts_ + temp_space_off
+          array_set(ts_ + temp_space_off
                       + (input_size + state_size) * batch_size,
                       1.0, 2 * batch_size);
         }
@@ -571,9 +570,9 @@ void gemm_rnn_bwd_t<data_type>::execute_backward() {
         cblas_gemm<data_type>(CblasRowMajor, CblasNoTrans, CblasTrans,
                     mp, 4 * state_size, batch_size,
                     1.0,
-                    bts_ + temp_space_off,
+                    ts_ + temp_space_off,
                     batch_size,
-                    bts_ + dgates_space_off
+                    ts_ + dgates_space_off
                       + l * gates_size + t * gates_nlayer_size,
                     batch_size,
                     1.0,
@@ -586,26 +585,26 @@ void gemm_rnn_bwd_t<data_type>::execute_backward() {
                       1.0,
                       w + woffset,
                       4 * state_size,
-                      bts_ + dgates_space_off
+                      ts_ + dgates_space_off
                         + l * gates_size + t * gates_nlayer_size,
                       batch_size,
                       0.0,
-                      bts_ + temp_space_off,
+                      ts_ + temp_space_off,
                       batch_size);
           omatcopy<data_type>('R', 'N',
             state_size, batch_size,
             1.0,
-            bts_ + temp_space_off,
+            ts_ + temp_space_off,
             batch_size,
-            bts_ + dhout_space_off
+            ts_ + dhout_space_off
               + (l - 1)*h_size + t*h_nlayer_size,
             batch_size);
           omatcopy<data_type>('R', 'N',
             state_size, batch_size,
             1.0,
-            bts_ + temp_space_off + h_size,
+            ts_ + temp_space_off + h_size,
             batch_size,
-            bts_ + dhout_space_off
+            ts_ + dhout_space_off
               + l * h_size + (t - 1) * h_nlayer_size,
             batch_size);
         } else if ((l == 0) && (t > 0)) {
@@ -614,25 +613,25 @@ void gemm_rnn_bwd_t<data_type>::execute_backward() {
             1.0,
             w + woffset,
             4 * state_size,
-            bts_ + dgates_space_off
+            ts_ + dgates_space_off
               + l * gates_size + t * gates_nlayer_size,
             batch_size,
             0.0,
-            bts_ + temp_space_off,
+            ts_ + temp_space_off,
             batch_size);
           omatcopy<data_type>('R', 'T',
             input_size, batch_size,
             1.0,
-            bts_ + temp_space_off,
+            ts_ + temp_space_off,
             batch_size,
             dx + t * x_size,
             input_size);
           omatcopy<data_type>('R', 'N',
             state_size, batch_size,
             1.0,
-            bts_ + temp_space_off + input_size * batch_size,
+            ts_ + temp_space_off + input_size * batch_size,
             batch_size,
-            bts_ + dhout_space_off
+            ts_ + dhout_space_off
               + (t - 1) * h_nlayer_size,
             batch_size);
          } else if ((t == 0) && (l > 0)) {
@@ -641,24 +640,24 @@ void gemm_rnn_bwd_t<data_type>::execute_backward() {
                       1.0,
                       w + woffset,
                       4 * state_size,
-                      bts_ + dgates_space_off
+                      ts_ + dgates_space_off
                         + l * gates_size + t * gates_nlayer_size,
                       batch_size,
                       0.0,
-                      bts_ + temp_space_off,
+                      ts_ + temp_space_off,
                       batch_size);
           omatcopy<data_type>('R', 'N',
             state_size, batch_size,
             1.0,
-            bts_ + temp_space_off,
+            ts_ + temp_space_off,
             batch_size,
-            bts_ + dhout_space_off
+            ts_ + dhout_space_off
               + (l - 1)*h_size + t*h_nlayer_size,
             batch_size);
           omatcopy<data_type>('R', 'T',
             state_size, batch_size,
             1.0,
-            bts_ + temp_space_off + h_size,
+            ts_ + temp_space_off + h_size,
             batch_size,
             dhx + l * h_size,
             state_size);
@@ -668,23 +667,23 @@ void gemm_rnn_bwd_t<data_type>::execute_backward() {
             1.0,
             w + woffset,
             4 * state_size,
-            bts_ + dgates_space_off
+            ts_ + dgates_space_off
               + l * gates_size + t * gates_nlayer_size,
             batch_size,
             0.0,
-            bts_ + temp_space_off,
+            ts_ + temp_space_off,
             batch_size);
           omatcopy<data_type>('R', 'T',
             input_size, batch_size,
             1.0,
-            bts_ + temp_space_off,
+            ts_ + temp_space_off,
             batch_size,
             dx + t * x_size,
             input_size);
           omatcopy<data_type>('R', 'T',
             state_size, batch_size,
             1.0,
-            bts_ + temp_space_off + input_size * batch_size,
+            ts_ + temp_space_off + input_size * batch_size,
             batch_size,
             dhx + l * h_size,
             state_size);

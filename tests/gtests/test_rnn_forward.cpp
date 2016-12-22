@@ -352,6 +352,9 @@ protected:
         delete [] cy_data;
         delete [] weights_data;
         delete [] workspace_data;
+        delete [] ref_y_data;
+        delete [] ref_hy_data;
+        delete [] ref_cy_data;
     }
 };
 

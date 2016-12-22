@@ -142,20 +142,10 @@ struct rnn_fwd_pd_t: public primitive_desc_t {
     inline size_t Gates_space_size() const { return Gates_nlayer_size() * Tau(); }
     inline size_t Hout_space_size() const { return H_nlayer_size() * Tau(); }
     inline size_t C_space_size() const { return Hout_space_size(); }
-    inline size_t Temp_size() const {
-        size_t tmp1 = (Input_size() > Hidden_size()) ? Input_size() : Hidden_size() 
-                + Hidden_size() + 2;
-        size_t tmp2 = Hidden_size() * Gates_num();
-        if (tmp1 > tmp2) {
-            return tmp1 * Batch();
-        } else {
-            return tmp2 * Batch();
-        }
-    }
-    inline size_t Workspace_size() const { 
+    inline size_t Workspace_size() const {
         return Gates_space_size()
             + Hout_space_size()
-            + 2 * C_space_size();
+            + C_space_size();
     }
 
 protected:
@@ -282,16 +272,6 @@ struct rnn_bwd_pd_t: public primitive_desc_t {
     inline size_t Gates_space_size() const { return Gates_nlayer_size() * Tau(); }
     inline size_t Hout_space_size() const { return H_nlayer_size() * Tau(); }
     inline size_t C_space_size() const { return Hout_space_size(); }
-    inline size_t Temp_size() const {
-        size_t tmp1 = (Input_size() > Hidden_size()) ? Input_size() : Hidden_size() 
-                + Hidden_size() + 2;
-        size_t tmp2 = Hidden_size() * Gates_num();
-        if (tmp1 > tmp2) {
-            return tmp1 * Batch();
-        } else {
-            return tmp2 * Batch();
-        }
-    }
     inline size_t Workspace_size() const { 
         return Gates_space_size()
             + Hout_space_size()

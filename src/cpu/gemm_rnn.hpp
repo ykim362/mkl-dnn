@@ -135,14 +135,18 @@ struct gemm_rnn_bwd_t: public cpu_primitive_t {
 
     gemm_rnn_bwd_t(const pd_t *pd, const input_vector &inputs,
             const output_vector &outputs)
-        : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd), bts_(nullptr) {
-            auto bts_size_ = conf_.Temp_size()
+        : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd), ts_(nullptr) {
+            auto bsize = (conf_.Input_size() > conf_.Hidden_size()) ? conf_.Input_size() : conf_.Hidden_size();
+            auto tmp1 = bsize + conf_.Hidden_size() + 2;
+            auto tmp2 = conf_.Hidden_size() * 4;
+            auto btmp = (tmp1 > tmp2) ? tmp1 : tmp2;
+             auto ts_size_ = btmp * conf_.Batch()
                 + conf_.Gates_space_size()
                 + conf_.Hout_space_size()
                 +conf_.C_space_size();
-            bts_ = new data_t[bts_size_];
+            ts_ = new data_t[ts_size_];
         }
-    ~gemm_rnn_bwd_t() { if (bts_) delete [] bts_; }
+    ~gemm_rnn_bwd_t() { if (ts_) delete [] ts_; }
 
     typedef typename prec_trait<data_type>::type data_t;
 
@@ -162,7 +166,7 @@ struct gemm_rnn_bwd_t: public cpu_primitive_t {
 private:
     void execute_backward();
     pd_t conf_;
-    data_t *bts_;
+    data_t *ts_;
 };
 
 }
