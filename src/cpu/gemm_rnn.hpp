@@ -18,7 +18,6 @@
 #define CPU_GEMM_RNN_FWD_HPP
 
 #include <assert.h>
-
 #include "c_types_map.hpp"
 #include "cpu_rnn_pd.hpp"
 #include "cpu_engine.hpp"
@@ -56,9 +55,8 @@ struct gemm_rnn_fwd_t: public cpu_primitive_t {
             if (!ok) return status::unimplemented;
             auto ws_size = static_cast<int>(Workspace_size());
             memory_desc_t ws_d;
-            mkldnn_memory_desc_init(&ws_d, 1, &ws_size, data_type, mkldnn_any);
+            mkldnn_memory_desc_init(&ws_d, 1, { &ws_size }, data_type, memory_format::x);
             ws_pd_ = cpu_memory_pd_t(this->engine(), &ws_d);
-
             return status::success;
 #else
         return status::unimplemented;
@@ -69,8 +67,10 @@ struct gemm_rnn_fwd_t: public cpu_primitive_t {
     gemm_rnn_fwd_t(const pd_t *pd, const input_vector &inputs,
             const output_vector &outputs)
         : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd), fts_(nullptr) {
+            using namespace mkldnn::impl::utils;
             auto ts_size_ = conf_.Temp_size();
             fts_ = new data_t[ts_size_];
+            array_set(fts_, 0.0, ts_size_);
         }
     ~gemm_rnn_fwd_t() { if (fts_) delete [] fts_; }
 
@@ -120,9 +120,8 @@ struct gemm_rnn_bwd_t: public cpu_primitive_t {
             if (!ok) return status::unimplemented;
             auto ws_size = static_cast<int>(Workspace_size());
             memory_desc_t ws_d;
-            mkldnn_memory_desc_init(&ws_d, 1, &ws_size, data_type, mkldnn_any);
+            mkldnn_memory_desc_init(&ws_d, 1, { &ws_size }, data_type, memory_format::x);
             ws_pd_ = cpu_memory_pd_t(this->engine(), &ws_d);
-
             return status::success;
 #else
         return status::unimplemented;

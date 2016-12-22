@@ -14,6 +14,7 @@
 * limitations under the License.
 *******************************************************************************/
 
+#include <iostream>
 #include "c_types_map.hpp"
 #include "type_helpers.hpp"
 
@@ -76,6 +77,7 @@ void gemm_rnn_fwd_t<data_type>::execute_forward() {
     const size_t c_space_off = ws_d.blk_off(hout_space_off + hout_space_size);
     const size_t tanc_space_off = ws_d.blk_off(c_space_off + c_space_size);
 
+    array_set(ws, 0, conf_.Workspace_size());
     for (size_t t = 0; t < seq_length; t++) {
       for (size_t l = 0; l < num_layers; l++) {
         // Hin
@@ -112,7 +114,7 @@ void gemm_rnn_fwd_t<data_type>::execute_forward() {
                 fts_,
                 batch_size);
             omatcopy<data_type>('R', 'N', state_size, batch_size, 1.0,
-                ws + hout_space_off + t * h_nlayer_size,
+                ws + hout_space_off + (t - 1) * h_nlayer_size,
                 batch_size,
                 fts_ + x_size,
                 batch_size);
@@ -133,22 +135,41 @@ void gemm_rnn_fwd_t<data_type>::execute_forward() {
                 1.0, 2 * batch_size);
         }
 
+int x = (l == 0) ? input_size : state_size;
+std::cout << "GEMM Hin is ";
+for(int i=0; i< (x+state_size+2)*batch_size; i++)
+    std::cout << fts_[i] << " ";
+std::cout << std::endl;
+
+
         size_t w_base_offset = 0;
         if (l > 0) {
           w_base_offset = w1_size + (l - 1) * wx_size;
         }
         size_t in_size = (l == 0) ? input_size : state_size;
+
+std::cout << "GEMM Weight is ";
+for(int i=0; i< (x+state_size+2)*batch_size*4; i++)
+    std::cout << w[w_base_offset + i] << " ";
+std::cout << std::endl;
+        
         cblas_gemm<data_type>(CblasRowMajor, CblasTrans, CblasNoTrans,
-                4 * state_size, batch_size,
-                in_size + state_size + 2,
+                static_cast<int>(4 * state_size), static_cast<int>(batch_size),
+                static_cast<int>(in_size + state_size + 2),
                 1.0,
                 w + w_base_offset,
-                4 * state_size,
+                static_cast<int>(4 * state_size),
                 fts_,
-                batch_size,
-                1.0,
+                static_cast<int>(batch_size),
+                0.0,
                 ws + gates_space_off + l * gates_size + t * gates_nlayer_size,
-                batch_size);
+                static_cast<int>(batch_size));
+
+std::cout << "GEMM Gates is "; 
+for (int i=0; i< (2*state_size + 2) * 2; i++) {
+    std::cout << ws[gates_space_off + l * gates_size + t * gates_nlayer_size + i] << " ";
+}
+std::cout << std::endl;
 
         // sigmoid
         cblas_scal<data_type>(3 * h_size, -1.0,

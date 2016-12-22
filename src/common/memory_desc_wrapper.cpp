@@ -204,6 +204,15 @@ status_t fill_gOIhw8o8i(memory_desc_t &md) {
     return fill_contiguous_blocked(md, block_dims, perm);
 }
 
+#ifdef MKLDNN_RNN
+status_t fill_rnx(memory_desc_t &md) {
+    if (md.ndims != 3) return invalid_arguments;
+
+    const int perm[3] = {0, 1, 2};
+    return fill_nonblocked(md, perm);
+}
+#endif
+
 }
 
 status_t memory_desc_wrapper::compute_blocking(memory_desc_t &memory_desc)
@@ -224,6 +233,9 @@ status_t memory_desc_wrapper::compute_blocking(memory_desc_t &memory_desc)
     case goihw: return fill_goihw(memory_desc);
     case gOIhw8i8o: return fill_gOIhw8i8o(memory_desc);
     case gOIhw8o8i: return fill_gOIhw8o8i(memory_desc);
+#ifdef MKLDNN_RNN
+    case rnx: return fill_rnx(memory_desc);
+#endif
     default: break;
     }
 

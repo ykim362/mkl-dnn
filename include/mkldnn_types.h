@@ -142,7 +142,7 @@ typedef enum {
     mkldnn_oIhw8i = mkldnn_nChw8c,
 #ifdef MKLDNN_RNN
     /** 3D RNN input, output tensor in the @c rnx format (recurrence, batch, inputs). */
-    mkldnn_rnx,
+    mkldnn_rnx = 100,
 #endif // MKLDNN_RNN    
 } mkldnn_memory_format_t;
 

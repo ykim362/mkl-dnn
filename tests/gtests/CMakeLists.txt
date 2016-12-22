@@ -21,6 +21,7 @@ set(MAIN_SRC_GTEST main.cpp)
 include_directories(${CMAKE_SOURCE_DIR}/include)
 include_directories(${CMAKE_SOURCE_DIR}/tests/gtests
                     ${CMAKE_SOURCE_DIR}/tests/gtests/gtest
+                    ${CMAKE_SOURCE_DIR}/src/common
                     )
 include_directories(${CMAKE_SOURCE_DIR}/tests/gtests/in)
 # TODO: enable me!
@@ -42,6 +43,7 @@ file(GLOB PRIM_TEST_CASES_SRC RELATIVE ${CMAKE_SOURCE_DIR}/tests/gtests
                               test_inner_product_forward.cpp
                               test_inner_product_backward_data.cpp
                               test_inner_product_backward_weights.cpp
+                              test_rnn_forward.cpp
                               test_convolution_format_any.cpp
                               test_convolution_forward.cpp
                               test_convolution_relu_forward.cpp

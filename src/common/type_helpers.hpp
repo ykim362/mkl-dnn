@@ -51,8 +51,14 @@ inline size_t data_type_size(data_type_t data_type) {
 
 inline memory_format_t format_normalize(const memory_format_t fmt) {
     using namespace memory_format;
+#ifndef MKLDNN_RNN
     if (utils::one_of(fmt, x, nc, nchw, nhwc, nChw8c, oi, oihw, OIhw8i8o,
                 OIhw8o8i, Ohwi8o, goihw, gOIhw8i8o, gOIhw8o8i)) return blocked;
+#else
+    if (utils::one_of(fmt, x, nc, nchw, nhwc, nChw8c, oi, oihw, OIhw8i8o,
+                OIhw8o8i, Ohwi8o, goihw, gOIhw8i8o, gOIhw8o8i, rnx)) return blocked;
+
+#endif
     return fmt;
 }
 
