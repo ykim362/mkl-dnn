@@ -312,8 +312,8 @@ protected:
         auto l_hx = memory(hx_primitive_desc, hx_data);
         auto l_cx = memory(cx_primitive_desc, cx_data);
         auto l_y = memory(y_primitive_desc, y_data);
-        auto l_hy = memory(x_primitive_desc, hy_data);
-        auto l_cy = memory(x_primitive_desc, cy_data);
+        auto l_hy = memory(hy_primitive_desc, hy_data);
+        auto l_cy = memory(cy_primitive_desc, cy_data);
         auto l_weights = memory(weights_primitive_desc, weights_data);
         auto l_ws = memory(workspace_primitive_desc, workspace_data);
 
