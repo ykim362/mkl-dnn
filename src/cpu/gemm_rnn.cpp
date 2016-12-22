@@ -50,18 +50,13 @@ void gemm_rnn_fwd_t<data_type>::execute_forward() {
     auto cy = reinterpret_cast<data_t*>(this->memory(2));
     auto ws = reinterpret_cast<data_t*>(this->memory(3));
 
-// ws = gates_space + Hout_space + C_space + tanC_space
-
     const size_t seq_length = conf_.Tau();
     const size_t num_layers = conf_.Layers();
     const size_t batch_size = conf_.Batch();
     const size_t input_size = conf_.Input_size();
     const size_t state_size = conf_.Hidden_size();
-    // const int direct = conf_.Direction();
-    // const int gates_num = conf_.Gates_num();
     const size_t w1_size = conf_.W1_size();
     const size_t wx_size = conf_.Wx_size();
-    // const size_t total_param_size = conf_.Total_param_size();
     const size_t h_size = conf_.H_size();
     const size_t x_size = conf_.X_size();
     const size_t h_nlayer_size = conf_.H_nlayer_size();
@@ -85,73 +80,61 @@ void gemm_rnn_fwd_t<data_type>::execute_forward() {
             omatcopy<data_type>('R', 'T', batch_size, input_size, 1.0,
                 x,
                 input_size,
-                fts_,
+                ts_,
                 batch_size);
             omatcopy<data_type>('R', 'T', batch_size, state_size, 1.0,
                 hx,
                 state_size,
-                fts_ + x_size,
+                ts_ + x_size,
                 batch_size);
-            array_set(fts_ + x_size + h_size,
+            array_set(ts_ + x_size + h_size,
                 1.0, 2 * batch_size);
         } else if (t == 0 && l > 0) {
             omatcopy<data_type>('R', 'N', state_size, batch_size, 1.0,
                 ws + hout_space_off + (l - 1) * h_size,
                 batch_size,
-                fts_,
+                ts_,
                 batch_size);
             omatcopy<data_type>('R', 'T', batch_size, state_size, 1.0,
                 hx + l * h_size,
                 state_size,
-                fts_ + x_size,
+                ts_ + x_size,
                 batch_size);
-            array_set(fts_ + x_size + h_size,
+            array_set(ts_ + x_size + h_size,
                 1.0, 2 * batch_size);
         } else if (t > 0 && l == 0) {
             omatcopy<data_type>('R', 'T', batch_size, input_size, 1.0,
                 x + t * x_size,
                 input_size,
-                fts_,
+                ts_,
                 batch_size);
             omatcopy<data_type>('R', 'N', state_size, batch_size, 1.0,
                 ws + hout_space_off + (t - 1) * h_nlayer_size,
                 batch_size,
-                fts_ + x_size,
+                ts_ + x_size,
                 batch_size);
-            array_set(fts_ + x_size + h_size,
+            array_set(ts_ + x_size + h_size,
                 1.0, 2 * batch_size);
         } else if (t > 0 && l > 0) {
             omatcopy<data_type>('R', 'N', state_size, batch_size, 1.0,
                 ws + hout_space_off + (l - 1) * h_size + t * h_nlayer_size,
                 batch_size,
-                fts_,
+                ts_,
                 batch_size);
             omatcopy<data_type>('R', 'N', state_size, batch_size, 1.0,
                 ws + hout_space_off + l * h_size + (t - 1) * h_nlayer_size,
                 batch_size,
-                fts_ + x_size,
+                ts_ + x_size,
                 batch_size);
-            array_set(fts_ + x_size + h_size,
+            array_set(ts_ + x_size + h_size,
                 1.0, 2 * batch_size);
         }
-
-int x = (l == 0) ? input_size : state_size;
-std::cout << "GEMM Hin is ";
-for(int i=0; i< (x+state_size+2)*batch_size; i++)
-    std::cout << fts_[i] << " ";
-std::cout << std::endl;
-
 
         size_t w_base_offset = 0;
         if (l > 0) {
           w_base_offset = w1_size + (l - 1) * wx_size;
         }
         size_t in_size = (l == 0) ? input_size : state_size;
-
-std::cout << "GEMM Weight is ";
-for(int i=0; i< (x+state_size+2)*batch_size*4; i++)
-    std::cout << w[w_base_offset + i] << " ";
-std::cout << std::endl;
         
         cblas_gemm<data_type>(CblasRowMajor, CblasTrans, CblasNoTrans,
                 static_cast<int>(4 * state_size), static_cast<int>(batch_size),
@@ -159,17 +142,11 @@ std::cout << std::endl;
                 1.0,
                 w + w_base_offset,
                 static_cast<int>(4 * state_size),
-                fts_,
+                ts_,
                 static_cast<int>(batch_size),
                 0.0,
                 ws + gates_space_off + l * gates_size + t * gates_nlayer_size,
                 static_cast<int>(batch_size));
-
-std::cout << "GEMM Gates is "; 
-for (int i=0; i< (2*state_size + 2) * 2; i++) {
-    std::cout << ws[gates_space_off + l * gates_size + t * gates_nlayer_size + i] << " ";
-}
-std::cout << std::endl;
 
         // sigmoid
         cblas_scal<data_type>(3 * h_size, -1.0,
@@ -177,14 +154,14 @@ std::cout << std::endl;
         vExp<data_type>(3 * h_size,
             ws + gates_space_off + l * gates_size + t * gates_nlayer_size,
             ws + gates_space_off + l * gates_size + t * gates_nlayer_size);
-        array_set(fts_,
+        array_set(ts_,
                     1.0, 3 * h_size);
         vAdd<data_type>(3 * h_size,
             ws + gates_space_off + l * gates_size + t * gates_nlayer_size,
-            fts_,
+            ts_,
             ws + gates_space_off + l * gates_size + t * gates_nlayer_size);
         vDiv<data_type>(3 * h_size,
-          fts_,
+          ts_,
           ws + gates_space_off + l * gates_size + t * gates_nlayer_size,
           ws + gates_space_off + l * gates_size + t * gates_nlayer_size);
 
@@ -206,25 +183,23 @@ std::cout << std::endl;
               ws + c_space_off + l * h_size + t * h_nlayer_size);
         }
 
-        // tanh(ff: emission gate) * it
+        // tanh(gt) * it
         vMul<data_type>(h_size,
               ws + gates_space_off + l * gates_size + t * gates_nlayer_size,
               ws + gates_space_off + l * gates_size + t * gates_nlayer_size + 3 * h_size,
               ws + tanc_space_off + l * h_size + t * h_nlayer_size);
 
-        // Ct=ft*Ct-1 + Tanh(ff)*It
+        // Ct=ft*Ct-1 + Tanh(gt)*It
         vAdd<data_type>(h_size,
             ws + c_space_off + l * h_size + t * h_nlayer_size,
             ws + tanc_space_off + l * h_size + t * h_nlayer_size,
             ws + c_space_off + l * h_size + t * h_nlayer_size);
 
-        // tanh(C)
+        // h_t = ot * tan(ct)
         vTanh<data_type>(h_size,
             ws + c_space_off + l * h_size + t * h_nlayer_size,
             ws + tanc_space_off + l * h_size + t * h_nlayer_size);
 
-        // h_t
-        //     int og_offset = 2 * state_size;
         vMul<data_type>(h_size,
             ws + gates_space_off + l * gates_size + t * gates_nlayer_size + 2 * h_size,
             ws + tanc_space_off + l * h_size + t * h_nlayer_size,
@@ -241,12 +216,14 @@ std::cout << std::endl;
         }
 
         if (t == (seq_length - 1)) {
+            if (y != nullptr)
             omatcopy<data_type>('R', 'T', state_size, batch_size, 1.0,
                           ws + hout_space_off +
                           (seq_length - 1) * h_nlayer_size + l * h_size,
                           batch_size,
                           hy + l * h_size,
                           state_size);
+            if (cy != nullptr)
             omatcopy<data_type>('R', 'T', state_size, batch_size, 1.0,
                           ws + c_space_off +
                           (seq_length - 1) * h_nlayer_size + l * h_size,
@@ -254,7 +231,6 @@ std::cout << std::endl;
                           cy + l * h_size,
                           state_size);
           }
-
         }
       }
 #endif
@@ -276,9 +252,6 @@ void gemm_rnn_bwd_t<data_type>::execute_backward() {
     auto dhx = reinterpret_cast<data_t*>(this->memory(1));
     auto dcx = reinterpret_cast<data_t*>(this->memory(2));
     auto dw = reinterpret_cast<data_t*>(this->memory(3));
-
-// ws = gates_space + Hout_space + C_space + tanC_space
-// bts = dgates_space + dHout_space + dC_space + temp_space 
 
     const size_t seq_length = conf_.Tau();
     const size_t num_layers = conf_.Layers();

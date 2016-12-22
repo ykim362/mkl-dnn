@@ -66,13 +66,17 @@ struct gemm_rnn_fwd_t: public cpu_primitive_t {
 
     gemm_rnn_fwd_t(const pd_t *pd, const input_vector &inputs,
             const output_vector &outputs)
-        : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd), fts_(nullptr) {
+        : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd), ts_(nullptr) {
             using namespace mkldnn::impl::utils;
-            auto ts_size_ = conf_.Temp_size();
-            fts_ = new data_t[ts_size_];
-            array_set(fts_, 0.0, ts_size_);
+            auto bsize = (conf_.Input_size() > conf_.Hidden_size()) ? conf_.Input_size() : conf_.Hidden_size();
+            auto tmp1 = bsize + conf_.Hidden_size() + 2;
+            auto tmp2 = conf_.Hidden_size() * 4;
+            auto btmp = (tmp1 > tmp2) ? tmp1 : tmp2;
+            auto ts_size_ = btmp * conf_.Batch();
+            ts_ = new data_t[ts_size_];
+            array_set(ts_, 0.0, ts_size_);
         }
-    ~gemm_rnn_fwd_t() { if (fts_) delete [] fts_; }
+    ~gemm_rnn_fwd_t() { if (ts_) delete [] ts_; }
 
     typedef typename prec_trait<data_type>::type data_t;
 
@@ -91,7 +95,7 @@ struct gemm_rnn_fwd_t: public cpu_primitive_t {
 private:
     void execute_forward();
     pd_t conf_;
-    data_t *fts_;
+    data_t *ts_;
 };
 
 template <impl::data_type_t data_type>
