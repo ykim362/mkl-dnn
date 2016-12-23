@@ -43,7 +43,7 @@ status_t rnn_desc_init(rnn_desc_t *rnn_desc,
         const memory_desc_t *weights_desc) {
     bool args_ok = true
         && one_of(prop_kind, forward_training, forward_inference,
-                backward, backward_data, backward_weights)
+                backward)
         && one_of(alg_kind, rnn_lstm, rnn_gru, rnn_relu, rnn_tanh)
         && one_of(direction, rnn_unidirectional, rnn_bidirectional)
         && one_of(input_mode, rnn_linear_input, rnn_skip_input)

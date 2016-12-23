@@ -74,7 +74,6 @@ struct gemm_rnn_fwd_t: public cpu_primitive_t {
             auto btmp = (tmp1 > tmp2) ? tmp1 : tmp2;
             auto ts_size_ = btmp * conf_.Batch();
             ts_ = new data_t[ts_size_];
-            array_set(ts_, 0.0, ts_size_);
         }
     ~gemm_rnn_fwd_t() { if (ts_) delete [] ts_; }
 
@@ -129,13 +128,14 @@ struct gemm_rnn_bwd_t: public cpu_primitive_t {
             return status::success;
 #else
         return status::unimplemented;
-#endif // USE_CBLAS
+#endif // defined(USE_CBLAS) && defined(USE_TRANS) && defined(USE_VML)
         }
     };
 
     gemm_rnn_bwd_t(const pd_t *pd, const input_vector &inputs,
             const output_vector &outputs)
         : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd), ts_(nullptr) {
+            using namespace mkldnn::impl::utils;
             auto bsize = (conf_.Input_size() > conf_.Hidden_size()) ? conf_.Input_size() : conf_.Hidden_size();
             auto tmp1 = bsize + conf_.Hidden_size() + 2;
             auto tmp2 = conf_.Hidden_size() * 4;
@@ -153,8 +153,6 @@ struct gemm_rnn_bwd_t: public cpu_primitive_t {
     virtual void execute(event_t *e) {
         switch (conf_.desc()->prop_kind) {
         case prop_kind::backward:
-        case prop_kind::backward_data:
-        case prop_kind::backward_weights:
             execute_backward();
             break;
         default:

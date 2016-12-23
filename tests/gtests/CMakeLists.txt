@@ -44,6 +44,7 @@ file(GLOB PRIM_TEST_CASES_SRC RELATIVE ${CMAKE_SOURCE_DIR}/tests/gtests
                               test_inner_product_backward_data.cpp
                               test_inner_product_backward_weights.cpp
                               test_rnn_forward.cpp
+                              test_rnn_backward.cpp
                               test_convolution_format_any.cpp
                               test_convolution_forward.cpp
                               test_convolution_relu_forward.cpp

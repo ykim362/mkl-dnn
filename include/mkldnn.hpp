@@ -2451,16 +2451,17 @@ struct rnn_backward : public primitive {
             const primitive::at &dhy,
             const primitive::at &dcy,
             const primitive::at &weights,
+            const primitive::at &workspace,
             const memory &dx,
             const memory &dhx,
             const memory &dcx,
-            const memory &workspace) {
+            const memory &dweights) {
         c_api::mkldnn_primitive_t result;
         c_api::mkldnn_primitive_at_t inputs[] = { x.data, hx.data, cx.data,
                                                 dy.data, dhy.data, dcy.data,
-                                                weights.data };
+                                                weights.data, workspace.data };
         c_api::const_mkldnn_primitive_t outputs[] = { dx.get(), dhx.get(), dcx.get(), 
-                                                workspace.get() };
+                                                dweights.get() };
         error::wrap_c_api(c_api::mkldnn_primitive_create(&result,
                     aprimitive_desc.get(), inputs, outputs),
                 "could not create an rnn backward primitive");

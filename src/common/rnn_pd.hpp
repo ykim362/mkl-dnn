@@ -275,7 +275,7 @@ struct rnn_bwd_pd_t: public primitive_desc_t {
     inline size_t Workspace_size() const { 
         return Gates_space_size()
             + Hout_space_size()
-            + 2 * C_space_size();
+            + C_space_size();
     }
 protected:
     rnn_desc_t desc_;

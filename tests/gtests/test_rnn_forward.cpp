@@ -77,10 +77,12 @@ inline void directcopy(const data_t *src, data_t *dst, const int M, const int N)
 }
 
 template <typename data_t>
-inline void gemm(const int transA, const int transB, const data_t *A, const data_t *B, data_t *C, const int M, const int N, const int K) {
+inline void gemm(const int transA, const int transB, const data_t *A, const data_t *B, data_t *C, const int M, const int N, const int K, const data_t beta) {
     int m, n, k;
-    for (m = 0; m< M*N; m++) {
-        C[m] = static_cast<data_t>(0.);
+    if (beta == 0) {
+        for (m = 0; m< M*N; m++) {
+            C[m] = static_cast<data_t>(0.);
+        }
     }
     for (k = 0; k < K; k++) {
         for (m = 0; m< M; m++) {
@@ -188,7 +190,7 @@ void compute_ref_lstm_fwd(const test_lstm_desc_t &ld,
             weights_ptr + w_base_offset, fts_,
             ws_ptr + gates_space_off + l * gates_size + t * gates_nlayer_size,
             4 * state_size, batch_size,
-            in_size + state_size + 2);
+            in_size + state_size + 2, 0);
         for(int h = 0; h < h_size; h++) {
             data_t it = ws_ptr[gates_space_off + l * gates_size + t * gates_nlayer_size + h];
             data_t ft = ws_ptr[gates_space_off + l * gates_size + t * gates_nlayer_size + h_size + h];
@@ -294,7 +296,6 @@ protected:
         auto weights_size = weights_primitive_desc.get_size();
         auto workspace_size = workspace_primitive_desc.get_size();
 
-        // TODO: free
         data_t *x_data = new data_t[x_size/sizeof(data_t)];
         data_t *hx_data = new data_t[hx_size/sizeof(data_t)];
         data_t *cx_data = new data_t[cx_size/sizeof(data_t)];
