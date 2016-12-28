@@ -15,7 +15,6 @@
 *******************************************************************************/
 
 #include <cmath>
-#include <cblas.h>
 #include "mkldnn_test_common.hpp"
 #include "gtest/gtest.h"
 

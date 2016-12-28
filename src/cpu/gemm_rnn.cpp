@@ -64,7 +64,6 @@ void gemm_rnn_fwd_t<data_type>::execute_forward() {
     const size_t gates_nlayer_size = conf_.Gates_nlayer_size();
     const size_t gates_space_size = conf_.Gates_space_size();
     const size_t hout_space_size = conf_.Hout_space_size();
-    const size_t c_space_size = conf_.C_space_size();
 
     const memory_desc_wrapper ws_d(conf_.workspace_pd());
     const size_t gates_space_off = ws_d.blk_off(0);

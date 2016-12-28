@@ -15,7 +15,6 @@
 *******************************************************************************/
 
 #include <cmath>
-#include <cblas.h>
 #include "mkldnn_test_common.hpp"
 #include "gtest/gtest.h"
 
@@ -479,15 +478,6 @@ protected:
         compare_data<data_t>(l_ref_dhx, l_dhx);
         compare_data<data_t>(l_ref_dcx, l_dcx);
         compare_data<data_t>(l_ref_dweights, l_dweights);
-
-        data_t *ref_dxdata = (data_t *)l_ref_dx.get_data_handle();
-        data_t *ref_dhxdata = (data_t *)l_ref_dhx.get_data_handle();
-        data_t *ref_dcxdata = (data_t *)l_ref_dcx.get_data_handle();
-        data_t *ref_dwdata = (data_t *)l_ref_dweights.get_data_handle();
-        data_t *dst_dxdata = (data_t *)l_dx.get_data_handle();
-        data_t *dst_dhxdata = (data_t *)l_dhx.get_data_handle();
-        data_t *dst_dcxdata = (data_t *)l_dcx.get_data_handle();
-        data_t *dst_dwdata = (data_t *)l_dweights.get_data_handle();
 
         delete [] x_data;
         delete [] hx_data;
