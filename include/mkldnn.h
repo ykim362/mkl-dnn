@@ -540,7 +540,6 @@ mkldnn_status_t MKLDNN_API mkldnn_convolution_relu_desc_init(
 
 /** @} */
 
-#ifdef MKLDNN_RNN
 /** @addtogroup c_api_rnn RNN (Including vanilla RNN, LSTM, GRU)
  * A primitive to compute RNN's inference only.
  * @{ */
@@ -583,7 +582,6 @@ mkldnn_status_t MKLDNN_API mkldnn_rnn_backward_desc_init(
         const mkldnn_memory_desc_t *weights_desc);
 
 /** @} */
-#endif // MKLDNN_RNN
 
 /** @} */
 

@@ -92,10 +92,8 @@ inline mkldnn::memory::desc create_md(mkldnn::memory::dims dims,
     case f::gOIhw8i8o:
     case f::gOIhw8o8i:
         ndims = 5; break;
-#ifdef MKLDNN_RNN
     case f::rnx:
         ndims = 3; break;
-#endif
     case f::format_undef:
         ndims = 0; break;
     case f::any:

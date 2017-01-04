@@ -41,7 +41,6 @@ set(FAIL_WITHOUT_MKL)
 
 if(HAVE_MKL)
     add_definitions(-DUSE_MKL -DUSE_CBLAS)
-    add_definitions(-DUSE_VML -DUSE_TRANS)
     include_directories(AFTER ${MKLINC})
     list(APPEND mkldnn_LINKER_LIBS ${MKLLIB})
     message(STATUS "Intel(R) MKL found: include ${MKLINC}, lib ${MKLLIB}")

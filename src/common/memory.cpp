@@ -71,9 +71,7 @@ status_t mkldnn_memory_desc_init(memory_desc_t *memory_desc, int ndims,
     case goihw:
     case gOIhw8i8o:
     case gOIhw8o8i:
-#ifdef MKLDNN_RNN
     case rnx:
-#endif
         status = memory_desc_wrapper::compute_blocking(md);
         break;
     /* not enough information */

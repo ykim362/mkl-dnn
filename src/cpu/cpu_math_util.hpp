@@ -26,9 +26,7 @@ namespace cpu {
 #include "mkl_vml_functions.h"
 #include "mkl_trans.h"
 typedef MKL_INT cblas_int;
-#endif
 
-#ifdef USE_CBLAS
 namespace cpu_blas {
 
 template <data_type_t data_type>
@@ -75,10 +73,18 @@ inline void cblas_scal<data_type::f32>(cblas_int N,
     cblas_sscal(N, a, X, incx);
 }
 
-}
-#endif //USE_CBLAS
+template <data_type_t data_type>
+inline void cblas_copy(cblas_int N, const data_t<data_type> *X,
+        cblas_int incx, data_t<data_type> *Y, cblas_int incy);
 
-#ifdef USE_TRANS
+template <>
+inline void cblas_copy<data_type::f32>(cblas_int N, const float *X,
+        cblas_int incx, float *Y, cblas_int incy) {
+    cblas_scopy(N, X, incx, Y, incy);
+}
+
+}
+
 namespace cpu_trans {
 
 template <data_type_t data_type>
@@ -101,9 +107,7 @@ inline void omatcopy<data_type::f32>(char ordering, char trans,
     		A, lda, B, ldb);
 }
 }
-#endif // USE_TRANS
 
-#ifdef USE_VML
 namespace cpu_vml {
 
 template <data_type_t data_type>
@@ -194,7 +198,7 @@ inline void vTanh<data_type::f32>(cblas_int N,
 }
 
 }
-#endif //USE_VML
+#endif //USE_MKL
 
 
 }

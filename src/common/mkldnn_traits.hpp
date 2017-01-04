@@ -54,9 +54,7 @@ PKIND_TRAIT_INST(lrn);
 PKIND_TRAIT_INST(batch_normalization);
 PKIND_TRAIT_INST(inner_product);
 PKIND_TRAIT_INST(convolution_relu);
-#ifdef MKLDNN_RNN
 PKIND_TRAIT_INST(rnn);
-#endif // MKLDNN_RNN
 #undef PKIND_TRAIT_INST
 
 }

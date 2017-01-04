@@ -140,10 +140,8 @@ typedef enum {
     /** 4D weights tensor in the oihw format with input channels data laid out
      * in memory in 8-element blocks. */
     mkldnn_oIhw8i = mkldnn_nChw8c,
-#ifdef MKLDNN_RNN
     /** 3D RNN input, output tensor in the @c rnx format (recurrence, batch, inputs). */
-    mkldnn_rnx = 100,
-#endif // MKLDNN_RNN    
+    mkldnn_rnx = 100,   
 } mkldnn_memory_format_t;
 
 /** Kinds of padding. Define how to interpret the data in padding regions. */
@@ -211,10 +209,8 @@ typedef enum {
     mkldnn_inner_product,
     /** A convolution primitive merged with relu */
     mkldnn_convolution_relu,
-#ifdef MKLDNN_RNN
     /** An RNN primitive */
     mkldnn_rnn,
-#endif // MKLDNN_RNN
 } mkldnn_primitive_kind_t;
 
 /** Kinds of algorithms. */
@@ -229,7 +225,6 @@ typedef enum {
     mkldnn_lrn_across_channels = 65,
     /** LRN within a single channel */
     mkldnn_lrn_within_channel = 66,
-#ifdef MKLDNN_RNN
     /** A vanillar-RNN with relu */
     mkldnn_rnn_relu,
     /** A vanillar-RNN with tanh */
@@ -238,10 +233,8 @@ typedef enum {
     mkldnn_rnn_lstm,
     /** A GRU (Gated Recurrent Unit) */
     mkldnn_rnn_gru,
-#endif // MKLDNN_RNN
 } mkldnn_alg_kind_t;
 
-#ifdef MKLDNN_RNN
 /** Kinds of directions for RNN. */
 typedef enum {
     /** Uni-directional */
@@ -249,9 +242,7 @@ typedef enum {
     /** Bi-directional */
     mkldnn_rnn_bidirectional = 2,
 } mkldnn_rnn_direction_t;
-#endif // MKLDNN_RNN
 
-#ifdef MKLDNN_RNN
 /** Kinds of input mode for RNN. */
 typedef enum {
     /** Linear input - an operation is performed for the first layer's input */
@@ -259,7 +250,6 @@ typedef enum {
     /** Skip input - no operation is performed for the first layer's input */
     mkldnn_rnn_skip_input = 2,
 } mkldnn_rnn_input_mode_t;
-#endif // MKLDNN_RNN
 /** @} */
 
 /** @addtogroup c_api_types_memory Auxiliary types for memory description
@@ -518,7 +508,6 @@ typedef struct {
     double negative_slope;
 } mkldnn_convolution_relu_desc_t;
 
-#ifdef MKLDNN_RNN
 /** A descriptor of an RNN operation. */
 typedef struct {
     /** The kind of primitive. Used for self identifying the primitive
@@ -554,7 +543,6 @@ typedef struct {
 
     // @TODO check if we need dropout descriptor
 } mkldnn_rnn_desc_t;
-#endif // MKLDNN_RNN
 
 /** @} */
 
@@ -688,21 +676,7 @@ typedef enum {
     mkldnn_query_batch_normalization_d, /**< batch normalization descriptor */
     mkldnn_query_inner_product_d, /**< inner product descriptor */
     mkldnn_query_convolution_relu_d, /**< convolution-relu descriptor */
-#ifdef MKLDNN_RNN
     mkldnn_query_rnn_d, /**< rnn descriptor */
-    mkldnn_query_x_pd,
-    mkldnn_query_hx_pd,
-    mkldnn_query_cx_pd,
-    mkldnn_query_y_pd,
-    mkldnn_query_hy_pd,
-    mkldnn_query_cy_pd,
-    mkldnn_query_diff_x_pd,
-    mkldnn_query_diff_hx_pd,
-    mkldnn_query_diff_cx_pd,
-    mkldnn_query_diff_y_pd,
-    mkldnn_query_diff_hy_pd,
-    mkldnn_query_diff_cy_pd,
-#endif // MKLDNN_RNN
 
     /* (memory) primitive descriptor section */
     mkldnn_query_some_pd = 128, /**< stub */
@@ -715,9 +689,6 @@ typedef enum {
     mkldnn_query_dst_pd, /**< destination memory primitive desc */
     mkldnn_query_diff_dst_pd, /**< destination grad. memory primitive desc */
     mkldnn_query_workspace_pd, /**< workspace memory primitive desc */
-#ifdef MKLDNN_RNN
-    // mkldnn_query_x
-#endif // MKLDNN_RNN
 } mkldnn_query_t;
 
 /** @} */
