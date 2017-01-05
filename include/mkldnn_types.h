@@ -108,6 +108,8 @@ typedef enum {
     mkldnn_nchw,
     /** 4D data tensor in the @c nhwc format typically used in TensorFlow. */
     mkldnn_nhwc,
+    /** 4D data tensor in the @c chwn format typically used in Neon. */
+    mkldnn_chwn,
     /** 4D data tensor in the @c nchw format with channels data laid out in
      * memory in 8-element blocks. */
     mkldnn_nChw8c,
@@ -116,6 +118,9 @@ typedef enum {
     /** 4D weights tensor in the format (input channels, output channels,
      * width, height). */
     mkldnn_oihw,
+    /** 4D weights tensor in the format (input channels, width, height,
+     * output channels). */
+    mkldnn_ihwo,
     /** 4D weights tensor in the @c oihw format with both input and output
      * channels data laid out in memory in 8-element blocks. */
     mkldnn_OIhw8i8o,
@@ -250,6 +255,17 @@ typedef enum {
     /** Skip input - no operation is performed for the first layer's input */
     mkldnn_rnn_skip_input = 2,
 } mkldnn_rnn_input_mode_t;
+
+/** Flags for batch-normalization primititve. */
+typedef enum {
+    /** Use global statistics */
+    mkldnn_use_global_stats = 0x1U,
+    /** Use scale and shift parameters */
+    mkldnn_use_scaleshift = 0x2U,
+    /** Omit statistics */
+    mkldnn_omit_stats = 0x4U
+} mkldnn_batch_normalization_flag_t;
+
 /** @} */
 
 /** @addtogroup c_api_types_memory Auxiliary types for memory description
@@ -465,8 +481,15 @@ typedef struct {
      * parameter. */
     mkldnn_memory_desc_t data_scaleshift_desc;
     mkldnn_memory_desc_t diff_data_scaleshift_desc;
+    /** Mean and variance data memory descriptors.
+     *
+     * Mean and variance memory descriptors use 1D #mkldnn_x format[Channels].
+     */
+    mkldnn_memory_desc_t mean_desc;
+    mkldnn_memory_desc_t variance_desc;
     /** Batch normalization epsilon parameter. */
     double batch_norm_epsilon;
+    unsigned flags;
 } mkldnn_batch_normalization_desc_t;
 
 /** A descriptor of an inner product operation. */

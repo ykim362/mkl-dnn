@@ -69,7 +69,6 @@ struct memory_desc_wrapper: public c_compatible {
         assert(utils::one_of(format(), x, nc, nchw, nhwc, nChw8c, oi, oihw,
                     OIhw8i8o, OIhw8o8i, Ohwi8o, goihw, gOIhw8i8o, gOIhw8o8i,
                     blocked, rnx));
-
         if (blocking_desc().offset_padding != 0) return 0;
 
         const auto &block_dims = blocking_desc().block_dims;

@@ -60,9 +60,7 @@ struct __attribute__((__packed__)) jit_conv_call_s {
 struct jit_avx2_conv_fwd_kernel_f32: public jit_generator {
     enum { IC_FLAG_FIRST = 1, IC_FLAG_LAST = 2 };
 
-    jit_avx2_conv_fwd_kernel_f32(jit_conv_conf_t ajcp, void *code_ptr = nullptr,
-            size_t code_size = 8 * Xbyak::DEFAULT_MAX_CODE_SIZE)
-        : jcp(ajcp)
+    jit_avx2_conv_fwd_kernel_f32(jit_conv_conf_t ajcp): jcp(ajcp)
     {
         this->generate();
         jit_ker = (void (*)(jit_conv_call_s *))this->getCode();
@@ -102,10 +100,7 @@ private:
 struct jit_avx2_conv_bwd_data_kernel_f32: public jit_generator {
     enum { IC_FLAG_FIRST = 1, IC_FLAG_LAST = 2 };
 
-    jit_avx2_conv_bwd_data_kernel_f32(jit_conv_conf_t ajcp,
-            void *code_ptr = nullptr,
-            size_t code_size = 8 * Xbyak::DEFAULT_MAX_CODE_SIZE)
-        : jcp(ajcp)
+    jit_avx2_conv_bwd_data_kernel_f32(jit_conv_conf_t ajcp): jcp(ajcp)
     {
         this->generate();
         jit_ker = (void (*)(jit_conv_call_s *))this->getCode();
@@ -122,9 +117,6 @@ struct jit_avx2_conv_bwd_data_kernel_f32: public jit_generator {
 private:
     using reg64_t = const Xbyak::Reg64;
 
-    /*
-    reg64_t param          = Xbyak::util::cdecl_param1;
-    */
     reg64_t reg_input      = rax;
     reg64_t reg_ddst       = rax;
     reg64_t aux_reg_input  = r8;
@@ -142,18 +134,14 @@ private:
     reg64_t reg_kh  = r14;
     reg64_t ki_iter = r13;
 
-    inline Xbyak::Address get_address(Xbyak::Reg64 base, int offset);
     inline void hsw_iter_s1(int ur_w, int l_overflow, int r_overflow,
-            const char* kh_lable);
+            const char* kh_label);
 
     void generate();
 };
 
 struct jit_avx2_conv_bwd_weights_kernel_f32: public jit_generator {
-    jit_avx2_conv_bwd_weights_kernel_f32(jit_conv_conf_t ajcp,
-            void *code_ptr = nullptr,
-            size_t code_size = 8 * Xbyak::DEFAULT_MAX_CODE_SIZE)
-        : jcp(ajcp)
+    jit_avx2_conv_bwd_weights_kernel_f32(jit_conv_conf_t ajcp): jcp(ajcp)
     {
         this->generate();
         jit_ker = (void (*)(jit_conv_call_s *))this->getCode();
@@ -180,7 +168,6 @@ private:
     reg64_t reg_oj = r15;
     reg64_t reg_ih_count = rbx;
 
-    inline Xbyak::Address get_address(Xbyak::Reg64 base, int offset);
     inline void oh_step_comeback_pointers(const char *kh_comeback_label);
     inline void compute_ic_block_step(int ur_w, int pad_l, int pad_r,
             int ic_block_step, int input_offset, int kernel_offset,
