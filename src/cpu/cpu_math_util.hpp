@@ -52,6 +52,69 @@ inline void cblas_gemm<data_type::f32>(CBLAS_LAYOUT layout,
 }
 
 template <data_type_t data_type>
+inline data_t<data_type>* cblas_gemm_alloc(CBLAS_IDENTIFIER identifier,
+                 const cblas_int m, const cblas_int n, const cblas_int k);
+
+template <>
+inline float* cblas_gemm_alloc<data_type::f32>(CBLAS_IDENTIFIER identifier,
+                 const cblas_int m, const cblas_int n, const cblas_int k) {
+    return cblas_sgemm_alloc(identifier, m, n, k);
+}
+
+template <data_type_t data_type>
+inline void cblas_gemm_pack(const CBLAS_LAYOUT Layout,
+        const CBLAS_IDENTIFIER identifier, const CBLAS_TRANSPOSE trans,
+        const cblas_int m, const cblas_int n, const cblas_int k,
+        const data_t<data_type> alpha,
+        const data_t<data_type> *src,
+        const cblas_int ld,
+        data_t<data_type> *dest);
+
+
+template <>
+inline void cblas_gemm_pack<data_type::f32>(const CBLAS_LAYOUT Layout,
+        const CBLAS_IDENTIFIER identifier, const CBLAS_TRANSPOSE trans,
+        const cblas_int m, const cblas_int n, const cblas_int k,
+        const float alpha,
+        const float *src,
+        const cblas_int ld,
+        float *dest) {
+    cblas_sgemm_pack(Layout, identifier, trans, 
+        m, n, k, alpha, src, ld, dest);
+}
+
+template <data_type_t data_type>
+inline void cblas_gemm_compute(const CBLAS_LAYOUT Layout,
+        const cblas_int transa, const cblas_int transb,
+        const cblas_int m, const cblas_int n, const cblas_int k,
+        const data_t<data_type> *a, const cblas_int lda,
+        const data_t<data_type> *b, const cblas_int ldb,
+        const data_t<data_type> beta,
+        data_t<data_type> *c, const cblas_int ldc);
+
+
+template <>
+inline void cblas_gemm_compute<data_type::f32>(const CBLAS_LAYOUT Layout,
+        const cblas_int transa, const cblas_int transb,
+        const cblas_int m, const cblas_int n, const cblas_int k,
+        const float *a, const cblas_int lda,
+        const float *b, const cblas_int ldb,
+        const float beta,
+        float *c, const cblas_int ldc) {
+    cblas_sgemm_compute(Layout, transa, transb, 
+        m, n, k, a, lda, b, ldb, beta, c, ldc);
+}
+
+template <data_type_t data_type>
+inline void cblas_gemm_free(data_t<data_type> *dst);
+
+template <>
+inline void cblas_gemm_free<data_type::f32>(float *dst) {
+    cblas_sgemm_free(dst);
+}
+
+
+template <data_type_t data_type>
 inline void cblas_axpy(cblas_int N,
         data_t<data_type> alpha, const data_t<data_type> *X, cblas_int incx,
         data_t<data_type> *Y, cblas_int incy);
