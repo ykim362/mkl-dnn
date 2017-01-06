@@ -31,6 +31,8 @@ status_t jit_avx2_bnrm_kernel_f32::init_conf(jit_bnrm_conf_t &jbp,
         const memory_desc_wrapper &data_d,
         const memory_desc_wrapper &scaleshift_d,
         bool is_training, bool stats_is_src, bool use_scaleshift) {
+    if (!mayiuse(avx2)) return status::unimplemented;
+
     bool args_ok = (data_d.format() == memory_format::nChw8c ||
             (data_d.format() == memory_format::nchw
               && data_d.dims()[2] == 1 && data_d.dims()[3] == 1))
@@ -134,8 +136,8 @@ void jit_avx2_bnrm_kernel_f32::generate() {
     }
 #   undef GET_OFF
 
-    vpxor(ymm_mean, ymm_mean);
-    vpxor(ymm_variance, ymm_variance);
+    vpxor(ymm_mean, ymm_mean, ymm_mean);
+    vpxor(ymm_variance, ymm_variance, ymm_variance);
 
     mov(tmp_gpr, float2int(spatial * N));
     movq(xmm_spatial_n, tmp_gpr);
@@ -154,7 +156,7 @@ void jit_avx2_bnrm_kernel_f32::generate() {
         vmovups(ymm_variance, ptr[reg_variance]);
     } else {
         for (int i = 0; i < 8; i++)
-            vpxor(Ymm(i), Ymm(i));
+            vpxor(Ymm(i), Ymm(i), Ymm(i));
         mov(aux_ptr, reg_src);
         xor_(n_iter, n_iter);
         L(".n_mean_loop");
@@ -189,7 +191,7 @@ void jit_avx2_bnrm_kernel_f32::generate() {
         }
 
         for (int i = 0; i < 8; i++)
-            vpxor(Ymm(i), Ymm(i));
+            vpxor(Ymm(i), Ymm(i), Ymm(i));
         mov(aux_ptr, reg_src);
         xor_(n_iter, n_iter);
         L(".n_variance_loop");

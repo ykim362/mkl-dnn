@@ -45,6 +45,8 @@ using namespace Xbyak;
 status_t jit_avx2_pool_kernel_f32::init_conf(jit_pool_conf_t &jpp,
             const pooling_desc_t &pd, const memory_desc_wrapper &src_d,
             const memory_desc_wrapper &dst_d, bool is_training) {
+    if (!mayiuse(avx2)) return status::unimplemented;
+
     bool args_ok = true
         && utils::one_of(pd.alg_kind, alg_kind::pooling_max,
                 alg_kind::pooling_avg)
@@ -100,7 +102,7 @@ inline void jit_avx2_pool_kernel_f32::avg_oh_step(int ur_w, int pad_l,
     vbroadcastss(ymm_tmp, xmm_tmp);
 
     for (int jj = 0; jj < ur_w; jj++)
-        vpxor(Ymm(jj), Ymm(jj));
+        vpxor(Ymm(jj), Ymm(jj), Ymm(jj));
 
     mov(aux_reg_input , reg_input);
     xor_(kj, kj);
@@ -139,7 +141,7 @@ inline void jit_avx2_pool_kernel_f32::max_oh_step(int ur_w, int pad_l,
     int stride_w = jpp.stride_w;
     int c_block = jpp.c_block;
 
-    vpxor(ymm_store_mask, ymm_store_mask);
+    vpxor(ymm_store_mask, ymm_store_mask, ymm_store_mask);
 
     mov(tmp_gpr, float2int(-FLT_MAX));
     movq(xmm_tmp, tmp_gpr);
@@ -152,7 +154,7 @@ inline void jit_avx2_pool_kernel_f32::max_oh_step(int ur_w, int pad_l,
     L(kh_label);
     {
         if (jpp.is_training) {
-            vpxor(ymm_ki_offset, ymm_ki_offset);
+            vpxor(ymm_ki_offset, ymm_ki_offset, ymm_ki_offset);
         }
         for (int ki = 0; ki < kw; ki++) {
             int jj_start = nstl::max(0, pad_l - ki);
