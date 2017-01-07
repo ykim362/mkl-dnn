@@ -340,9 +340,7 @@ void pgemm_rnn_bwd_t<data_type>::execute_backward() {
                     1.0,
                     w + w_off,
                     4 * state_size, weights_pack[l]);
-
     for (int t = (seq_length - 1); t >= 0; t--) {
-
       // formula: do[t] = dh[t] * tanh(c[t])
       vTanh<data_type>(h_size,
                        ws + c_space_off + l * h_size + t * h_nlayer_size,
@@ -478,27 +476,19 @@ void pgemm_rnn_bwd_t<data_type>::execute_backward() {
         array_set(ts_ + temp_space_off + (input_size + state_size) * batch_size,
                   1.0, 2 * batch_size);
       }
-
       cblas_gemm<data_type>(
           CblasRowMajor, CblasNoTrans, CblasTrans, (in_size + state_size + 2),
           4 * state_size, batch_size, 1.0, ts_ + temp_space_off, batch_size,
           ts_ + dgates_space_off + l * gates_size + t * gates_nlayer_size,
           batch_size, 1.0, dw + w_off, 4 * state_size);
-
       cblas_gemm_compute<data_trait<data_t>::data_type>(CblasRowMajor,
           CblasPacked, CblasNoTrans,
-          input_size + state_size + 2, batch_size, 4 * state_size,
+          (in_size + state_size + 2), batch_size, 4 * state_size,
           weights_pack[l], 4 * state_size,
           ts_ + dgates_space_off + l * gates_size + t * gates_nlayer_size,
           batch_size, 0.0, 
           ts_ + temp_space_off, batch_size);
-
       if ((t > 0) && (l > 0)) {
-        omatcopy<data_type>('R', 'N', state_size, batch_size, 1.0,
-                            ts_ + temp_space_off, batch_size,
-                            ts_ + dhout_space_off + (l - 1) * h_size +
-                                t * h_nlayer_size,
-                            batch_size);
         omatcopy<data_type>('R', 'N', state_size, batch_size, 1.0,
                             ts_ + temp_space_off + h_size, batch_size,
                             ts_ + dhout_space_off + l * h_size +
@@ -513,9 +503,6 @@ void pgemm_rnn_bwd_t<data_type>::execute_backward() {
                             ts_ + dhout_space_off + (t - 1) * h_nlayer_size,
                             batch_size);
       } else if ((t == 0) && (l > 0)) {
-        omatcopy<data_type>(
-            'R', 'N', state_size, batch_size, 1.0, ts_ + temp_space_off,
-            batch_size, ts_ + dhout_space_off + (l - 1) * h_size, batch_size);
         omatcopy<data_type>('R', 'T', state_size, batch_size, 1.0,
                             ts_ + temp_space_off + h_size, batch_size,
                             dhx + l * h_size, state_size);

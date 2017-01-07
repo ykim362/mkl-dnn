@@ -128,7 +128,6 @@ void compute_ref_lstm_bwd(const test_lstm_desc_t &ld, const memory::desc &x_d,
         ct = ws_ptr[c_space_off + l * h_size + t * h_nlayer_size + h];
         dct = ts_[dc_space_off + l * h_size + t * h_nlayer_size + h];
         dht = ts_[dhout_space_off + l * h_size + t * h_nlayer_size + h];
-
         dct += (1 - pow(tanh(ct), 2)) * dht * ot;
         dc_t_1 = dct * ft;
         dit = dct * gt;
@@ -194,24 +193,17 @@ void compute_ref_lstm_bwd(const test_lstm_desc_t &ld, const memory::desc &x_d,
       } else {
         woffset = w1_size + (l - 1) * wx_size;
       }
-
       gemm<data_t>(NOTRANS, TRANS, ts_ + temp_space_off,
                    ts_ + dgates_space_off + l * gates_size +
                        t * gates_nlayer_size,
                    dweights_ptr + woffset, in_size + state_size + 2,
                    4 * state_size, batch_size, 1);
-
       gemm<data_t>(NOTRANS, NOTRANS, weights_ptr + woffset,
                    ts_ + dgates_space_off + l * gates_size +
                        t * gates_nlayer_size,
                    ts_ + temp_space_off, in_size + state_size + 2, batch_size,
                    4 * state_size, 0);
-
       if ((t > 0) && (l > 0)) {
-        directcopy<data_t>(ts_ + temp_space_off,
-                           ts_ + dhout_space_off + (l - 1) * h_size +
-                               t * h_nlayer_size,
-                           state_size, batch_size);
         directcopy<data_t>(ts_ + temp_space_off + h_size,
                            ts_ + dhout_space_off + l * h_size +
                                (t - 1) * h_nlayer_size,
@@ -223,12 +215,8 @@ void compute_ref_lstm_bwd(const test_lstm_desc_t &ld, const memory::desc &x_d,
                            ts_ + dhout_space_off + (t - 1) * h_nlayer_size,
                            state_size, batch_size);
       } else if ((t == 0) && (l > 0)) {
-        directcopy<data_t>(ts_ + temp_space_off,
-                           ts_ + dhout_space_off + (l - 1) * h_size, state_size,
-                           batch_size);
         transpose<data_t>(ts_ + temp_space_off + h_size, dhx_ptr + l * h_size,
                           state_size, batch_size);
-
       } else {
         transpose<data_t>(ts_ + temp_space_off, dx_ptr, input_size, batch_size);
         transpose<data_t>(ts_ + temp_space_off + x_size, dhx_ptr, state_size,
@@ -416,6 +404,6 @@ INSTANTIATE_TEST_CASE_P(TestRNNBackward, lstm_backward_test_float,
                           direction::rnn_unidirectional,
                           input_mode::rnn_linear_input,
                           memory::format::rnx,
-                          { 8, 8, 4, 4, 2, LSTM, UNIDIRECT, LINEAR }
+                          { 8, 8, 4, 4, 4, LSTM, UNIDIRECT, LINEAR }
                         }));
 }

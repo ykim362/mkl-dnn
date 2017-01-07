@@ -437,25 +437,17 @@ void gemm_rnn_bwd_t<data_type>::execute_backward() {
         woffset = w1_size + (l - 1) * wx_size;
       }
       size_t in_size = (l == 0) ? input_size : state_size;
-
       cblas_gemm<data_type>(
           CblasRowMajor, CblasNoTrans, CblasTrans, (in_size + state_size + 2),
           4 * state_size, batch_size, 1.0, ts_ + temp_space_off, batch_size,
           ts_ + dgates_space_off + l * gates_size + t * gates_nlayer_size,
           batch_size, 1.0, dw + woffset, 4 * state_size);
-
       cblas_gemm<data_type>(
           CblasRowMajor, CblasNoTrans, CblasNoTrans, (in_size + state_size + 2),
           batch_size, 4 * state_size, 1.0, w + woffset, 4 * state_size,
           ts_ + dgates_space_off + l * gates_size + t * gates_nlayer_size,
           batch_size, 0.0, ts_ + temp_space_off, batch_size);
-
       if ((t > 0) && (l > 0)) {
-        omatcopy<data_type>('R', 'N', state_size, batch_size, 1.0,
-                            ts_ + temp_space_off, batch_size,
-                            ts_ + dhout_space_off + (l - 1) * h_size +
-                                t * h_nlayer_size,
-                            batch_size);
         omatcopy<data_type>('R', 'N', state_size, batch_size, 1.0,
                             ts_ + temp_space_off + h_size, batch_size,
                             ts_ + dhout_space_off + l * h_size +
@@ -470,9 +462,6 @@ void gemm_rnn_bwd_t<data_type>::execute_backward() {
                             ts_ + dhout_space_off + (t - 1) * h_nlayer_size,
                             batch_size);
       } else if ((t == 0) && (l > 0)) {
-        omatcopy<data_type>(
-            'R', 'N', state_size, batch_size, 1.0, ts_ + temp_space_off,
-            batch_size, ts_ + dhout_space_off + (l - 1) * h_size, batch_size);
         omatcopy<data_type>('R', 'T', state_size, batch_size, 1.0,
                             ts_ + temp_space_off + h_size, batch_size,
                             dhx + l * h_size, state_size);

@@ -293,6 +293,8 @@ status_t fill_gOIhw16o16i(memory_desc_t &md) {
     return fill_contiguous_blocked(md, block_dims, perm);
 }
 
+}
+
 status_t memory_desc_wrapper::compute_blocking(memory_desc_t &memory_desc)
 {
     if (memory_desc.ndims == 0) return invalid_arguments;
