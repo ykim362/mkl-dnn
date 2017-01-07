@@ -51,23 +51,21 @@ inline void vsigmoid(data_t *X, data_t *tmp, size_t Len) {
 }
 
 template <typename data_t>
-inline void lstm_fwd_ele_wise(data_t *It, data_t *Ft, data_t *Ot, data_t *Gt,
+inline void lstm_fwd_ele_wise(data_t *Gates,
                               const data_t *Ct_1, data_t *Ct, data_t *Ht,
                               data_t *tmp, size_t Length) {
   // sigmoid
-  vsigmoid<data_t>(It, tmp, Length);
-  vsigmoid<data_t>(Ft, tmp, Length);
-  vsigmoid<data_t>(Ot, tmp, Length);
+  vsigmoid<data_t>(Gates, tmp, 3 * Length);
   // ft * c_t_1
-  vMul<data_trait<data_t>::data_type>(Length, Ft, Ct_1, Ct);
+  vMul<data_trait<data_t>::data_type>(Length, Gates + Length, Ct_1, Ct);
   // tanh(gt) * it
-  vTanh<data_trait<data_t>::data_type>(Length, Gt, Gt);
-  vMul<data_trait<data_t>::data_type>(Length, It, Gt, tmp);
+  vTanh<data_trait<data_t>::data_type>(Length, Gates + 3 * Length, Gates + 3 * Length);
+  vMul<data_trait<data_t>::data_type>(Length, Gates, Gates + 3 * Length, tmp);
   // Ct=ft*Ct-1 + Gt*It
   vAdd<data_trait<data_t>::data_type>(Length, Ct, tmp, Ct);
   // h_t = ot * tan(ct)
   vTanh<data_trait<data_t>::data_type>(Length, Ct, tmp);
-  vMul<data_trait<data_t>::data_type>(Length, Ot, tmp, Ht);
+  vMul<data_trait<data_t>::data_type>(Length, Gates + 2 * Length, tmp, Ht);
 }
 
 template <typename data_t>
@@ -98,17 +96,14 @@ lstm_fwd_prop_single(const size_t input_size, const size_t state_size,
   cblas_gemm_compute<data_trait<data_t>::data_type>(CblasRowMajor, CblasPacked, CblasNoTrans,
     4 * state_size, batch_size, input_size + state_size + 2, w, 4 * state_size,
     tmp, batch_size, 0.0, gates, batch_size);
-
   if (tranct_1 == TRANS) {
     omatcopy<data_trait<data_t>::data_type>('R', 'T', batch_size, state_size,
                                             1.0, ct_1, state_size, tmp,
                                             batch_size);
-    lstm_fwd_ele_wise<data_t>(gates, gates + h_size, gates + 2 * h_size,
-                              gates + 3 * h_size, tmp, ct, ht, tmp + h_size,
+    lstm_fwd_ele_wise<data_t>(gates, tmp, ct, ht, tmp + h_size,
                               h_size);
   } else {
-    lstm_fwd_ele_wise<data_t>(gates, gates + h_size, gates + 2 * h_size,
-                              gates + 3 * h_size, ct_1, ct, ht, tmp, h_size);
+    lstm_fwd_ele_wise<data_t>(gates, ct_1, ct, ht, tmp, h_size);
   }
 }
 
