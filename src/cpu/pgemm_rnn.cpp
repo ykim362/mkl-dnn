@@ -153,11 +153,7 @@ void pgemm_rnn_fwd_t<data_type>::execute_forward() {
   }
   
   data_t **weights_pack = new data_t*[num_layers];
-  for (int nl = 0; nl < num_layers; nl++) {
-    weights_pack[nl] = NULL;
-  }
-
-  for (size_t l = 0; l < num_layers; l++) {
+  for (int l = 0; l < num_layers; l++) {
     w_off = 0;
     if (l > 0) {
       w_off = w1_size + (l - 1) * wx_size;
@@ -173,7 +169,9 @@ void pgemm_rnn_fwd_t<data_type>::execute_forward() {
                     1.0,
                     w + w_off,
                     4 * state_size, weights_pack[l]);
+  }
 
+  for (size_t l = 0; l < num_layers; l++) {
     for (size_t t = 0; t < seq_length; t++) {
       if (t == 0 && l == 0) {
         lstm_fwd_prop_single<data_t>(
@@ -315,11 +313,7 @@ void pgemm_rnn_bwd_t<data_type>::execute_backward() {
   }
 
   data_t **weights_pack = new data_t*[num_layers];
-  for (int nl = 0; nl < num_layers; nl++) {
-    weights_pack[nl] = NULL;
-  }
-
-  for (int l = (num_layers - 1); l >= 0; l--) {
+  for (int l = 0; l < num_layers; l++) {
     w_off = 0;
     if (l > 0) {
       w_off = w1_size + (l - 1) * wx_size;
@@ -335,6 +329,14 @@ void pgemm_rnn_bwd_t<data_type>::execute_backward() {
                     1.0,
                     w + w_off,
                     4 * state_size, weights_pack[l]);
+  }
+
+  for (int l = (num_layers - 1); l >= 0; l--) {
+    w_off = 0;
+    if (l > 0) {
+      w_off = w1_size + (l - 1) * wx_size;
+    }
+    in_size = (l == 0) ? input_size : state_size;
     for (int t = (seq_length - 1); t >= 0; t--) {
       // formula: do[t] = dh[t] * tanh(c[t])
       vTanh<data_type>(h_size,
