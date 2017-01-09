@@ -42,20 +42,18 @@ using namespace mkldnn::impl::cpu::cpu_trans;
 using namespace mkldnn::impl::cpu::cpu_vml;
 
 template <typename data_t>
-inline void vsigmoid(data_t *X, data_t *tmp, size_t Len) {
+inline void vsigmoid(data_t *X, data_t *tmp1, data_t *tmp, size_t Len) {
   cblas_scal<data_trait<data_t>::data_type>(Len, -1.0, X, 1);
   vExp<data_trait<data_t>::data_type>(Len, X, X);
-  array_set(tmp, 1.0, Len);
-  vAdd<data_trait<data_t>::data_type>(Len, tmp, X, X);
-  vDiv<data_trait<data_t>::data_type>(Len, tmp, X, X);
+  vAdd<data_trait<data_t>::data_type>(Len, tmp1, X, X);
+  vDiv<data_trait<data_t>::data_type>(Len, tmp1, X, X);
 }
 
 template <typename data_t>
 inline void lstm_fwd_ele_wise(data_t *Gates,
                               const data_t *Ct_1, data_t *Ct, data_t *Ht,
-                              data_t *tmp, size_t Length) {
-  // sigmoid
-  vsigmoid<data_t>(Gates, tmp, 3 * Length);
+                              data_t *tmp1, data_t *tmp, size_t Length) {
+  vsigmoid<data_t>(Gates, tmp1, tmp, 3 * Length);
   // ft * c_t_1
   vMul<data_trait<data_t>::data_type>(Length, Gates + Length, Ct_1, Ct);
   // tanh(gt) * it
@@ -74,10 +72,9 @@ lstm_fwd_prop_single(const size_t input_size, const size_t state_size,
                      const size_t batch_size, const data_t *x, int tranx,
                      const data_t *ht_1, int tranht_1, const data_t *ct_1,
                      int tranct_1, const data_t *w, data_t *ht, data_t *ct,
-                     data_t *gates, data_t *tmp) {
+                     data_t *gates, data_t *tmp1, data_t *tmp) {
   auto x_size = input_size * batch_size;
   auto h_size = state_size * batch_size;
-
   if (tranx == TRANS) {
     omatcopy<data_trait<data_t>::data_type>(
         'R', 'T', batch_size, input_size, 1.0, x, input_size, tmp, batch_size);
@@ -92,7 +89,6 @@ lstm_fwd_prop_single(const size_t input_size, const size_t state_size,
     cblas_copy<data_trait<data_t>::data_type>(h_size, ht_1, 1, tmp + x_size, 1);
   }
   array_set(tmp + x_size + h_size, 1.0, 2 * batch_size);
-
   cblas_gemm_compute<data_trait<data_t>::data_type>(CblasRowMajor, CblasPacked, CblasNoTrans,
     4 * state_size, batch_size, input_size + state_size + 2, w, 4 * state_size,
     tmp, batch_size, 0.0, gates, batch_size);
@@ -100,10 +96,10 @@ lstm_fwd_prop_single(const size_t input_size, const size_t state_size,
     omatcopy<data_trait<data_t>::data_type>('R', 'T', batch_size, state_size,
                                             1.0, ct_1, state_size, tmp,
                                             batch_size);
-    lstm_fwd_ele_wise<data_t>(gates, tmp, ct, ht, tmp + h_size,
+    lstm_fwd_ele_wise<data_t>(gates, tmp, ct, ht, tmp1, tmp + h_size,
                               h_size);
   } else {
-    lstm_fwd_ele_wise<data_t>(gates, ct_1, ct, ht, tmp, h_size);
+    lstm_fwd_ele_wise<data_t>(gates, ct_1, ct, ht, tmp1, tmp, h_size);
   }
 }
 
@@ -142,16 +138,20 @@ void pgemm_rnn_fwd_t<data_type>::execute_forward() {
   size_t tmp_space_off = 0;
   size_t w_off = 0;
   size_t in_size = 0;
+  size_t tmp1_off = 0;
 
   data_t *ws_ptr;
   if (ws) {
     ws_ptr = ws;
-    tmp_space_off = 0;
+    tmp1_off = 0;
+    tmp_space_off = 3 * h_size;
   } else {
     ws_ptr = ts_;
-    tmp_space_off = c_space_off + c_space_size;
+    tmp1_off = c_space_off + c_space_size;
+    tmp_space_off = c_space_off + c_space_size + 3 * h_size;
   }
-  
+  array_set(ts_ + tmp1_off, 1.0, 3 * h_size);
+
   data_t **weights_pack = new data_t*[num_layers];
   for (int l = 0; l < num_layers; l++) {
     w_off = 0;
@@ -179,7 +179,7 @@ void pgemm_rnn_fwd_t<data_type>::execute_forward() {
             weights_pack[l], ws_ptr + hout_space_off + l * h_size + t * h_nlayer_size,
             ws_ptr + c_space_off + l * h_size + t * h_nlayer_size,
             ws_ptr + gates_space_off + l * gates_size + t * gates_nlayer_size,
-            ts_ + tmp_space_off);
+            ts_ + tmp1_off, ts_ + tmp_space_off);
       } else if (t == 0 && l > 0) {
         lstm_fwd_prop_single<data_t>(
             state_size, state_size, batch_size,
@@ -188,7 +188,7 @@ void pgemm_rnn_fwd_t<data_type>::execute_forward() {
             ws_ptr + hout_space_off + l * h_size + t * h_nlayer_size,
             ws_ptr + c_space_off + l * h_size + t * h_nlayer_size,
             ws_ptr + gates_space_off + l * gates_size + t * gates_nlayer_size,
-            ts_ + tmp_space_off);
+            ts_ + tmp1_off, ts_ + tmp_space_off);
       } else if (t > 0 && l == 0) {
         lstm_fwd_prop_single<data_t>(
             state_size, state_size, batch_size, x + t * h_size, TRANS,
@@ -197,7 +197,7 @@ void pgemm_rnn_fwd_t<data_type>::execute_forward() {
             ws_ptr + hout_space_off + l * h_size + t * h_nlayer_size,
             ws_ptr + c_space_off + l * h_size + t * h_nlayer_size,
             ws_ptr + gates_space_off + l * gates_size + t * gates_nlayer_size,
-            ts_ + tmp_space_off);
+            ts_ + tmp1_off, ts_ + tmp_space_off);
       } else if (t > 0 && l > 0) {
         lstm_fwd_prop_single<data_t>(
             state_size, state_size, batch_size,
@@ -210,7 +210,7 @@ void pgemm_rnn_fwd_t<data_type>::execute_forward() {
             ws_ptr + hout_space_off + l * h_size + t * h_nlayer_size,
             ws_ptr + c_space_off + l * h_size + t * h_nlayer_size,
             ws_ptr + gates_space_off + l * gates_size + t * gates_nlayer_size,
-            ts_ + tmp_space_off);
+            ts_ + tmp1_off, ts_ + tmp_space_off);
       }
       // save output
       if (l == (num_layers - 1)) {

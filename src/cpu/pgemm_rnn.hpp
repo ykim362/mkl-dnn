@@ -79,7 +79,7 @@ struct pgemm_rnn_fwd_t : public cpu_primitive_t {
     auto tmp1 = insize + conf_.hidden_size() + 2;
     auto tmp2 = conf_.hidden_size() * 4;
     auto tmp = (tmp1 > tmp2) ? tmp1 : tmp2;
-    auto ts_size_ = tmp * conf_.batch();
+    auto ts_size_ = tmp * conf_.batch() + 3 * conf_.h_size();
     if (conf_.desc()->prop_kind != forward_training) {
       ts_size_ += conf_.gates_space_size() + conf_.hout_space_size() +
                   conf_.c_space_size();
