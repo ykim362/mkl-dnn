@@ -46,8 +46,7 @@ struct pgemm_rnn_fwd_t : public cpu_primitive_t {
       bool ok = true && this->set_default_params() == status::success &&
                 utils::one_of(desc()->prop_kind, forward_training,
                               forward_inference) &&
-                utils::one_of(desc()->alg_kind, rnn_relu, rnn_tanh, rnn_lstm,
-                              rnn_gru) &&
+                utils::one_of(desc()->alg_kind, rnn_lstm) &&
                 utils::everyone_is(data_type, desc()->x_desc.data_type,
                                    desc()->hx_desc.data_type,
                                    desc()->y_desc.data_type,
@@ -69,7 +68,7 @@ struct pgemm_rnn_fwd_t : public cpu_primitive_t {
   };
 
   pgemm_rnn_fwd_t(const pd_t *pd, const input_vector &inputs,
-                 const output_vector &outputs)
+                  const output_vector &outputs)
       : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd), ts_(nullptr) {
     using namespace mkldnn::impl::utils;
     using namespace prop_kind;
@@ -81,8 +80,7 @@ struct pgemm_rnn_fwd_t : public cpu_primitive_t {
     auto tmp = (tmp1 > tmp2) ? tmp1 : tmp2;
     auto ts_size_ = tmp * conf_.batch() + 3 * conf_.h_size();
     if (conf_.desc()->prop_kind != forward_training) {
-      ts_size_ += conf_.gates_space_size() + conf_.hout_space_size() +
-                  conf_.c_space_size();
+      ts_size_ += conf_.workspace_size();
     }
     ts_ = new data_t[ts_size_];
   }
@@ -127,8 +125,7 @@ struct pgemm_rnn_bwd_t : public cpu_primitive_t {
       assert(engine()->kind() == engine_kind::cpu);
       bool ok = true && this->set_default_params() == status::success &&
                 utils::one_of(desc()->prop_kind, backward) &&
-                utils::one_of(desc()->alg_kind, rnn_relu, rnn_tanh, rnn_lstm,
-                              rnn_gru) &&
+                utils::one_of(desc()->alg_kind, rnn_lstm) &&
                 utils::everyone_is(data_type, desc()->x_desc.data_type,
                                    desc()->hx_desc.data_type,
                                    desc()->y_desc.data_type,
@@ -148,7 +145,7 @@ struct pgemm_rnn_bwd_t : public cpu_primitive_t {
   };
 
   pgemm_rnn_bwd_t(const pd_t *pd, const input_vector &inputs,
-                 const output_vector &outputs)
+                  const output_vector &outputs)
       : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd), ts_(nullptr) {
     using namespace mkldnn::impl::utils;
     auto bsize = (conf_.input_size() > conf_.hidden_size())
@@ -158,7 +155,8 @@ struct pgemm_rnn_bwd_t : public cpu_primitive_t {
     auto tmp2 = conf_.hidden_size() * 4;
     auto tmp = (tmp1 > tmp2) ? tmp1 : tmp2;
     auto ts_size_ = tmp * conf_.batch() + conf_.gates_space_size() +
-                    conf_.hout_space_size() + conf_.c_space_size();
+                    conf_.hout_space_size() + conf_.c_space_size() +
+                    4 * conf_.h_size();
     ts_ = new data_t[ts_size_];
   }
   ~pgemm_rnn_bwd_t() {

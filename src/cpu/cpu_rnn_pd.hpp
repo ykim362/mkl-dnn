@@ -66,9 +66,9 @@ struct cpu_rnn_fwd_pd_t : public rnn_fwd_pd_t {
     case 0:
       return &y_pd_;
     case 1:
-      return &hy_pd_;
+      return (index == 1 && !hy_pd_.is_zero()) ? &hy_pd_ : nullptr;
     case 2:
-      return &cy_pd_;
+      return (index == 2 && !cy_pd_.is_zero()) ? &cy_pd_ : nullptr;
     default:
       return nullptr;
     }

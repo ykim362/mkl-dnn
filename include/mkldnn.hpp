@@ -2385,6 +2385,30 @@ struct rnn_forward : public primitive {
 
     rnn_forward(const primitive_desc &aprimitive_desc, const primitive::at &x,
             const primitive::at &hx, const primitive::at &cx, const primitive::at &weights, 
+            const memory &y, const memory &workspace) {
+        c_api::mkldnn_primitive_t result;
+        c_api::mkldnn_primitive_at_t inputs[] = { x.data, hx.data, cx.data, weights.data };
+        c_api::const_mkldnn_primitive_t outputs[] = { y.get(), workspace.get() };
+        error::wrap_c_api(c_api::mkldnn_primitive_create(&result,
+                    aprimitive_desc.get(), inputs, outputs),
+                "could not create an rnn forward primitive");
+        reset(result);
+    }
+
+    rnn_forward(const primitive_desc &aprimitive_desc, const primitive::at &x,
+            const primitive::at &hx, const primitive::at &cx, const primitive::at &weights, 
+            const memory &y) {
+        c_api::mkldnn_primitive_t result;
+        c_api::mkldnn_primitive_at_t inputs[] = { x.data, hx.data, cx.data, weights.data };
+        c_api::const_mkldnn_primitive_t outputs[] = { y.get() };
+        error::wrap_c_api(c_api::mkldnn_primitive_create(&result,
+                    aprimitive_desc.get(), inputs, outputs),
+                "could not create an rnn forward primitive");
+        reset(result);
+    }
+
+    rnn_forward(const primitive_desc &aprimitive_desc, const primitive::at &x,
+            const primitive::at &hx, const primitive::at &cx, const primitive::at &weights, 
             const memory &y, const memory &hy, const memory &cy,
             const memory &workspace) {
         c_api::mkldnn_primitive_t result;
