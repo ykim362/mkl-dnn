@@ -47,6 +47,7 @@ struct test_lstm_desc_t {
   int alg_kind;
   int direction;
   int input_mode;
+  bool state_outputs;
 };
 
 template <typename data_t>

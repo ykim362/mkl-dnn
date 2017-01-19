@@ -42,8 +42,8 @@ struct cpu_rnn_fwd_pd_t : public rnn_fwd_pd_t {
         cx_pd_(this->engine_, &desc_.hx_desc),
         weights_pd_(this->engine_, &desc_.weights_desc),
         y_pd_(this->engine_, &desc_.y_desc),
-        hy_pd_(this->engine_, &desc_.hx_desc),
-        cy_pd_(this->engine_, &desc_.hx_desc), ws_pd_(this->engine_) {}
+        hy_pd_(this->engine_),
+        cy_pd_(this->engine_), ws_pd_(this->engine_) {}
   virtual ~cpu_rnn_fwd_pd_t() {}
 
   virtual const cpu_memory_pd_t *src_pd(int index = 0) const override {
@@ -99,10 +99,12 @@ protected:
       CHECK(cx_pd_.set_format(rnx));
     if (y_pd_.desc()->format == any)
       CHECK(y_pd_.set_format(rnx));
-    if (hy_pd_.desc()->format == any)
-      CHECK(hy_pd_.set_format(rnx));
-    if (cy_pd_.desc()->format == any)
-      CHECK(cy_pd_.set_format(rnx));
+    if (!hy_pd_.is_zero())
+      if (hy_pd_.desc()->format == any)
+        CHECK(hy_pd_.set_format(rnx));
+    if (!cy_pd_.is_zero())
+      if (cy_pd_.desc()->format == any)
+        CHECK(cy_pd_.set_format(rnx));
 
     return status::success;
   }
@@ -121,8 +123,8 @@ struct cpu_rnn_bwd_pd_t : public rnn_bwd_pd_t {
         dhx_pd_(this->engine_, &desc_.hx_desc),
         dcx_pd_(this->engine_, &desc_.hx_desc),
         dy_pd_(this->engine_, &desc_.y_desc),
-        dhy_pd_(this->engine_, &desc_.hx_desc),
-        dcy_pd_(this->engine_, &desc_.hx_desc),
+        dhy_pd_(this->engine_),
+        dcy_pd_(this->engine_),
         weights_pd_(this->engine_, &desc_.weights_desc),
         diff_weights_pd_(this->engine_, &desc_.weights_desc),
         ws_pd_(this->engine_) {}
@@ -145,9 +147,9 @@ struct cpu_rnn_bwd_pd_t : public rnn_bwd_pd_t {
     case 0:
       return &dy_pd_;
     case 1:
-      return &dhy_pd_;
+      return (index == 1 && !dhy_pd_.is_zero()) ? &dhy_pd_ : nullptr;
     case 2:
-      return &dcy_pd_;
+      return (index == 2 && !dcy_pd_.is_zero()) ? &dcy_pd_ : nullptr;;
     default:
       return nullptr;
     }
@@ -205,10 +207,12 @@ protected:
       CHECK(dcx_pd_.set_format(rnx));
     if (dy_pd_.desc()->format == any)
       CHECK(dy_pd_.set_format(rnx));
-    if (dhy_pd_.desc()->format == any)
-      CHECK(dhy_pd_.set_format(rnx));
-    if (dcy_pd_.desc()->format == any)
-      CHECK(dcy_pd_.set_format(rnx));
+    if (!dhy_pd_.is_zero())
+      if (dhy_pd_.desc()->format == any)
+        CHECK(dhy_pd_.set_format(rnx));
+    if (!dcy_pd_.is_zero())
+      if (dcy_pd_.desc()->format == any)
+        CHECK(dcy_pd_.set_format(rnx));
 
     return status::success;
   }

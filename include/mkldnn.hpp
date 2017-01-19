@@ -2257,7 +2257,7 @@ struct rnn_forward : public primitive {
         template <typename T1>
         desc(prop_kind aprop_kind, algorithm aalgorithm,
              direction adirection, input_mode ainputmode,
-             T1 num_states, T1 num_layers, T1 num_seqs,
+             T1 num_states, T1 num_layers, T1 num_seqs, bool state_outputs,
                 const memory::desc &x_desc,
                 const memory::desc &hx_desc,
                 const memory::desc &y_desc,
@@ -2270,6 +2270,7 @@ struct rnn_forward : public primitive {
                         static_cast<size_t>(num_states),
                         static_cast<size_t>(num_layers),
                         static_cast<size_t>(num_seqs),
+                        state_outputs,
                         &x_desc.data, &hx_desc.data,
                         &y_desc.data, &weights_desc.data),
                     "could not init a forward rnn descriptor");
@@ -2384,7 +2385,7 @@ struct rnn_forward : public primitive {
     };
 
     rnn_forward(const primitive_desc &aprimitive_desc, const primitive::at &x,
-            const primitive::at &hx, const primitive::at &cx, const primitive::at &weights, 
+            const primitive::at &hx, const primitive::at &cx, const primitive::at &weights,
             const memory &y, const memory &workspace) {
         c_api::mkldnn_primitive_t result;
         c_api::mkldnn_primitive_at_t inputs[] = { x.data, hx.data, cx.data, weights.data };
@@ -2409,17 +2410,16 @@ struct rnn_forward : public primitive {
 
     rnn_forward(const primitive_desc &aprimitive_desc, const primitive::at &x,
             const primitive::at &hx, const primitive::at &cx, const primitive::at &weights, 
-            const memory &y, const memory &hy, const memory &cy,
-            const memory &workspace) {
+            const memory &y, const memory &hy, const memory &cy, const memory &workspace) {
         c_api::mkldnn_primitive_t result;
         c_api::mkldnn_primitive_at_t inputs[] = { x.data, hx.data, cx.data, weights.data };
-        c_api::const_mkldnn_primitive_t outputs[] = { y.get(), hy.get(), cy.get(), workspace.get() };
+        c_api::const_mkldnn_primitive_t outputs[] = { y.get(), hy.get(), cy.get(),
+                                                    workspace.get() };
         error::wrap_c_api(c_api::mkldnn_primitive_create(&result,
                     aprimitive_desc.get(), inputs, outputs),
                 "could not create an rnn forward primitive");
         reset(result);
     }
-
 
     rnn_forward(const primitive_desc &aprimitive_desc, const primitive::at &x,
             const primitive::at &hx, const primitive::at &cx, const primitive::at &weights, 
@@ -2440,7 +2440,7 @@ struct rnn_backward : public primitive {
         template <typename T1>
         desc(prop_kind aprop_kind, algorithm aalgorithm,
              direction adirection, input_mode ainputmode,
-             T1 num_states, T1 num_layers, T1 num_seqs,
+             T1 num_states, T1 num_layers, T1 num_seqs, bool state_outputs,
                 const memory::desc &x_desc,
                 const memory::desc &hx_desc,
                 const memory::desc &y_desc,
@@ -2453,6 +2453,7 @@ struct rnn_backward : public primitive {
                         static_cast<size_t>(num_states),
                         static_cast<size_t>(num_layers),
                         static_cast<size_t>(num_seqs),
+                        state_outputs,
                         &x_desc.data, &hx_desc.data,
                         &y_desc.data, &weights_desc.data),
                     "could not init a forward rnn descriptor");
@@ -2618,6 +2619,28 @@ struct rnn_backward : public primitive {
                                                 dy.data, dhy.data, dcy.data,
                                                 weights.data, workspace.data };
         c_api::const_mkldnn_primitive_t outputs[] = { dx.get(), dhx.get(), dcx.get(), 
+                                                dweights.get() };
+        error::wrap_c_api(c_api::mkldnn_primitive_create(&result,
+                    aprimitive_desc.get(), inputs, outputs),
+                "could not create an rnn backward primitive");
+        reset(result);
+    }
+
+    rnn_backward(const primitive_desc &aprimitive_desc,
+            const primitive::at &x,
+            const primitive::at &hx,
+            const primitive::at &cx,
+            const primitive::at &dy,
+            const primitive::at &weights,
+            const primitive::at &workspace,
+            const memory &dx,
+            const memory &dhx,
+            const memory &dcx,
+            const memory &dweights) {
+        c_api::mkldnn_primitive_t result;
+        c_api::mkldnn_primitive_at_t inputs[] = { x.data, hx.data, cx.data,
+                                                dy.data, weights.data, workspace.data };
+        c_api::const_mkldnn_primitive_t outputs[] = { dx.get(), dhx.get(), dcx.get(),
                                                 dweights.get() };
         error::wrap_c_api(c_api::mkldnn_primitive_create(&result,
                     aprimitive_desc.get(), inputs, outputs),

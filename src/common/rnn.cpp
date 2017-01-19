@@ -34,7 +34,8 @@ namespace {
 status_t
 rnn_desc_init(rnn_desc_t *rnn_desc, prop_kind_t prop_kind, alg_kind_t alg_kind,
               rnn_direction_t direction, rnn_input_mode_t input_mode,
-              size_t num_states, size_t num_layers, size_t num_seqs,
+              size_t num_states, size_t num_layers,
+              size_t num_seqs, bool state_outputs,
               const memory_desc_t *x_desc, const memory_desc_t *hx_desc,
               const memory_desc_t *y_desc, const memory_desc_t *weights_desc) {
   bool args_ok = true && one_of(prop_kind, forward_training, forward_inference,
@@ -68,7 +69,7 @@ rnn_desc_init(rnn_desc_t *rnn_desc, prop_kind_t prop_kind, alg_kind_t alg_kind,
   rd.num_states = num_states;
   rd.num_layers = num_layers;
   rd.num_seqs = num_seqs;
-
+  rd.state_outputs = state_outputs;
   rd.x_desc = *x_desc;
   rd.hx_desc = *hx_desc;
   rd.y_desc = *y_desc;
@@ -82,23 +83,23 @@ rnn_desc_init(rnn_desc_t *rnn_desc, prop_kind_t prop_kind, alg_kind_t alg_kind,
 status_t mkldnn_rnn_forward_desc_init(
     rnn_desc_t *rnn_desc, prop_kind_t prop_kind, alg_kind_t alg_kind,
     rnn_direction_t direction, rnn_input_mode_t input_mode, size_t num_states,
-    size_t num_layers, size_t num_seqs, const memory_desc_t *x_desc,
+    size_t num_layers, size_t num_seqs, bool state_outputs, const memory_desc_t *x_desc,
     const memory_desc_t *hx_desc, const memory_desc_t *y_desc,
     const memory_desc_t *weights_desc) {
   return rnn_desc_init(rnn_desc, prop_kind, alg_kind, direction, input_mode,
-                       num_states, num_layers, num_seqs, x_desc, hx_desc,
-                       y_desc, weights_desc);
+                       num_states, num_layers, num_seqs, state_outputs,
+                       x_desc, hx_desc, y_desc, weights_desc);
 }
 
 status_t mkldnn_rnn_backward_desc_init(
     rnn_desc_t *rnn_desc, prop_kind_t prop_kind, alg_kind_t alg_kind,
     rnn_direction_t direction, rnn_input_mode_t input_mode, size_t num_states,
-    size_t num_layers, size_t num_seqs, const memory_desc_t *x_desc,
+    size_t num_layers, size_t num_seqs, bool state_outputs, const memory_desc_t *x_desc,
     const memory_desc_t *hx_desc, const memory_desc_t *y_desc,
     const memory_desc_t *weights_desc) {
   return rnn_desc_init(rnn_desc, prop_kind, alg_kind, direction, input_mode,
-                       num_states, num_layers, num_seqs, x_desc, hx_desc,
-                       y_desc, weights_desc);
+                       num_states, num_layers, num_seqs, state_outputs,
+                       x_desc, hx_desc, y_desc, weights_desc);
 }
 
 // vim: et ts=4 sw=4 cindent cino^=l0,\:0,N-s

@@ -261,10 +261,10 @@ protected:
                               data_type, p.rnx_format);
     auto l_weights_desc =
         create_md({ static_cast<int>(total_w) }, data_type, memory::format::x);
-    auto rnn_desc = rnn_forward::desc(p.aprop_kind, p.aalgorithm, p.adirection,
-                                      p.ainput_mode, ld.state_size,
-                                      ld.num_layers, ld.seq_length, l_x_desc,
-                                      l_hx_desc, l_y_desc, l_weights_desc);
+    auto rnn_desc = rnn_forward::desc(
+        p.aprop_kind, p.aalgorithm, p.adirection, p.ainput_mode, ld.state_size,
+        ld.num_layers, ld.seq_length, ld.state_outputs, l_x_desc, l_hx_desc,
+        l_y_desc, l_weights_desc);
 
     auto rnn_prim_desc = rnn_forward::primitive_desc(rnn_desc, eng);
     auto x_primitive_desc = memory::primitive_desc(l_x_desc, eng);
@@ -328,22 +328,38 @@ protected:
 
       workspace_data = new data_t[workspace_size / sizeof(data_t)];
       auto l_ws = memory(workspace_primitive_desc, workspace_data);
-      auto l = rnn_forward(rnn_prim_desc, l_x, l_hx, l_cx, l_weights, l_y, l_hy,
-                           l_cy, l_ws);
-      pipeline.push_back(l);
-      s.submit(pipeline).wait();
+      if (ld.state_outputs) {
+        auto l = rnn_forward(rnn_prim_desc, l_x, l_hx, l_cx, l_weights, l_y,
+                             l_hy, l_cy, l_ws);
+        pipeline.push_back(l);
+        s.submit(pipeline).wait();
+      } else {
+        auto l =
+            rnn_forward(rnn_prim_desc, l_x, l_hx, l_cx, l_weights, l_y, l_ws);
+        pipeline.push_back(l);
+        s.submit(pipeline).wait();
+      }
     } else {
-      auto l = rnn_forward(rnn_prim_desc, l_x, l_hx, l_cx, l_weights, l_y, l_hy,
-                           l_cy);
-      pipeline.push_back(l);
-      s.submit(pipeline).wait();
+      if (ld.state_outputs) {
+        auto l = rnn_forward(rnn_prim_desc, l_x, l_hx, l_cx, l_weights, l_y,
+                             l_hy, l_cy);
+        pipeline.push_back(l);
+        s.submit(pipeline).wait();
+      } else {
+        auto l = rnn_forward(rnn_prim_desc, l_x, l_hx, l_cx, l_weights, l_y);
+        pipeline.push_back(l);
+        s.submit(pipeline).wait();
+      }
     }
     compute_ref_lstm_fwd<data_t>(ld, l_x_desc, l_hx_desc, l_y_desc,
                                  l_weights_desc, l_x, l_hx, l_cx, l_weights,
                                  l_ref_y, l_ref_hy, l_ref_cy);
-    compare_data<data_t>(l_ref_y, l_y);
-    compare_data<data_t>(l_ref_hy, l_hy);
-    compare_data<data_t>(l_ref_cy, l_cy);
+    if (ld.state_outputs) {
+      compare_data<data_t>(l_ref_y, l_y);
+      compare_data<data_t>(l_ref_hy, l_hy);
+      compare_data<data_t>(l_ref_cy, l_cy);
+    } else
+      compare_data<data_t>(l_ref_y, l_y);
 
     delete[] x_data;
     delete[] hx_data;
@@ -365,34 +381,72 @@ using lstm_test_params_float = lstm_test_params;
 TEST_P(lstm_forward_test_float, TestsRNN) {}
 
 INSTANTIATE_TEST_CASE_P(
-    TestRNNForward, lstm_forward_test_float,
-    ::testing::
-        Values(lstm_test_params_float{ prop_kind::forward_training,
-                                       engine::kind::cpu, algorithm::rnn_lstm,
-                                       direction::rnn_unidirectional,
-                                       input_mode::rnn_linear_input,
-                                       memory::format::rnx,
-                                       { 128, 128,  10,        4,
-                                         32,  LSTM, UNIDIRECT, LINEAR } },
-               lstm_test_params_float{ prop_kind::forward_scoring,
-                                       engine::kind::cpu, algorithm::rnn_lstm,
-                                       direction::rnn_unidirectional,
-                                       input_mode::rnn_linear_input,
-                                       memory::format::rnx,
-                                       { 128, 128,  10,        4,
-                                         32,  LSTM, UNIDIRECT, LINEAR } },
-               lstm_test_params_float{ prop_kind::forward_training,
-                                       engine::kind::cpu, algorithm::rnn_lstm,
-                                       direction::rnn_bidirectional,
-                                       input_mode::rnn_linear_input,
-                                       memory::format::rnx,
-                                       { 128, 128,  10,       4,
-                                         32,  LSTM, BIDIRECT, LINEAR } },
-               lstm_test_params_float{ prop_kind::forward_scoring,
-                                       engine::kind::cpu, algorithm::rnn_lstm,
-                                       direction::rnn_bidirectional,
-                                       input_mode::rnn_linear_input,
-                                       memory::format::rnx,
-                                       { 128, 128,  10,       4,
-                                         32,  LSTM, BIDIRECT, LINEAR } }));
+    TestRNNForward0, lstm_forward_test_float,
+    ::testing::Values(lstm_test_params_float{ prop_kind::forward_training,
+                                              engine::kind::cpu,
+                                              algorithm::rnn_lstm,
+                                              direction::rnn_unidirectional,
+                                              input_mode::rnn_linear_input,
+                                              memory::format::rnx,
+                                              { 128,  128,       10,     4, 32,
+                                                LSTM, UNIDIRECT, LINEAR, 0 } },
+                      lstm_test_params_float{ prop_kind::forward_scoring,
+                                              engine::kind::cpu,
+                                              algorithm::rnn_lstm,
+                                              direction::rnn_unidirectional,
+                                              input_mode::rnn_linear_input,
+                                              memory::format::rnx,
+                                              { 128,  128,       10,     4, 32,
+                                                LSTM, UNIDIRECT, LINEAR, 0 } },
+                      lstm_test_params_float{ prop_kind::forward_training,
+                                              engine::kind::cpu,
+                                              algorithm::rnn_lstm,
+                                              direction::rnn_bidirectional,
+                                              input_mode::rnn_linear_input,
+                                              memory::format::rnx,
+                                              { 128,  128,      10,     4, 32,
+                                                LSTM, BIDIRECT, LINEAR, 0 } },
+                      lstm_test_params_float{ prop_kind::forward_scoring,
+                                              engine::kind::cpu,
+                                              algorithm::rnn_lstm,
+                                              direction::rnn_bidirectional,
+                                              input_mode::rnn_linear_input,
+                                              memory::format::rnx,
+                                              { 128,  128,      10,     4, 32,
+                                                LSTM, BIDIRECT, LINEAR, 0 } }));
+
+INSTANTIATE_TEST_CASE_P(
+    TestRNNForward1, lstm_forward_test_float,
+    ::testing::Values(lstm_test_params_float{ prop_kind::forward_training,
+                                              engine::kind::cpu,
+                                              algorithm::rnn_lstm,
+                                              direction::rnn_unidirectional,
+                                              input_mode::rnn_linear_input,
+                                              memory::format::rnx,
+                                              { 128,  128,       10,     4, 32,
+                                                LSTM, UNIDIRECT, LINEAR, 1 } },
+                      lstm_test_params_float{ prop_kind::forward_scoring,
+                                              engine::kind::cpu,
+                                              algorithm::rnn_lstm,
+                                              direction::rnn_unidirectional,
+                                              input_mode::rnn_linear_input,
+                                              memory::format::rnx,
+                                              { 128,  128,       10,     4, 32,
+                                                LSTM, UNIDIRECT, LINEAR, 1 } },
+                      lstm_test_params_float{ prop_kind::forward_training,
+                                              engine::kind::cpu,
+                                              algorithm::rnn_lstm,
+                                              direction::rnn_bidirectional,
+                                              input_mode::rnn_linear_input,
+                                              memory::format::rnx,
+                                              { 128,  128,      10,     4, 32,
+                                                LSTM, BIDIRECT, LINEAR, 1 } },
+                      lstm_test_params_float{ prop_kind::forward_scoring,
+                                              engine::kind::cpu,
+                                              algorithm::rnn_lstm,
+                                              direction::rnn_bidirectional,
+                                              input_mode::rnn_linear_input,
+                                              memory::format::rnx,
+                                              { 128,  128,      10,     4, 32,
+                                                LSTM, BIDIRECT, LINEAR, 1 } }));
 }

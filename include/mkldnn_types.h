@@ -24,6 +24,7 @@ extern "C" {
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 #include <stddef.h>
 #include <stdint.h>
+#include <stdbool.h>
 #endif
 
 /** @addtogroup c_api C API
@@ -581,6 +582,8 @@ typedef struct {
     size_t num_layers;
     /** The length of sequences in entire RNN network */
     size_t num_seqs;
+    /** state and cell output in entire RNN network */
+    bool state_outputs;
     /** Input(x) memory descriptor. [seq, batch, input_size] */
     mkldnn_memory_desc_t x_desc;
     /** State input(hx) memory descriptor. [layer, batch, hidden_size] */

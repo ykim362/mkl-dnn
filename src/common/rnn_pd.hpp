@@ -56,22 +56,35 @@ struct rnn_fwd_pd_t : public primitive_desc_t {
     }
   }
   virtual const memory_pd_t *output_pd(int index = 0) const override {
-    switch (index) {
-    case 0:
-    case 1:
-    case 2:
-      return dst_pd();
-    case 3:
-      return workspace_pd();
-    default:
-      return nullptr;
+    if (desc_.state_outputs) {
+      switch (index) {
+      case 0:
+      case 1:
+      case 2:
+        return dst_pd();
+      case 3:
+        return workspace_pd();
+      default:
+        return nullptr;
+      }
+    } else {
+      switch (index) {
+      case 0:
+        return dst_pd();
+      case 1:
+        return workspace_pd();
+      default:
+        return nullptr;
+      }
     }
   }
 
   virtual int n_inputs() const override { return 4; }
   virtual int n_outputs() const override {
-    return 1 + (dst_pd(1) != nullptr) + (dst_pd(2) != nullptr) +
-           (workspace_pd() != nullptr);
+    if (desc_.state_outputs)
+      return 3 + (workspace_pd() != nullptr);
+    else
+      return 1 + (workspace_pd() != nullptr);
   }
 
   virtual status_t query(query_t what, int idx, void *result) const override {
@@ -99,6 +112,7 @@ struct rnn_fwd_pd_t : public primitive_desc_t {
   inline size_t input_size() const {
     return static_cast<size_t>(desc_.x_desc.dims[2]);
   }
+  inline bool state_outputs() const { return desc_.state_outputs; }
   inline int gates_num() const {
     switch (desc_.alg_kind) {
     case alg_kind::rnn_relu:
@@ -200,21 +214,38 @@ struct rnn_bwd_pd_t : public primitive_desc_t {
   }
 
   virtual const memory_pd_t *input_pd(int index = 0) const override {
-    switch (index) {
-    case 0:
-    case 1:
-    case 2:
-      return src_pd();
-    case 3:
-    case 4:
-    case 5:
-      return diff_dst_pd(index - 3);
-    case 6:
-      return weights_pd();
-    case 7:
-      return workspace_pd();
-    default:
-      return nullptr;
+    if (desc_.state_outputs) {
+      switch (index) {
+      case 0:
+      case 1:
+      case 2:
+        return src_pd();
+      case 3:
+      case 4:
+      case 5:
+        return diff_dst_pd(index - 3);
+      case 6:
+        return weights_pd();
+      case 7:
+        return workspace_pd();
+      default:
+        return nullptr;
+      }
+    } else {
+      switch (index) {
+      case 0:
+      case 1:
+      case 2:
+        return src_pd();
+      case 3:
+        return diff_dst_pd(index - 3);
+      case 4:
+        return weights_pd();
+      case 5:
+        return workspace_pd();
+      default:
+        return nullptr;
+      }      
     }
   }
   virtual const memory_pd_t *output_pd(int index = 0) const override {
@@ -231,7 +262,10 @@ struct rnn_bwd_pd_t : public primitive_desc_t {
   }
 
   virtual int n_inputs() const override {
-    return 7 + (workspace_pd() != nullptr);
+    if (desc_.state_outputs)
+      return 7 + (workspace_pd() != nullptr);
+    else
+      return 5 + (workspace_pd() != nullptr);
   }
   virtual int n_outputs() const override { return 4; }
 
@@ -260,6 +294,7 @@ struct rnn_bwd_pd_t : public primitive_desc_t {
   inline size_t input_size() const {
     return static_cast<size_t>(desc_.x_desc.dims[2]);
   }
+  inline bool state_outputs() const { return desc_.state_outputs; }
   inline int gates_num() const {
     switch (desc_.alg_kind) {
     case alg_kind::rnn_relu:

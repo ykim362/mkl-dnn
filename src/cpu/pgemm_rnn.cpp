@@ -212,12 +212,20 @@ void pgemm_rnn_fwd_t<data_type>::execute_forward() {
   auto hx = reinterpret_cast<const data_t *>(this->input_memory(1));
   auto cx = reinterpret_cast<const data_t *>(this->input_memory(2));
   auto w = reinterpret_cast<const data_t *>(this->input_memory(3));
-
-  auto y = reinterpret_cast<data_t *>(this->memory(0));
-  auto hy = reinterpret_cast<data_t *>(this->memory(1));
-  auto cy = reinterpret_cast<data_t *>(this->memory(2));
-  auto ws = reinterpret_cast<data_t *>(this->memory(3));
-
+  const bool state_outputs = conf_.state_outputs();
+  data_t *y = nullptr;
+  data_t *hy = nullptr;
+  data_t *cy = nullptr;
+  data_t *ws = nullptr;
+  if (state_outputs) {
+    y = reinterpret_cast<data_t *>(this->memory(0));
+    hy = reinterpret_cast<data_t *>(this->memory(1));
+    cy = reinterpret_cast<data_t *>(this->memory(2));
+    ws = reinterpret_cast<data_t *>(this->memory(3));
+  } else {
+    y = reinterpret_cast<data_t *>(this->memory(0));
+    ws = reinterpret_cast<data_t *>(this->memory(1));
+  }
   const size_t seq_length = conf_.tau();
   const size_t num_layers = conf_.layers();
   const size_t batch_size = conf_.batch();
@@ -245,7 +253,6 @@ void pgemm_rnn_fwd_t<data_type>::execute_forward() {
   size_t tmp1_off = 0;
   size_t wa = w1_size + (num_layers - 1) * wx_size;
   size_t dl, rl, roff, rt;
-
   data_t *ws_ptr;
   if (ws) {
     ws_ptr = ws;
@@ -410,10 +417,22 @@ void pgemm_rnn_bwd_t<data_type>::execute_backward() {
   auto hx = reinterpret_cast<const data_t *>(this->input_memory(1));
   auto cx = reinterpret_cast<const data_t *>(this->input_memory(2));
   auto dy = reinterpret_cast<const data_t *>(this->input_memory(3));
-  auto dhy = reinterpret_cast<const data_t *>(this->input_memory(4));
-  auto dcy = reinterpret_cast<const data_t *>(this->input_memory(5));
-  auto w = reinterpret_cast<const data_t *>(this->input_memory(6));
-  auto ws = reinterpret_cast<const data_t *>(this->input_memory(7));
+  bool state_outputs = conf_.state_outputs();
+  const data_t *dhy;
+  const data_t *dcy;
+  const data_t *w;
+  const data_t *ws;
+  if (state_outputs) {
+    dhy = reinterpret_cast<const data_t *>(this->input_memory(4));
+    dcy = reinterpret_cast<const data_t *>(this->input_memory(5));
+    w = reinterpret_cast<const data_t *>(this->input_memory(6));
+    ws = reinterpret_cast<const data_t *>(this->input_memory(7));
+  } else {
+    w = reinterpret_cast<const data_t *>(this->input_memory(4));
+    ws = reinterpret_cast<const data_t *>(this->input_memory(5));
+    dhy = nullptr;
+    dcy = nullptr;
+  }
 
   auto dx = reinterpret_cast<data_t *>(this->memory(0));
   auto dhx = reinterpret_cast<data_t *>(this->memory(1));
@@ -470,24 +489,26 @@ void pgemm_rnn_bwd_t<data_type>::execute_backward() {
                                   h_nlayer_size,
                           batch_size);
   }
-
-  if (num_layers > 1) {
+  if (state_outputs) {
+    if (num_layers > 1) {
 #pragma omp parallel for
-    for (size_t ly = 0; ly < (num_layers - 1); ly++) {
+      for (size_t ly = 0; ly < (num_layers - 1); ly++) {
+        omatcopy<data_type>('R', 'T', batch_size, state_size, 1.0,
+                            dhy + ly * h_size, state_size,
+                            ts_ + dhout_space_off +
+                                (seq_length * direction - 1) * h_nlayer_size +
+                                ly * h_size,
+                            batch_size);
+      }
+    }
+#pragma omp parallel for
+    for (size_t ly = 0; ly < num_layers; ly++) {
       omatcopy<data_type>(
-          'R', 'T', batch_size, state_size, 1.0, dhy + ly * h_size, state_size,
-          ts_ + dhout_space_off + (seq_length * direction - 1) * h_nlayer_size +
+          'R', 'T', batch_size, state_size, 1.0, dcy + ly * h_size, state_size,
+          ts_ + dc_space_off + (seq_length * direction - 1) * h_nlayer_size +
               ly * h_size,
           batch_size);
     }
-  }
-#pragma omp parallel for
-  for (size_t ly = 0; ly < num_layers; ly++) {
-    omatcopy<data_type>(
-        'R', 'T', batch_size, state_size, 1.0, dcy + ly * h_size, state_size,
-        ts_ + dc_space_off + (seq_length * direction - 1) * h_nlayer_size +
-            ly * h_size,
-        batch_size);
   }
   data_t **weights_pack = new data_t *[total_layers];
   for (int l = 0; l < total_layers; l++) {

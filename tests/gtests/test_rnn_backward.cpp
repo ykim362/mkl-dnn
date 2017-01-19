@@ -95,25 +95,26 @@ void compute_ref_lstm_bwd(const test_lstm_desc_t &ld, const memory::desc &x_d,
                             (seq_length * direction - 1 - seq) * h_nlayer_size,
                         batch_size, state_size);
   }
-  if (num_layers > 1) {
+  if (ld.state_outputs) {
+    if (num_layers > 1) {
 #pragma omp parallel for
-    for (size_t ly = 0; ly < (num_layers - 1); ly++) {
-      transpose<data_t>(dhy_ptr + ly * h_size,
-                        ts_ + dhout_space_off +
+      for (size_t ly = 0; ly < (num_layers - 1); ly++) {
+        transpose<data_t>(dhy_ptr + ly * h_size,
+                          ts_ + dhout_space_off +
+                              (seq_length * direction - 1) * h_nlayer_size +
+                              ly * h_size,
+                          batch_size, state_size);
+      }
+    }
+#pragma omp parallel for
+    for (size_t ly = 0; ly < num_layers; ly++) {
+      transpose<data_t>(dcy_ptr + ly * h_size,
+                        ts_ + dc_space_off +
                             (seq_length * direction - 1) * h_nlayer_size +
                             ly * h_size,
                         batch_size, state_size);
     }
   }
-#pragma omp parallel for
-  for (size_t ly = 0; ly < num_layers; ly++) {
-    transpose<data_t>(dcy_ptr + ly * h_size,
-                      ts_ + dc_space_off +
-                          (seq_length * direction - 1) * h_nlayer_size +
-                          ly * h_size,
-                      batch_size, state_size);
-  }
-
   for (int l = (total_layers - 1); l >= 0; l--) {
     dl = l / num_layers;
     rl = l % num_layers;
@@ -380,10 +381,10 @@ protected:
                               data_type, p.rnx_format);
     auto l_weights_desc =
         create_md({ static_cast<int>(total_w) }, data_type, memory::format::x);
-    auto rnn_desc = rnn_backward::desc(p.aprop_kind, p.aalgorithm, p.adirection,
-                                       p.ainput_mode, ld.state_size,
-                                       ld.num_layers, ld.seq_length, l_x_desc,
-                                       l_hx_desc, l_y_desc, l_weights_desc);
+    auto rnn_desc = rnn_backward::desc(
+        p.aprop_kind, p.aalgorithm, p.adirection, p.ainput_mode, ld.state_size,
+        ld.num_layers, ld.seq_length, ld.state_outputs, l_x_desc, l_hx_desc,
+        l_y_desc, l_weights_desc);
 
     auto rnn_prim_desc = rnn_backward::primitive_desc(rnn_desc, eng);
     auto x_primitive_desc = memory::primitive_desc(l_x_desc, eng);
@@ -476,15 +477,22 @@ protected:
     // Execute
     std::vector<primitive> pipeline;
     auto s = stream(stream::kind::lazy);
-    auto l = rnn_backward(rnn_prim_desc, l_x, l_hx, l_cx, l_dy, l_dhy, l_dcy,
-                          l_weights, l_ws, l_dx, l_dhx, l_dcx, l_dweights);
-    pipeline.push_back(l);
-    s.submit(pipeline).wait();
-
+    if (ld.state_outputs) {
+      auto l = rnn_backward(rnn_prim_desc, l_x, l_hx, l_cx, l_dy, l_dhy, l_dcy,
+                            l_weights, l_ws, l_dx, l_dhx, l_dcx, l_dweights);
+      pipeline.push_back(l);
+      s.submit(pipeline).wait();
+    } else {
+      auto l = rnn_backward(rnn_prim_desc, l_x, l_hx, l_cx, l_dy, l_weights,
+                            l_ws, l_dx, l_dhx, l_dcx, l_dweights);
+      pipeline.push_back(l);
+      s.submit(pipeline).wait();
+    }
     compute_ref_lstm_bwd<data_t>(ld, l_x_desc, l_hx_desc, l_y_desc,
                                  l_weights_desc, l_x, l_hx, l_cx, l_dy, l_dhy,
                                  l_dcy, l_weights, l_ws, l_ref_dx, l_ref_dhx,
                                  l_ref_dcx, l_ref_dweights);
+
     compare_data<data_t>(l_ref_dx, l_dx);
     compare_data<data_t>(l_ref_dhx, l_dhx);
     compare_data<data_t>(l_ref_dcx, l_dcx);
@@ -516,20 +524,40 @@ using lstm_test_params_float = lstm_test_params;
 TEST_P(lstm_backward_test_float, TestsRNN) {}
 
 INSTANTIATE_TEST_CASE_P(
-    TestRNNBackward, lstm_backward_test_float,
-    ::testing::Values(
-        lstm_test_params_float{ prop_kind::backward,
-                                engine::kind::cpu,
-                                algorithm::rnn_lstm,
-                                direction::rnn_unidirectional,
-                                input_mode::rnn_linear_input,
-                                memory::format::rnx,
-                                { 4, 4, 2, 2, 2, LSTM, UNIDIRECT, LINEAR } },
-        lstm_test_params_float{ prop_kind::backward,
-                                engine::kind::cpu,
-                                algorithm::rnn_lstm,
-                                direction::rnn_bidirectional,
-                                input_mode::rnn_linear_input,
-                                memory::format::rnx,
-                                { 4, 4, 2, 2, 2, LSTM, BIDIRECT, LINEAR } }));
+    TestRNNBackward0, lstm_backward_test_float,
+    ::testing::Values(lstm_test_params_float{ prop_kind::backward,
+                                              engine::kind::cpu,
+                                              algorithm::rnn_lstm,
+                                              direction::rnn_unidirectional,
+                                              input_mode::rnn_linear_input,
+                                              memory::format::rnx,
+                                              { 4, 4, 2, 2, 2,
+                                                LSTM, UNIDIRECT, LINEAR, 1 } },
+                      lstm_test_params_float{ prop_kind::backward,
+                                              engine::kind::cpu,
+                                              algorithm::rnn_lstm,
+                                              direction::rnn_bidirectional,
+                                              input_mode::rnn_linear_input,
+                                              memory::format::rnx,
+                                              { 4, 4, 2, 2, 2,
+                                                LSTM, BIDIRECT, LINEAR, 1 } }));
+
+INSTANTIATE_TEST_CASE_P(
+    TestRNNBackward1, lstm_backward_test_float,
+    ::testing::Values(lstm_test_params_float{ prop_kind::backward,
+                                              engine::kind::cpu,
+                                              algorithm::rnn_lstm,
+                                              direction::rnn_unidirectional,
+                                              input_mode::rnn_linear_input,
+                                              memory::format::rnx,
+                                              { 4, 4, 2, 2, 2,
+                                                LSTM, UNIDIRECT, LINEAR, 0 } },
+                      lstm_test_params_float{ prop_kind::backward,
+                                              engine::kind::cpu,
+                                              algorithm::rnn_lstm,
+                                              direction::rnn_bidirectional,
+                                              input_mode::rnn_linear_input,
+                                              memory::format::rnx,
+                                              { 4, 4, 2, 2, 2,
+                                                LSTM, BIDIRECT, LINEAR, 0 } }));
 }
