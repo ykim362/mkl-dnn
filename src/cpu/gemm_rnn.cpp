@@ -37,23 +37,28 @@ using namespace mkldnn::impl::data_type;
 using namespace mkldnn::impl::memory_format;
 using namespace mkldnn::impl::primitive_kind;
 using namespace mkldnn::impl::utils;
+#ifdef USE_MKL
 using namespace mkldnn::impl::cpu::cpu_blas;
 using namespace mkldnn::impl::cpu::cpu_trans;
 using namespace mkldnn::impl::cpu::cpu_vml;
+#endif
 
 template <typename data_t>
 inline void vsigmoid(data_t *X, data_t *tmp, size_t Len) {
+#ifdef USE_MKL
   cblas_scal<data_trait<data_t>::data_type>(Len, -1.0, X, 1);
   vExp<data_trait<data_t>::data_type>(Len, X, X);
   array_set(tmp, 1.0, Len);
   vAdd<data_trait<data_t>::data_type>(Len, tmp, X, X);
   vDiv<data_trait<data_t>::data_type>(Len, tmp, X, X);
+#endif
 }
 
 template <typename data_t>
 inline void lstm_fwd_ele_wise(data_t *Gates,
                               const data_t *Ct_1, data_t *Ct, data_t *Ht,
                               data_t *tmp, size_t Length) {
+#ifdef USE_MKL
   // sigmoid
   vsigmoid<data_t>(Gates, tmp, 3 * Length);
   // ft * c_t_1
@@ -66,6 +71,7 @@ inline void lstm_fwd_ele_wise(data_t *Gates,
   // h_t = ot * tan(ct)
   vTanh<data_trait<data_t>::data_type>(Length, Ct, tmp);
   vMul<data_trait<data_t>::data_type>(Length, Gates + 2 * Length, tmp, Ht);
+#endif
 }
 
 template <typename data_t>
@@ -75,6 +81,7 @@ lstm_fwd_prop_single(const size_t input_size, const size_t state_size,
                      const data_t *ht_1, int tranht_1, const data_t *ct_1,
                      int tranct_1, const data_t *w, data_t *ht, data_t *ct,
                      data_t *gates, data_t *tmp) {
+#ifdef USE_MKL
   auto x_size = input_size * batch_size;
   auto h_size = state_size * batch_size;
 
@@ -106,6 +113,7 @@ lstm_fwd_prop_single(const size_t input_size, const size_t state_size,
   } else {
     lstm_fwd_ele_wise<data_t>(gates, ct_1, ct, ht, tmp, h_size);
   }
+#endif
 }
 
 template <impl::data_type_t data_type>

@@ -245,7 +245,7 @@ struct rnn_bwd_pd_t : public primitive_desc_t {
         return workspace_pd();
       default:
         return nullptr;
-      }      
+      }
     }
   }
   virtual const memory_pd_t *output_pd(int index = 0) const override {
