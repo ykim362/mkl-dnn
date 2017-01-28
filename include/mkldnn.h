@@ -544,16 +544,16 @@ mkldnn_status_t MKLDNN_API mkldnn_convolution_relu_desc_init(
 /** @} */
 
 /** @addtogroup c_api_rnn RNN (Including vanilla RNN, LSTM, GRU)
- * A primitive to compute RNN's inference only.
+ * A primitive to compute RNN.
  * @{ */
 
 /** Initializes an rnn descriptor @p rnn_desc for forward propagation using
  * @p prop_kind (possible values are #mkldnn_forward_training or
- * #mkldnn_forward_inference), @p alg_kind (possible values are 
- * #mkldnn_rnn_relu, #mkldnn_rnn_tanh, #mkldnn_rnn_lstm or #mkldnn_rnn_gru), 
- * @p direction (possible values are #mkldnn_rnn_unidirectional or 
+ * #mkldnn_forward_inference), @p alg_kind (possible values are
+ * #mkldnn_rnn_relu, #mkldnn_rnn_tanh, #mkldnn_rnn_lstm or #mkldnn_rnn_gru),
+ * @p direction (possible values are #mkldnn_rnn_unidirectional or
  * #mkldnn_rnn_bidirectional), @p input_mode for the input mode,
- * @p num_states for the number of hidden states, @p num_layers 
+ * @p num_states for the number of hidden states, @p num_layers
  * for the number of stacked layers, @p num_seqs for the length of the
  * sequences, and memory descriptors */
 mkldnn_status_t MKLDNN_API mkldnn_rnn_forward_desc_init(
@@ -567,11 +567,11 @@ mkldnn_status_t MKLDNN_API mkldnn_rnn_forward_desc_init(
         const mkldnn_memory_desc_t *weights_desc);
 
 /** Initializes an rnn descriptor @p rnn_desc for backward propagation using
- * @p alg_kind (possible values are #mkldnn_rnn_relu, #mkldnn_rnn_tanh, 
- * #mkldnn_rnn_lstm or #mkldnn_rnn_gru), 
- * @p direction (possible values are #mkldnn_rnn_unidirectional or 
+ * @p alg_kind (possible values are #mkldnn_rnn_relu, #mkldnn_rnn_tanh,
+ * #mkldnn_rnn_lstm or #mkldnn_rnn_gru),
+ * @p direction (possible values are #mkldnn_rnn_unidirectional or
  * #mkldnn_rnn_bidirectional), @p input_mode for the input mode,
- * @p num_states for the number of hidden states, @p num_layers 
+ * @p num_states for the number of hidden states, @p num_layers
  * for the number of stacked layers, @p num_seqs for the length of the
  * sequences, and memory descriptors */
 mkldnn_status_t MKLDNN_API mkldnn_rnn_backward_desc_init(

@@ -133,6 +133,17 @@ struct pgemm_rnn_bwd_t : public cpu_primitive_t {
                                    desc()->weights_desc.data_type);
       if (!ok)
         return status::unimplemented;
+      bool stats_ok = true
+        && hint_fwd_pd_->layers() == desc()->num_layers
+        && hint_fwd_pd_->tau() == desc()->num_seqs
+        && hint_fwd_pd_->direction() == desc()->direction
+        && hint_fwd_pd_->hidden_size() == desc()->num_states
+        && hint_fwd_pd_->input_size() == desc()->x_desc.dims[2]
+        && hint_fwd_pd_->batch() == desc()->x_desc.dims[1]
+        && hint_fwd_pd_->input_pd(1)->desc()->format == memory_format::rnx
+        && hint_fwd_pd_->input_pd(1)->desc()->ndims == 3
+        && hint_fwd_pd_->input_pd(1)->desc()->data_type == data_type;
+      if (!stats_ok) return status::unimplemented;
       auto ws_size = static_cast<int>(workspace_size());
       memory_desc_t ws_d;
       mkldnn_memory_desc_init(&ws_d, 1, { &ws_size }, data_type,

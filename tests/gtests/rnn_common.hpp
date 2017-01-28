@@ -103,7 +103,7 @@ inline void gemm(const int transA, const int transB, const data_t *A,
 namespace mkldnn {
 struct lstm_test_params {
   prop_kind aprop_kind;
-  const engine::kind engine_kind;
+  engine::kind engine_kind;
   algorithm aalgorithm;
   direction adirection;
   input_mode ainput_mode;

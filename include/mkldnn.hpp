@@ -2461,10 +2461,13 @@ struct rnn_backward : public primitive {
     };
 
     struct primitive_desc : public handle<c_api::mkldnn_primitive_desc_t>{
-        primitive_desc(const desc &adesc, const engine &aengine) {
+        primitive_desc(const desc &adesc, const engine &aengine,
+                const rnn_forward::primitive_desc
+                    &hint_fwd_primitive_desc) {
             c_api::mkldnn_primitive_desc_t result;
             error::wrap_c_api(c_api::mkldnn_primitive_desc_create(
-                    &result, &adesc.data, aengine.get(), nullptr),
+                    &result, &adesc.data, aengine.get(),
+                    hint_fwd_primitive_desc.get()),
                 "could not create a rnn backward primitive descriptor");
             reset(result);
         }
