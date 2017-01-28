@@ -170,7 +170,6 @@ struct pgemm_rnn_bwd_t : public cpu_primitive_t {
                     conf_.hout_space_size() + conf_.c_space_size() +
                     4 * conf_.h_size();
     ts_ = new data_t[ts_size_];
-    memset(ts_, 0, ts_size_ * sizeof(data_t));
   }
   ~pgemm_rnn_bwd_t() {
     if (ts_)
