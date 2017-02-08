@@ -36,7 +36,6 @@
 #include "cpu/ref_batch_normalization.hpp"
 #include "cpu/ref_inner_product.hpp"
 #include "cpu/gemm_inner_product.hpp"
-#include "cpu/gemm_rnn.hpp"
 #include "cpu/pgemm_rnn.hpp"
 #include "cpu/simple_reorder.hpp"
 
@@ -154,8 +153,6 @@ static const pd_create_f cpu_impl_list[] = {
     /* rnn */
     INSTANCE(pgemm_rnn_fwd_t<data_type::f32>),
     INSTANCE(pgemm_rnn_bwd_t<data_type::f32>),
-    INSTANCE(gemm_rnn_fwd_t<data_type::f32>),
-    INSTANCE(gemm_rnn_bwd_t<data_type::f32>),
 
     nullptr,
 };

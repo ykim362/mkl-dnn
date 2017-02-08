@@ -24,7 +24,6 @@ extern "C" {
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 #include <stddef.h>
 #include <stdint.h>
-#include <stdbool.h>
 #endif
 
 /** @addtogroup c_api C API
@@ -105,6 +104,8 @@ typedef enum {
     mkldnn_x,
     /** 2D data tensor. */
     mkldnn_nc,
+    /** 3D RNN input, output tensor in the @c rnx format (recurrence, batch, inputs). */
+    mkldnn_rnx,
     /** 4D data tensor in the @c nchw format typically used in Caffe. */
     mkldnn_nchw,
     /** 4D data tensor in the @c nhwc format typically used in TensorFlow. */
@@ -172,8 +173,7 @@ typedef enum {
     /** 4D weights tensor in the oihw format with input channels data laid out
      * in memory in 16-element blocks. */
     mkldnn_oIhw16i = mkldnn_nChw16c,
-    /** 3D RNN input, output tensor in the @c rnx format (recurrence, batch, inputs). */
-    mkldnn_rnx = 100,   
+   
 } mkldnn_memory_format_t;
 
 /** Kinds of padding. Define how to interpret the data in padding regions. */
@@ -583,7 +583,7 @@ typedef struct {
     /** The length of sequences in entire RNN network */
     size_t num_seqs;
     /** state and cell output in entire RNN network */
-    bool state_outputs;
+    int state_outputs;
     /** Input(x) memory descriptor. [seq, batch, input_size] */
     mkldnn_memory_desc_t x_desc;
     /** State input(hx) memory descriptor. [layer, batch, hidden_size] */

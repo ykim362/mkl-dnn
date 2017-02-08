@@ -2257,7 +2257,7 @@ struct rnn_forward : public primitive {
         template <typename T1>
         desc(prop_kind aprop_kind, algorithm aalgorithm,
              direction adirection, input_mode ainputmode,
-             T1 num_states, T1 num_layers, T1 num_seqs, bool state_outputs,
+             T1 num_states, T1 num_layers, T1 num_seqs, int state_outputs,
                 const memory::desc &x_desc,
                 const memory::desc &hx_desc,
                 const memory::desc &y_desc,
@@ -2293,7 +2293,7 @@ struct rnn_forward : public primitive {
                 c_api::mkldnn_primitive_desc_query_pd(get(),
                                mkldnn::convert_to_c(src_pd), 0);
             error::wrap_c_api(c_api::mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
-                    "could not clone a x primititve descriptor");
+                    "could not clone a x primitive descriptor");
             adesc.reset(cdesc);
             return adesc;
         }
@@ -2305,7 +2305,7 @@ struct rnn_forward : public primitive {
                 c_api::mkldnn_primitive_desc_query_pd(get(),
                                mkldnn::convert_to_c(src_pd), 1);
             error::wrap_c_api(c_api::mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
-                    "could not clone a hx primititve descriptor");
+                    "could not clone a hx primitive descriptor");
             adesc.reset(cdesc);
             return adesc;
         }
@@ -2317,7 +2317,7 @@ struct rnn_forward : public primitive {
                 c_api::mkldnn_primitive_desc_query_pd(get(),
                                mkldnn::convert_to_c(src_pd), 2);
             error::wrap_c_api(c_api::mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
-                    "could not clone a cx primititve descriptor");
+                    "could not clone a cx primitive descriptor");
             adesc.reset(cdesc);
             return adesc;
         }
@@ -2329,7 +2329,7 @@ struct rnn_forward : public primitive {
                 c_api::mkldnn_primitive_desc_query_pd(get(),
                                mkldnn::convert_to_c(dst_pd), 0);
             error::wrap_c_api(c_api::mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
-                    "could not clone a y primititve descriptor");
+                    "could not clone a y primitive descriptor");
             adesc.reset(cdesc);
             return adesc;
         }
@@ -2341,7 +2341,7 @@ struct rnn_forward : public primitive {
                 c_api::mkldnn_primitive_desc_query_pd(get(),
                                mkldnn::convert_to_c(dst_pd), 1);
             error::wrap_c_api(c_api::mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
-                    "could not clone a hy primititve descriptor");
+                    "could not clone a hy primitive descriptor");
             adesc.reset(cdesc);
             return adesc;
         }
@@ -2353,7 +2353,7 @@ struct rnn_forward : public primitive {
                 c_api::mkldnn_primitive_desc_query_pd(get(),
                                mkldnn::convert_to_c(dst_pd), 2);
             error::wrap_c_api(c_api::mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
-                    "could not clone a cy primititve descriptor");
+                    "could not clone a cy primitive descriptor");
             adesc.reset(cdesc);
             return adesc;
         }
@@ -2365,7 +2365,7 @@ struct rnn_forward : public primitive {
                 c_api::mkldnn_primitive_desc_query_pd(get(),
                                mkldnn::convert_to_c(weights_pd), 0);
             error::wrap_c_api(c_api::mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
-                    "could not clone a weights primititve descriptor");
+                    "could not clone a weights primitive descriptor");
             adesc.reset(cdesc);
             return adesc;
         }
@@ -2377,7 +2377,7 @@ struct rnn_forward : public primitive {
                 c_api::mkldnn_primitive_desc_query_pd(get(),
                                mkldnn::convert_to_c(workspace_pd), 0);
             error::wrap_c_api(c_api::mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
-                    "could not clone a workspace primititve descriptor");
+                    "could not clone a workspace primitive descriptor");
             adesc.reset(cdesc);
             return adesc;
         }
@@ -2440,7 +2440,7 @@ struct rnn_backward : public primitive {
         template <typename T1>
         desc(prop_kind aprop_kind, algorithm aalgorithm,
              direction adirection, input_mode ainputmode,
-             T1 num_states, T1 num_layers, T1 num_seqs, bool state_outputs,
+             T1 num_states, T1 num_layers, T1 num_seqs, int state_outputs,
                 const memory::desc &x_desc,
                 const memory::desc &hx_desc,
                 const memory::desc &y_desc,
@@ -2479,7 +2479,7 @@ struct rnn_backward : public primitive {
                 c_api::mkldnn_primitive_desc_query_pd(get(),
                                mkldnn::convert_to_c(src_pd), 0);
             error::wrap_c_api(c_api::mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
-                    "could not clone a x primititve descriptor");
+                    "could not clone a x primitive descriptor");
             adesc.reset(cdesc);
             return adesc;
         }
@@ -2491,7 +2491,7 @@ struct rnn_backward : public primitive {
                 c_api::mkldnn_primitive_desc_query_pd(get(),
                                mkldnn::convert_to_c(src_pd), 1);
             error::wrap_c_api(c_api::mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
-                    "could not clone a hx primititve descriptor");
+                    "could not clone a hx primitive descriptor");
             adesc.reset(cdesc);
             return adesc;
         }
@@ -2503,7 +2503,7 @@ struct rnn_backward : public primitive {
                 c_api::mkldnn_primitive_desc_query_pd(get(),
                                mkldnn::convert_to_c(src_pd), 2);
             error::wrap_c_api(c_api::mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
-                    "could not clone a cx primititve descriptor");
+                    "could not clone a cx primitive descriptor");
             adesc.reset(cdesc);
             return adesc;
         }
@@ -2515,7 +2515,7 @@ struct rnn_backward : public primitive {
                 c_api::mkldnn_primitive_desc_query_pd(get(),
                                mkldnn::convert_to_c(diff_dst_pd), 0);
             error::wrap_c_api(c_api::mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
-                    "could not clone a dy primititve descriptor");
+                    "could not clone a dy primitive descriptor");
             adesc.reset(cdesc);
             return adesc;
         }
@@ -2527,7 +2527,7 @@ struct rnn_backward : public primitive {
                 c_api::mkldnn_primitive_desc_query_pd(get(),
                                mkldnn::convert_to_c(diff_dst_pd), 1);
             error::wrap_c_api(c_api::mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
-                    "could not clone a dhy primititve descriptor");
+                    "could not clone a dhy primitive descriptor");
             adesc.reset(cdesc);
             return adesc;
         }
@@ -2539,7 +2539,7 @@ struct rnn_backward : public primitive {
                 c_api::mkldnn_primitive_desc_query_pd(get(),
                                mkldnn::convert_to_c(diff_dst_pd), 2);
             error::wrap_c_api(c_api::mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
-                    "could not clone a dcy primititve descriptor");
+                    "could not clone a dcy primitive descriptor");
             adesc.reset(cdesc);
             return adesc;
         }
@@ -2551,7 +2551,7 @@ struct rnn_backward : public primitive {
                 c_api::mkldnn_primitive_desc_query_pd(get(),
                                mkldnn::convert_to_c(weights_pd), 0);
             error::wrap_c_api(c_api::mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
-                    "could not clone a weights primititve descriptor");
+                    "could not clone a weights primitive descriptor");
             adesc.reset(cdesc);
             return adesc;
         }
@@ -2563,7 +2563,7 @@ struct rnn_backward : public primitive {
                 c_api::mkldnn_primitive_desc_query_pd(get(),
                                mkldnn::convert_to_c(diff_src_pd), 0);
             error::wrap_c_api(c_api::mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
-                    "could not clone a dx primititve descriptor");
+                    "could not clone a dx primitive descriptor");
             adesc.reset(cdesc);
             return adesc;
         }
@@ -2575,7 +2575,7 @@ struct rnn_backward : public primitive {
                 c_api::mkldnn_primitive_desc_query_pd(get(),
                                mkldnn::convert_to_c(diff_src_pd), 1);
             error::wrap_c_api(c_api::mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
-                    "could not clone a dhx primititve descriptor");
+                    "could not clone a dhx primitive descriptor");
             adesc.reset(cdesc);
             return adesc;
         }
@@ -2587,7 +2587,7 @@ struct rnn_backward : public primitive {
                 c_api::mkldnn_primitive_desc_query_pd(get(),
                                mkldnn::convert_to_c(diff_src_pd), 2);
             error::wrap_c_api(c_api::mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
-                    "could not clone a dcx primititve descriptor");
+                    "could not clone a dcx primitive descriptor");
             adesc.reset(cdesc);
             return adesc;
         } 
@@ -2598,7 +2598,7 @@ struct rnn_backward : public primitive {
                 c_api::mkldnn_primitive_desc_query_pd(get(),
                                mkldnn::convert_to_c(workspace_pd), 0);
             error::wrap_c_api(c_api::mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
-                    "could not clone a workspace primititve descriptor");
+                    "could not clone a workspace primitive descriptor");
             adesc.reset(cdesc);
             return adesc;
         }

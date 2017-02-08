@@ -34,7 +34,7 @@ namespace {
 status_t rnn_desc_init(rnn_desc_t *rnn_desc, prop_kind_t prop_kind, alg_kind_t alg_kind,
         rnn_direction_t direction, rnn_input_mode_t input_mode,
         size_t num_states, size_t num_layers,
-        size_t num_seqs, bool state_outputs,
+        size_t num_seqs, int state_outputs,
         const memory_desc_t *x_desc, const memory_desc_t *hx_desc,
         const memory_desc_t *y_desc, const memory_desc_t *weights_desc) {
     bool args_ok = true
@@ -83,7 +83,7 @@ status_t rnn_desc_init(rnn_desc_t *rnn_desc, prop_kind_t prop_kind, alg_kind_t a
 status_t mkldnn_rnn_forward_desc_init(
         rnn_desc_t *rnn_desc, prop_kind_t prop_kind, alg_kind_t alg_kind,
         rnn_direction_t direction, rnn_input_mode_t input_mode, size_t num_states,
-        size_t num_layers, size_t num_seqs, bool state_outputs, const memory_desc_t *x_desc,
+        size_t num_layers, size_t num_seqs, int state_outputs, const memory_desc_t *x_desc,
         const memory_desc_t *hx_desc, const memory_desc_t *y_desc,
         const memory_desc_t *weights_desc) {
     return rnn_desc_init(rnn_desc, prop_kind, alg_kind, direction, input_mode,
@@ -94,7 +94,7 @@ status_t mkldnn_rnn_forward_desc_init(
 status_t mkldnn_rnn_backward_desc_init(
       rnn_desc_t *rnn_desc, prop_kind_t prop_kind, alg_kind_t alg_kind,
       rnn_direction_t direction, rnn_input_mode_t input_mode, size_t num_states,
-      size_t num_layers, size_t num_seqs, bool state_outputs, const memory_desc_t *x_desc,
+      size_t num_layers, size_t num_seqs, int state_outputs, const memory_desc_t *x_desc,
       const memory_desc_t *hx_desc, const memory_desc_t *y_desc,
       const memory_desc_t *weights_desc) {
     return rnn_desc_init(rnn_desc, prop_kind, alg_kind, direction, input_mode,
