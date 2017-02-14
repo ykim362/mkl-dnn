@@ -47,7 +47,7 @@ struct rnn_fwd_pd_t : public primitive_desc_t {
         case 0:
         case 1:
         case 2:
-          return src_pd();
+          return src_pd(index);
         case 3:
           return weights_pd();
         default:
@@ -60,7 +60,7 @@ struct rnn_fwd_pd_t : public primitive_desc_t {
             case 0:
             case 1:
             case 2:
-                return dst_pd();
+                return dst_pd(index);
             case 3:
                 return workspace_pd();
             default:
@@ -69,7 +69,7 @@ struct rnn_fwd_pd_t : public primitive_desc_t {
         } else {
             switch (index) {
             case 0:
-                return dst_pd();
+                return dst_pd(index);
             case 1:
                 return workspace_pd();
             default:
@@ -218,7 +218,7 @@ struct rnn_bwd_pd_t : public primitive_desc_t {
             case 0:
             case 1:
             case 2:
-                return src_pd();
+                return src_pd(index);
             case 3:
             case 4:
             case 5:
@@ -235,7 +235,7 @@ struct rnn_bwd_pd_t : public primitive_desc_t {
             case 0:
             case 1:
             case 2:
-                return src_pd();
+                return src_pd(index);
             case 3:
                 return diff_dst_pd(index - 3);
             case 4:
@@ -252,7 +252,7 @@ struct rnn_bwd_pd_t : public primitive_desc_t {
         case 0:
         case 1:
         case 2:
-            return diff_src_pd();
+            return diff_src_pd(index);
         case 3:
             return diff_weights_pd();
         default:
