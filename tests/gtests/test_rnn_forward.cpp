@@ -223,7 +223,6 @@ template <typename data_t>
 class lstm_forward_test : public ::testing::TestWithParam<lstm_test_params> {
 protected:
     virtual void SetUp() {
-#ifdef USE_MKL
         using namespace mkldnn::impl::utils;
         lstm_test_params p = ::testing::TestWithParam<lstm_test_params>::GetParam();
 
@@ -373,7 +372,6 @@ protected:
         delete[] ref_y_data;
         delete[] ref_hy_data;
         delete[] ref_cy_data;
-#endif
     }
 };
 

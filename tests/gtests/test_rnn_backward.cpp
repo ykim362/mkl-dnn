@@ -576,7 +576,6 @@ private:
 
 protected:
     virtual void SetUp() {
-#ifdef USE_MKL
         using namespace mkldnn::impl::utils;
         p = ::testing::TestWithParam<lstm_test_params>::GetParam();
         ASSERT_TRUE(p.engine_kind == engine::kind::cpu);
@@ -638,7 +637,6 @@ protected:
 
         Forward();
         Backward();
-#endif
     }
 
     void Forward() {

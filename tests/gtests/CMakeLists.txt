@@ -41,8 +41,6 @@ file(GLOB PRIM_TEST_CASES_SRC RELATIVE ${CMAKE_SOURCE_DIR}/tests/gtests
                               test_inner_product_forward.cpp
                               test_inner_product_backward_data.cpp
                               test_inner_product_backward_weights.cpp
-                              test_rnn_forward.cpp
-                              test_rnn_backward.cpp
                               test_convolution_format_any.cpp
                               test_convolution_forward.cpp
                               test_convolution_relu_forward.cpp
@@ -50,7 +48,14 @@ file(GLOB PRIM_TEST_CASES_SRC RELATIVE ${CMAKE_SOURCE_DIR}/tests/gtests
                               test_convolution_backward_weights.cpp
                               ) #temporary
 
-foreach(TEST_FILE ${PRIM_TEST_CASES_SRC})
+if (HAVE_MKL)
+    file(GLOB MKL_PRIM_TEST_CASES_SRC RELATIVE ${CMAKE_SOURCE_DIR}/tests/gtests
+                                  test_rnn_forward.cpp
+                                  test_rnn_backward.cpp
+                                  )
+endif()
+
+foreach(TEST_FILE ${PRIM_TEST_CASES_SRC} ${MKL_PRIM_TEST_CASES_SRC})
     get_filename_component (TEST_FILE_WE ${TEST_FILE} NAME_WE)
     set(CURR_APP_NAME ${TEST_FILE_WE})
     add_executable(${CURR_APP_NAME} ${MAIN_SRC_GTEST} ${TEST_FILE})

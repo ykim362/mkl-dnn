@@ -5,14 +5,17 @@ Intel(R) Math Kernel Library for Deep Neural Networks (Intel(R) MKL-DNN) is an
 open source performance library for Deep Learning (DL) applications intended
 for acceleration of DL frameworks on Intel(R) architecture. Intel MKL-DNN
 includes highly vectorized and threaded building blocks for implementation of
-convolutional neural networks (CNN) with C and C++ interfaces. This
-project is created to help DL community innovate on Intel(R) processors.
+convolutional neural networks (CNN) and recurrent neural networks (RNN) with C
+and C++ interfaces. This project is created to help DL community innovate
+on Intel(R) processors.
 
 The library supports the most commonly used primitives necessary to accelerate
 bleeding edge image recognition topologies, including Cifar*, AlexNet*, VGG*, 
 GoogleNet* and ResNet*. The primitives include convolution, inner product, 
 pooling, normalization, and activation primitives with support for inference
-operation. This release includes the following classes of functions:
+operation. In addition, this release support commonly used primitives necessary
+to accelerate recurrent neural network architectures, by far including LSTM.
+This release includes the following classes of functions:
 
 * Convolution: direct batched convolution
 
@@ -25,6 +28,8 @@ operation. This release includes the following classes of functions:
 * Activation: rectified linear unit neuron activation (ReLU)
 
 * Data manipulation: reorder (multi-dimensional transposition/conversion)
+
+* RNN: Long short-term memory (LSTM)
 
 Intel MKL DNN primitives implement a plain C application programming
 interface (API) that can be used in the existing C/C++ DNN frameworks, as well
@@ -195,6 +200,10 @@ net.push_back(conv);
 ~~~cpp
 mkldnn::stream(mkldnn::stream::kind::eager).submit(net).wait();
 ~~~
+
+How to build RNN topology in MKL DNN is almost the same steps as above
+CNN example. But RNN primitive does not need special data format conversion
+so above step 7 is not needed for RNN.
 
 @subpage legal_information
 
