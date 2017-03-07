@@ -2397,7 +2397,7 @@ struct rnn_forward : public primitive {
     }
 
     rnn_forward(const primitive_desc &aprimitive_desc, const primitive::at &x,
-            const primitive::at &hx, const primitive::at &cx, const primitive::at &weights, 
+            const primitive::at &hx, const primitive::at &cx, const primitive::at &weights,
             const memory &y) {
         c_api::mkldnn_primitive_t result;
         c_api::mkldnn_primitive_at_t inputs[] = { x.data, hx.data, cx.data, weights.data };
@@ -2409,7 +2409,7 @@ struct rnn_forward : public primitive {
     }
 
     rnn_forward(const primitive_desc &aprimitive_desc, const primitive::at &x,
-            const primitive::at &hx, const primitive::at &cx, const primitive::at &weights, 
+            const primitive::at &hx, const primitive::at &cx, const primitive::at &weights,
             const memory &y, const memory &hy, const memory &cy, const memory &workspace) {
         c_api::mkldnn_primitive_t result;
         c_api::mkldnn_primitive_at_t inputs[] = { x.data, hx.data, cx.data, weights.data };
@@ -2422,7 +2422,7 @@ struct rnn_forward : public primitive {
     }
 
     rnn_forward(const primitive_desc &aprimitive_desc, const primitive::at &x,
-            const primitive::at &hx, const primitive::at &cx, const primitive::at &weights, 
+            const primitive::at &hx, const primitive::at &cx, const primitive::at &weights,
             const memory &y, const memory &hy, const memory &cy) {
         c_api::mkldnn_primitive_t result;
         c_api::mkldnn_primitive_at_t inputs[] = { x.data, hx.data, cx.data, weights.data };
@@ -2590,7 +2590,7 @@ struct rnn_backward : public primitive {
                     "could not clone a dcx primitive descriptor");
             adesc.reset(cdesc);
             return adesc;
-        } 
+        }
         memory::primitive_desc workspace_primitive_desc() const {
             memory::primitive_desc adesc;
             c_api::mkldnn_primitive_desc_t cdesc;
@@ -2604,7 +2604,7 @@ struct rnn_backward : public primitive {
         }
     };
 
-    rnn_backward(const primitive_desc &aprimitive_desc, 
+    rnn_backward(const primitive_desc &aprimitive_desc,
             const primitive::at &x,
             const primitive::at &hx,
             const primitive::at &cx,
@@ -2621,7 +2621,7 @@ struct rnn_backward : public primitive {
         c_api::mkldnn_primitive_at_t inputs[] = { x.data, hx.data, cx.data,
                                                 dy.data, dhy.data, dcy.data,
                                                 weights.data, workspace.data };
-        c_api::const_mkldnn_primitive_t outputs[] = { dx.get(), dhx.get(), dcx.get(), 
+        c_api::const_mkldnn_primitive_t outputs[] = { dx.get(), dhx.get(), dcx.get(),
                                                 dweights.get() };
         error::wrap_c_api(c_api::mkldnn_primitive_create(&result,
                     aprimitive_desc.get(), inputs, outputs),
