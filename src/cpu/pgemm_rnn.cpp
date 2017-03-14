@@ -25,6 +25,7 @@ namespace mkldnn {
 namespace impl {
 namespace cpu {
 
+#define L1_BLK_SIZE 8096
 enum {
     NOTRANS = 1,
     TRANS = 2
@@ -58,18 +59,27 @@ inline void lstm_fwd_ele_wise(data_t *Gates, const data_t *Ct_1, data_t *Ct,
                             data_t *Ht, data_t *tmp1, data_t *tmp,
                             size_t Length) {
 #ifdef USE_MKL
-    vsigmoid<data_t>(Gates, tmp1, 3 * Length);
-    // ft * c_t_1
-    vMul<data_trait<data_t>::data_type>(Length, Gates + Length, Ct_1, Ct);
-    // tanh(gt) * it
-    vTanh<data_trait<data_t>::data_type>(Length, Gates + 3 * Length,
+    size_t iter = Length / L1_BLK_SIZE;
+    size_t rem = Length % L1_BLK_SIZE;
+    size_t compute_block = 0;
+    if (rem != 0) iter += 1;
+    #pragma omp parallel for
+    for(size_t i=0; i < iter; i++) {
+        if(iter == 0 || (rem != 0 && i == (iter - 1))) 
+            compute_block = rem;
+        else
+            compute_block = L1_BLK_SIZE;
+        vsigmoid<data_t>(Gates, tmp1, compute_block);
+        vsigmoid<data_t>(Gates + Length, tmp1, compute_block);
+        vsigmoid<data_t>(Gates + 2 * Length, tmp1, compute_block);
+        vTanh<data_trait<data_t>::data_type>(compute_block, Gates + 3 * Length,
                                        Gates + 3 * Length);
-    vMul<data_trait<data_t>::data_type>(Length, Gates, Gates + 3 * Length, tmp);
-    // Ct=ft*Ct-1 + Gt*It
-    vAdd<data_trait<data_t>::data_type>(Length, Ct, tmp, Ct);
-    // h_t = ot * tan(ct)
-    vTanh<data_trait<data_t>::data_type>(Length, Ct, tmp);
-    vMul<data_trait<data_t>::data_type>(Length, Gates + 2 * Length, tmp, Ht);
+        vMul<data_trait<data_t>::data_type>(compute_block, Gates + Length, Ct_1, Ct);
+        vMul<data_trait<data_t>::data_type>(compute_block, Gates, Gates + 3 * Length, tmp);
+        vAdd<data_trait<data_t>::data_type>(compute_block, Ct, tmp, Ct);
+        vTanh<data_trait<data_t>::data_type>(compute_block, Ct, tmp);
+        vMul<data_trait<data_t>::data_type>(compute_block, Gates + 2 * Length, tmp, Ht);
+    }
 #endif
 }
 
