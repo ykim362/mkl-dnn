@@ -293,7 +293,6 @@ void pgemm_rnn_fwd_t<data_type>::execute_forward() {
     if (conf_.desc()->prop_kind != forward_training) {
         ts_size_ += conf_.workspace_size();
     }
-    memset(ts_, 0, ts_size_ * sizeof(data_t));
     array_set(ts_ + tmp1_off, 1.0, 3 * h_size);
     data_t **weights_pack = new data_t *[total_layers];
 
@@ -498,14 +497,6 @@ void pgemm_rnn_bwd_t<data_type>::execute_backward() {
     const size_t dc_space_off = dhout_space_off + hout_space_size;
     const size_t tmp1_off = dc_space_off + c_space_size;
     const size_t tmp_space_off = tmp1_off + 3 * h_size;
-    auto bsize = (input_size > state_size) ? input_size : state_size;
-    auto tmp1 = bsize + state_size + 2;
-    auto tmp2 = state_size * 4;
-    auto tmp = (tmp1 > tmp2) ? tmp1 : tmp2;
-    auto ts_size_ = tmp * batch_size + gates_space_size +
-                    hout_space_size + c_space_size +
-                    4 * h_size;
-    memset(ts_, 0, ts_size_ * sizeof(data_t));
     array_set(ts_ + tmp1_off, 1.0, 3 * h_size);
     size_t w_off = 0;
     size_t in_size = 0;
