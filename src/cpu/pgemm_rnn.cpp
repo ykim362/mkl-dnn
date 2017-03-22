@@ -59,27 +59,36 @@ inline void lstm_fwd_ele_wise(data_t *Gates, const data_t *Ct_1, data_t *Ct,
                             data_t *Ht, data_t *tmp1, data_t *tmp,
                             size_t Length) {
 #ifdef USE_MKL
-    size_t iter = Length / L1_BLK_SIZE;
-    size_t rem = Length % L1_BLK_SIZE;
-    size_t compute_block = 0;
-    if (rem != 0) iter += 1;
-    #pragma omp parallel for
-    for(size_t i=0; i < iter; i++) {
-        if(iter == 0 || (rem != 0 && i == (iter - 1))) 
-            compute_block = rem;
-        else
-            compute_block = L1_BLK_SIZE;
-        vsigmoid<data_t>(Gates, tmp1, compute_block);
-        vsigmoid<data_t>(Gates + Length, tmp1, compute_block);
-        vsigmoid<data_t>(Gates + 2 * Length, tmp1, compute_block);
-        vTanh<data_trait<data_t>::data_type>(compute_block, Gates + 3 * Length,
-                                       Gates + 3 * Length);
-        vMul<data_trait<data_t>::data_type>(compute_block, Gates + Length, Ct_1, Ct);
-        vMul<data_trait<data_t>::data_type>(compute_block, Gates, Gates + 3 * Length, tmp);
-        vAdd<data_trait<data_t>::data_type>(compute_block, Ct, tmp, Ct);
-        vTanh<data_trait<data_t>::data_type>(compute_block, Ct, tmp);
-        vMul<data_trait<data_t>::data_type>(compute_block, Gates + 2 * Length, tmp, Ht);
-    }
+size_t iter = Length / L1_BLK_SIZE;
+size_t rem = Length % L1_BLK_SIZE;
+size_t compute_block = 0;
+if (rem != 0) iter += 1;
+#pragma omp parallel for
+for(size_t i=0; i < iter; i++) {
+    if(rem != 0 && i == (iter - 1))
+        compute_block = rem;
+    else
+        compute_block = L1_BLK_SIZE;
+    vsigmoid<data_t>(Gates + i * L1_BLK_SIZE,
+        tmp1, compute_block);
+    vsigmoid<data_t>(Gates + i * L1_BLK_SIZE + Length,
+        tmp1, compute_block);
+    vsigmoid<data_t>(Gates + i * L1_BLK_SIZE + 2 * Length,
+        tmp1, compute_block);
+    vTanh<data_trait<data_t>::data_type>(compute_block,
+        Gates + i * L1_BLK_SIZE + 3 * Length,
+        Gates + i * L1_BLK_SIZE + 3 * Length);
+    vMul<data_trait<data_t>::data_type>(compute_block, Gates + i * L1_BLK_SIZE + Length,
+        Ct_1 + i * L1_BLK_SIZE, Ct + i * L1_BLK_SIZE);
+    vMul<data_trait<data_t>::data_type>(compute_block, Gates + i * L1_BLK_SIZE,
+        Gates + i * L1_BLK_SIZE + 3 * Length, tmp + i * L1_BLK_SIZE);
+    vAdd<data_trait<data_t>::data_type>(compute_block, Ct + i * L1_BLK_SIZE,
+        tmp + i * L1_BLK_SIZE, Ct + i * L1_BLK_SIZE);
+    vTanh<data_trait<data_t>::data_type>(compute_block, Ct + i * L1_BLK_SIZE,
+        tmp + i * L1_BLK_SIZE);
+    vMul<data_trait<data_t>::data_type>(compute_block, Gates + i * L1_BLK_SIZE + 2 * Length,
+        tmp + i * L1_BLK_SIZE, Ht + i * L1_BLK_SIZE);
+}
 #endif
 }
 
@@ -497,6 +506,26 @@ void pgemm_rnn_bwd_t<data_type>::execute_backward() {
     const size_t dc_space_off = dhout_space_off + hout_space_size;
     const size_t tmp1_off = dc_space_off + c_space_size;
     const size_t tmp_space_off = tmp1_off + 3 * h_size;
+    auto bsize = (input_size > state_size) ? input_size : state_size;
+    auto tmp1 = bsize + state_size + 2;
+    auto tmp2 = state_size * 4;
+    auto tmp = (tmp1 > tmp2) ? tmp1 : tmp2;
+    auto ts_size_ = tmp * batch_size + gates_space_size +
+                    hout_space_size + c_space_size +
+                    4 * h_size;
+    size_t iter = ts_size_ / L1_BLK_SIZE;
+    size_t rem = ts_size_ % L1_BLK_SIZE;
+    size_t compute_block = 0;
+    if (rem != 0) iter += 1;
+#pragma omp parallel for
+    for(size_t i=0; i < iter; i++) {
+        if(rem != 0 && i == (iter - 1))
+            compute_block = rem;
+        else
+            compute_block = L1_BLK_SIZE;
+        memset(ts_ + i * L1_BLK_SIZE, 0, compute_block * sizeof(data_t));
+    }
+
     array_set(ts_ + tmp1_off, 1.0, 3 * h_size);
     size_t w_off = 0;
     size_t in_size = 0;
