@@ -47,7 +47,6 @@ inline void lstm_fwd_ele_wise(data_t *Gates, const data_t *Ct_1, data_t *Ct,
 #pragma omp parallel for simd
 #elif defined(__GNUC__)
 #pragma omp parallel for
-#pragma omp simd
 #endif
     for (size_t i = 0; i < Length; i++) {
         Gates[i] = 1 / (1 + exp(-Gates[i]));
@@ -67,7 +66,6 @@ inline void lstm_bwd_ele_wise(const data_t *Gates, data_t *dGates,
 #pragma omp parallel for simd
 #elif defined(__GNUC__)
 #pragma omp parallel for
-#pragma omp simd
 #endif
     for (size_t i = 0; i < Length; i++) {
         dCt[i] += (1 - pow(tanh(Ct[i]), 2)) * dHt[i] * Gates[2 * Length + i];

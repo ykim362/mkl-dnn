@@ -2392,7 +2392,6 @@ struct rnn_forward : public primitive {
             const void *hy,
             const void *cy,
             const void *workspace) {
-        c_api::mkldnn_primitive_t result;
         c_api::mkldnn_rnn_desc_t rd_t;
         c_api::mkldnn_rnn_desc_t *rd_pt = &rd_t;
         const memory *x_m = (x != nullptr) ? reinterpret_cast<const memory *>(x) : nullptr;
@@ -2413,65 +2412,80 @@ struct rnn_forward : public primitive {
         if (rd_pt->prop_kind == convert_to_c(forward_training)) {
             if (rd_pt->alg_kind == convert_to_c(rnn_lstm)) {
                 if (rd_pt->state_outputs != 0) {
+                    c_api::mkldnn_primitive_t result;
                     c_api::mkldnn_primitive_at_t inputs[] = { x_p.data, hx_p.data, cx_p.data, weights_p.data };
                     c_api::const_mkldnn_primitive_t outputs[] = { y_m->get(), hy_m->get(), cy_m->get(), workspace_m->get() };
                     error::wrap_c_api(c_api::mkldnn_primitive_create(&result,
                             aprimitive_desc.get(), inputs, outputs),
                         "could not create an rnn forward primitive");
+                    reset(result);
                 } else {
+                    c_api::mkldnn_primitive_t result;
                     c_api::mkldnn_primitive_at_t inputs[] = { x_p.data, hx_p.data, cx_p.data, weights_p.data };
                     c_api::const_mkldnn_primitive_t outputs[] = { y_m->get(), workspace_m->get() };
                     error::wrap_c_api(c_api::mkldnn_primitive_create(&result,
                             aprimitive_desc.get(), inputs, outputs),
                         "could not create an rnn forward primitive");
+                    reset(result);
                 }
             } else if (rd_pt->alg_kind == convert_to_c(rnn_relu)) {
                 if (rd_pt->state_outputs != 0) {
+                    c_api::mkldnn_primitive_t result;
                     c_api::mkldnn_primitive_at_t inputs[] = { x_p.data, hx_p.data, weights_p.data };
                     c_api::const_mkldnn_primitive_t outputs[] = { y_m->get(), hy_m->get(), workspace_m->get() };
                     error::wrap_c_api(c_api::mkldnn_primitive_create(&result,
                             aprimitive_desc.get(), inputs, outputs),
                         "could not create an rnn forward primitive");
+                    reset(result);
                 } else {
+                    c_api::mkldnn_primitive_t result;
                     c_api::mkldnn_primitive_at_t inputs[] = { x_p.data, hx_p.data, weights_p.data };
                     c_api::const_mkldnn_primitive_t outputs[] = { y_m->get(), workspace_m->get() };
                     error::wrap_c_api(c_api::mkldnn_primitive_create(&result,
                             aprimitive_desc.get(), inputs, outputs),
                         "could not create an rnn forward primitive");
+                    reset(result);
                 }
             }
         } else if (rd_pt->prop_kind == convert_to_c(forward_inference)) {
             if (rd_pt->alg_kind == convert_to_c(rnn_lstm)) {
                 if (rd_pt->state_outputs != 0) {
+                    c_api::mkldnn_primitive_t result;
                     c_api::mkldnn_primitive_at_t inputs[] = { x_p.data, hx_p.data, cx_p.data, weights_p.data };
                     c_api::const_mkldnn_primitive_t outputs[] = { y_m->get(), hy_m->get(), cy_m->get() };
                     error::wrap_c_api(c_api::mkldnn_primitive_create(&result,
                             aprimitive_desc.get(), inputs, outputs),
                         "could not create an rnn forward primitive");
+                    reset(result);
                 } else {
+                    c_api::mkldnn_primitive_t result;
                     c_api::mkldnn_primitive_at_t inputs[] = { x_p.data, hx_p.data, cx_p.data, weights_p.data };
                     c_api::const_mkldnn_primitive_t outputs[] = { y_m->get() };
                     error::wrap_c_api(c_api::mkldnn_primitive_create(&result,
                             aprimitive_desc.get(), inputs, outputs),
                         "could not create an rnn forward primitive");
+                    reset(result);
                 }
             } else if (rd_pt->alg_kind == convert_to_c(rnn_relu)) {
                 if (rd_pt->state_outputs != 0) {
+                    c_api::mkldnn_primitive_t result;
                     c_api::mkldnn_primitive_at_t inputs[] = { x_p.data, hx_p.data, weights_p.data };
                     c_api::const_mkldnn_primitive_t outputs[] = { y_m->get(), hy_m->get() };
                     error::wrap_c_api(c_api::mkldnn_primitive_create(&result,
                             aprimitive_desc.get(), inputs, outputs),
                         "could not create an rnn forward primitive");
+                    reset(result);
                 } else {
+                    c_api::mkldnn_primitive_t result;
                     c_api::mkldnn_primitive_at_t inputs[] = { x_p.data, hx_p.data, weights_p.data };
                     c_api::const_mkldnn_primitive_t outputs[] = { y_m->get() };
                     error::wrap_c_api(c_api::mkldnn_primitive_create(&result,
                             aprimitive_desc.get(), inputs, outputs),
                         "could not create an rnn forward primitive");
+                    reset(result);
                 }
             }
         }
-        reset(result);
     }
 };
 
@@ -2660,7 +2674,6 @@ struct rnn_backward : public primitive {
             const void *dhx,
             const void *dcx,
             const void *dweights) {
-        c_api::mkldnn_primitive_t result;
         c_api::mkldnn_rnn_desc_t rd_t;
         c_api::mkldnn_rnn_desc_t *rd_pt = &rd_t;
         const memory *x_m = (x != nullptr) ? reinterpret_cast<const memory *>(x) : nullptr;
@@ -2689,6 +2702,7 @@ struct rnn_backward : public primitive {
         if (rd_pt->prop_kind == convert_to_c(backward)) {
             if (rd_pt->alg_kind == convert_to_c(rnn_lstm)) {
                 if (rd_pt->state_outputs != 0) {
+                    c_api::mkldnn_primitive_t result;
                     c_api::mkldnn_primitive_at_t inputs[] = { x_p.data, hx_p.data, cx_p.data,
                                                 dy_p.data, dhy_p.data, dcy_p.data,
                                                 weights_p.data, workspace_p.data };
@@ -2697,7 +2711,9 @@ struct rnn_backward : public primitive {
                     error::wrap_c_api(c_api::mkldnn_primitive_create(&result,
                             aprimitive_desc.get(), inputs, outputs),
                         "could not create an rnn forward primitive");
+                    reset(result);
                 } else {
+                    c_api::mkldnn_primitive_t result;
                     c_api::mkldnn_primitive_at_t inputs[] = { x_p.data, hx_p.data, cx_p.data,
                                                 dy_p.data, weights_p.data, workspace_p.data };
                     c_api::const_mkldnn_primitive_t outputs[] = { dx_m->get(), dhx_m->get(), dcx_m->get(),
@@ -2705,9 +2721,11 @@ struct rnn_backward : public primitive {
                     error::wrap_c_api(c_api::mkldnn_primitive_create(&result,
                             aprimitive_desc.get(), inputs, outputs),
                         "could not create an rnn forward primitive");
+                    reset(result);
                 }
             } else if (rd_pt->alg_kind == convert_to_c(rnn_relu)) {
                 if (rd_pt->state_outputs != 0) {
+                    c_api::mkldnn_primitive_t result;
                     c_api::mkldnn_primitive_at_t inputs[] = { x_p.data, hx_p.data,
                                                 dy_p.data, dhy_p.data,
                                                 weights_p.data, workspace_p.data };
@@ -2716,7 +2734,9 @@ struct rnn_backward : public primitive {
                     error::wrap_c_api(c_api::mkldnn_primitive_create(&result,
                             aprimitive_desc.get(), inputs, outputs),
                         "could not create an rnn forward primitive");
+                    reset(result);
                 } else {
+                    c_api::mkldnn_primitive_t result;
                     c_api::mkldnn_primitive_at_t inputs[] = { x_p.data, hx_p.data,
                                                 dy_p.data,
                                                 weights_p.data, workspace_p.data };
@@ -2725,10 +2745,10 @@ struct rnn_backward : public primitive {
                     error::wrap_c_api(c_api::mkldnn_primitive_create(&result,
                             aprimitive_desc.get(), inputs, outputs),
                         "could not create an rnn forward primitive");
+                    reset(result);
                 }
             }
         }
-        reset(result);
     }
 };
 

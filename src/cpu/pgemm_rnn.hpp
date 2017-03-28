@@ -58,7 +58,7 @@ struct pgemm_rnn_fwd_t : public cpu_primitive_t {
                 auto ws_size = static_cast<int>(workspace_size());
                 memory_desc_t ws_d;
                 mkldnn_memory_desc_init(
-                        &ws_d, 1, { &ws_size }, data_type, memory_format::x);
+                        &ws_d, 1, &ws_size, data_type, memory_format::x);
                 ws_pd_ = cpu_memory_pd_t(this->engine(), &ws_d);
             }
             return status::success;
@@ -144,7 +144,7 @@ struct pgemm_rnn_bwd_t : public cpu_primitive_t {
             auto ws_size = static_cast<int>(workspace_size());
             memory_desc_t ws_d;
             mkldnn_memory_desc_init(
-                    &ws_d, 1, { &ws_size }, data_type, memory_format::x);
+                    &ws_d, 1, &ws_size, data_type, memory_format::x);
             ws_pd_ = cpu_memory_pd_t(this->engine(), &ws_d);
             return status::success;
 #else

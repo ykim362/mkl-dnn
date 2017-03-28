@@ -572,7 +572,7 @@ void compute_ref_lstm_bwd(const test_lstm_desc_t &ld, const memory::desc &x_d,
 }
 
 template <typename data_t>
-class lstm_backward_test : public ::testing::TestWithParam<lstm_test_params> {
+class lstm_test : public ::testing::TestWithParam<lstm_test_params> {
 private:
     std::shared_ptr<memory> x;
     std::shared_ptr<memory> hx;
@@ -755,13 +755,13 @@ protected:
     }
 };
 
-using lstm_backward_test_float = lstm_backward_test<float>;
+using lstm_test_float = lstm_test<float>;
 using lstm_test_params_float = lstm_test_params;
 
-TEST_P(lstm_backward_test_float, TestsRNN) {}
+TEST_P(lstm_test_float, TestsLSTM) {}
 
 INSTANTIATE_TEST_CASE_P(
-        TestRNNBackward0, lstm_backward_test_float,
+        TestLSTM0, lstm_test_float,
         ::testing::Values(
                 lstm_test_params_float{ prop_kind::forward_training,
                         engine::kind::cpu, algorithm::rnn_lstm,
@@ -775,7 +775,7 @@ INSTANTIATE_TEST_CASE_P(
                         { 128, 128, 10, 4, 16, LSTM, BIDIRECT, LINEAR, 1 } }));
 
 INSTANTIATE_TEST_CASE_P(
-        TestRNNBackward1, lstm_backward_test_float,
+        TestLSTM1, lstm_test_float,
         ::testing::Values(
                 lstm_test_params_float{ prop_kind::forward_training,
                         engine::kind::cpu, algorithm::rnn_lstm,
