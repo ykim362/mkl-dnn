@@ -20,10 +20,10 @@
 #include <assert.h>
 
 #include "c_types_map.hpp"
-#include "rnn_pd.hpp"
 #include "cpu_engine.hpp"
 #include "cpu_memory.hpp"
 #include "cpu_primitive.hpp"
+#include "rnn_pd.hpp"
 #include "type_helpers.hpp"
 #include "utils.hpp"
 
@@ -35,27 +35,24 @@ struct cpu_rnn_fwd_pd_t : public rnn_fwd_pd_t {
     using cpu_memory_pd_t = cpu_memory_t::pd_t;
 
     cpu_rnn_fwd_pd_t(engine_t *engine, const rnn_desc_t *adesc,
-                    const rnn_fwd_pd_t *hint_fwd_pd)
-        : rnn_fwd_pd_t(engine, adesc, hint_fwd_pd),
-            x_pd_(this->engine_, &desc_.x_desc),
-            hx_pd_(this->engine_, &desc_.hx_desc),
-            cx_pd_(this->engine_, &desc_.hx_desc),
-            weights_pd_(this->engine_, &desc_.weights_desc),
-            y_pd_(this->engine_, &desc_.y_desc),
-            hy_pd_(this->engine_),
-            cy_pd_(this->engine_), ws_pd_(this->engine_) {}
+            const rnn_fwd_pd_t *hint_fwd_pd)
+        : rnn_fwd_pd_t(engine, adesc, hint_fwd_pd)
+        , x_pd_(this->engine_, &desc_.x_desc)
+        , hx_pd_(this->engine_, &desc_.hx_desc)
+        , cx_pd_(this->engine_, &desc_.hx_desc)
+        , weights_pd_(this->engine_, &desc_.weights_desc)
+        , y_pd_(this->engine_, &desc_.y_desc)
+        , hy_pd_(this->engine_)
+        , cy_pd_(this->engine_)
+        , ws_pd_(this->engine_) {}
     virtual ~cpu_rnn_fwd_pd_t() {}
 
     virtual const cpu_memory_pd_t *src_pd(int index = 0) const override {
         switch (index) {
-        case 0:
-            return &x_pd_;
-        case 1:
-            return &hx_pd_;
-        case 2:
-            return &cx_pd_;
-        default:
-            return nullptr;
+        case 0: return &x_pd_;
+        case 1: return &hx_pd_;
+        case 2: return (index == 2 && !cx_pd_.is_zero()) ? &cx_pd_ : nullptr;
+        default: return nullptr;
         }
     }
     virtual const cpu_memory_pd_t *weights_pd(int index = 0) const override {
@@ -63,14 +60,10 @@ struct cpu_rnn_fwd_pd_t : public rnn_fwd_pd_t {
     }
     virtual const cpu_memory_pd_t *dst_pd(int index = 0) const override {
         switch (index) {
-        case 0:
-            return &y_pd_;
-        case 1:
-            return (index == 1 && !hy_pd_.is_zero()) ? &hy_pd_ : nullptr;
-        case 2:
-            return (index == 2 && !cy_pd_.is_zero()) ? &cy_pd_ : nullptr;
-        default:
-            return nullptr;
+        case 0: return &y_pd_;
+        case 1: return (index == 1 && !hy_pd_.is_zero()) ? &hy_pd_ : nullptr;
+        case 2: return (index == 2 && !cy_pd_.is_zero()) ? &cy_pd_ : nullptr;
+        default: return nullptr;
         }
     }
     virtual const cpu_memory_pd_t *workspace_pd(int index = 0) const override {
@@ -95,8 +88,9 @@ protected:
             CHECK(x_pd_.set_format(rnx));
         if (hx_pd_.desc()->format == any)
             CHECK(hx_pd_.set_format(rnx));
-        if (cx_pd_.desc()->format == any)
-            CHECK(cx_pd_.set_format(rnx));
+        if (!cx_pd_.is_zero())
+            if (cx_pd_.desc()->format == any)
+                CHECK(cx_pd_.set_format(rnx));
         if (y_pd_.desc()->format == any)
             CHECK(y_pd_.set_format(rnx));
         if (!hy_pd_.is_zero())
@@ -114,62 +108,53 @@ struct cpu_rnn_bwd_pd_t : public rnn_bwd_pd_t {
     using cpu_memory_pd_t = cpu_memory_t::pd_t;
 
     cpu_rnn_bwd_pd_t(engine_t *engine, const rnn_desc_t *adesc,
-                    const rnn_fwd_pd_t *hint_fwd_pd)
-        : rnn_bwd_pd_t(engine, adesc, hint_fwd_pd),
-            x_pd_(this->engine_, &desc_.x_desc),
-            hx_pd_(this->engine_, &desc_.hx_desc),
-            cx_pd_(this->engine_, &desc_.hx_desc),
-            dx_pd_(this->engine_, &desc_.x_desc),
-            dhx_pd_(this->engine_, &desc_.hx_desc),
-            dcx_pd_(this->engine_, &desc_.hx_desc),
-            dy_pd_(this->engine_, &desc_.y_desc),
-            dhy_pd_(this->engine_),
-            dcy_pd_(this->engine_),
-            weights_pd_(this->engine_, &desc_.weights_desc),
-            diff_weights_pd_(this->engine_, &desc_.weights_desc),
-            ws_pd_(this->engine_) {}
+            const rnn_fwd_pd_t *hint_fwd_pd)
+        : rnn_bwd_pd_t(engine, adesc, hint_fwd_pd)
+        , x_pd_(this->engine_, &desc_.x_desc)
+        , hx_pd_(this->engine_, &desc_.hx_desc)
+        , cx_pd_(this->engine_, &desc_.hx_desc)
+        , dx_pd_(this->engine_, &desc_.x_desc)
+        , dhx_pd_(this->engine_, &desc_.hx_desc)
+        , dcx_pd_(this->engine_, &desc_.hx_desc)
+        , dy_pd_(this->engine_, &desc_.y_desc)
+        , dhy_pd_(this->engine_)
+        , dcy_pd_(this->engine_)
+        , weights_pd_(this->engine_, &desc_.weights_desc)
+        , diff_weights_pd_(this->engine_, &desc_.weights_desc)
+        , ws_pd_(this->engine_) {}
     virtual ~cpu_rnn_bwd_pd_t() {}
 
     virtual const cpu_memory_pd_t *src_pd(int index = 0) const override {
         switch (index) {
-        case 0:
-            return &x_pd_;
-        case 1:
-            return &hx_pd_;
-        case 2:
-            return &cx_pd_;
-        default:
-            return nullptr;
+        case 0: return &x_pd_;
+        case 1: return &hx_pd_;
+        case 2: return (index == 2 && !cx_pd_.is_zero()) ? &cx_pd_ : nullptr;
+        default: return nullptr;
         }
     }
     virtual const cpu_memory_pd_t *diff_dst_pd(int index = 0) const override {
         switch (index) {
-        case 0:
-            return &dy_pd_;
-        case 1:
-            return (index == 1 && !dhy_pd_.is_zero()) ? &dhy_pd_ : nullptr;
+        case 0: return &dy_pd_;
+        case 1: return (index == 1 && !dhy_pd_.is_zero()) ? &dhy_pd_ : nullptr;
         case 2:
-            return (index == 2 && !dcy_pd_.is_zero()) ? &dcy_pd_ : nullptr;;
-        default:
-            return nullptr;
+            return (index == 2 && !dcy_pd_.is_zero()) ? &dcy_pd_ : nullptr;
+            ;
+        default: return nullptr;
         }
     }
     virtual const cpu_memory_pd_t *diff_src_pd(int index = 0) const override {
         switch (index) {
-        case 0:
-            return &dx_pd_;
-        case 1:
-            return &dhx_pd_;
-        case 2:
-            return &dcx_pd_;
-        default:
-            return nullptr;
+        case 0: return &dx_pd_;
+        case 1: return &dhx_pd_;
+        case 2: return (index == 2 && !dcx_pd_.is_zero()) ? &dcx_pd_ : nullptr;
+        default: return nullptr;
         }
     }
     virtual const cpu_memory_pd_t *weights_pd(int index = 0) const override {
         return index == 0 ? &weights_pd_ : nullptr;
     }
-    virtual const cpu_memory_pd_t *diff_weights_pd(int index = 0) const override {
+    virtual const cpu_memory_pd_t *diff_weights_pd(
+            int index = 0) const override {
         return index == 0 ? &diff_weights_pd_ : nullptr;
     }
     virtual const cpu_memory_pd_t *workspace_pd(int index = 0) const override {
@@ -197,14 +182,16 @@ protected:
             CHECK(x_pd_.set_format(rnx));
         if (hx_pd_.desc()->format == any)
             CHECK(hx_pd_.set_format(rnx));
-        if (cx_pd_.desc()->format == any)
-            CHECK(cx_pd_.set_format(rnx));
+        if (!cx_pd_.is_zero())
+            if (cx_pd_.desc()->format == any)
+                CHECK(cx_pd_.set_format(rnx));
         if (dx_pd_.desc()->format == any)
             CHECK(dx_pd_.set_format(rnx));
         if (dhx_pd_.desc()->format == any)
             CHECK(dhx_pd_.set_format(rnx));
-        if (dcx_pd_.desc()->format == any)
-            CHECK(dcx_pd_.set_format(rnx));
+        if (!dcx_pd_.is_zero())
+            if (dcx_pd_.desc()->format == any)
+                CHECK(dcx_pd_.set_format(rnx));
         if (dy_pd_.desc()->format == any)
             CHECK(dy_pd_.set_format(rnx));
         if (!dhy_pd_.is_zero())
@@ -213,7 +200,6 @@ protected:
         if (!dcy_pd_.is_zero())
             if (dcy_pd_.desc()->format == any)
                 CHECK(dcy_pd_.set_format(rnx));
-
         return status::success;
     }
 };

@@ -50,8 +50,8 @@ file(GLOB PRIM_TEST_CASES_SRC RELATIVE ${CMAKE_SOURCE_DIR}/tests/gtests
 
 if (HAVE_MKL)
     file(GLOB MKL_PRIM_TEST_CASES_SRC RELATIVE ${CMAKE_SOURCE_DIR}/tests/gtests
-                                  test_rnn_forward.cpp
-                                  test_rnn_backward.cpp
+                                  test_lstm_forward.cpp
+                                  test_lstm.cpp
                                   )
 endif()
 

@@ -16,7 +16,7 @@
 
 #include "c_types_map.hpp"
 #include "type_helpers.hpp"
-
+#include "math.h"
 namespace mkldnn {
 namespace impl {
 namespace cpu {
@@ -79,7 +79,7 @@ inline void cblas_gemm_pack<data_type::f32>(const CBLAS_LAYOUT Layout,
         const float *src,
         const cblas_int ld,
         float *dest) {
-    cblas_sgemm_pack(Layout, identifier, trans, 
+    cblas_sgemm_pack(Layout, identifier, trans,
         m, n, k, alpha, src, ld, dest);
 }
 
@@ -101,7 +101,7 @@ inline void cblas_gemm_compute<data_type::f32>(const CBLAS_LAYOUT Layout,
         const float *b, const cblas_int ldb,
         const float beta,
         float *c, const cblas_int ldc) {
-    cblas_sgemm_compute(Layout, transa, transb, 
+    cblas_sgemm_compute(Layout, transa, transb,
         m, n, k, a, lda, b, ldb, beta, c, ldc);
 }
 
