@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2016 Intel Corporation
+* Copyright 2016-2017 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -57,8 +57,6 @@ protected:
 
     virtual status_t set_default_params() {
         using namespace memory_format;
-        if (src_pd_.desc()->format == any)
-            CHECK(src_pd_.set_format(nchw));
         if (dst_pd_.desc()->format == any)
             CHECK(dst_pd_.set_format(src_pd_.desc()->format));
         return status::success;
@@ -89,6 +87,13 @@ protected:
     cpu_memory_pd_t ws_pd_;
 
     virtual status_t init() = 0;
+
+    virtual status_t set_default_params() {
+        using namespace memory_format;
+        if (diff_src_pd_.desc()->format == any)
+            CHECK(diff_src_pd_.set_format(diff_dst_pd_.desc()->format));
+        return status::success;
+    }
 };
 
 }

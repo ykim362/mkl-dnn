@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2016 Intel Corporation
+* Copyright 2016-2017 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -284,12 +284,41 @@ typedef enum {
 
 /** Flags for batch-normalization primititve. */
 typedef enum {
-    /** Use global statistics */
+    /** Use global statistics
+     *
+     * If specified
+     *  - on forward propagation use mean and variance provided by user (input)
+     *  - on backward propagation reduces the amount of computations, since
+     *    mean and variance are considered as constants
+     *
+     *  If not specified:
+     *   - on forward propagation mean and variance are computed and stored in
+     *     output
+     *   - on backward propagation compute full derivative wrt to data
+     */
     mkldnn_use_global_stats = 0x1U,
-    /** Use scale and shift parameters */
+    /** Use scale and shift parameters
+     *
+     * If specified:
+     *  - on forward propagation use scale and shift (aka scale and bias) for
+     *    the batch normalization results
+     *  - on backward propagation (for prop_kind == #mkldnn_backward) compute
+     *    diff wrt to scale and shift (hence one extra output used)
+     *
+     * If no specified:
+     *  - on backward propagation prop_kind == #mkldnn_backward_data has the
+     *    same behavior as prop_kind == #mkldnn_backward
+     */
     mkldnn_use_scaleshift = 0x2U,
-    /** Omit statistics */
-    mkldnn_omit_stats = 0x4U
+    /** Omit statistics
+     *
+     * @warning: deprecated, use #mkldnn_use_global_stats instead
+     *
+     * For time being had an affect on backward propagation only which allowed
+     * skipping some computations (the same semantics as
+     * #mkldnn_use_global_stats)
+     */
+    mkldnn_omit_stats = mkldnn_use_global_stats,
 } mkldnn_batch_normalization_flag_t;
 
 /** @} */
@@ -485,6 +514,8 @@ typedef struct {
     double lrn_alpha;
     /** LRN beta parameter. */
     double lrn_beta;
+    /** LRN k parameter. */
+    double lrn_k;
 } mkldnn_lrn_desc_t;
 
 /** A descriptor of a Batch Normalization operation. */

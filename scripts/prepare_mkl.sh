@@ -1,6 +1,6 @@
 #!/bin/sh
 #===============================================================================
-# Copyright 2016 Intel Corporation
+# Copyright 2016-2017 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 # limitations under the License.
 #===============================================================================
 
-MKLURL="https://github.com/01org/mkl-dnn/releases/download/v0.3/mklml_lnx_2017.0.1.20161005.tgz"
+MKLURL="https://github.com/01org/mkl-dnn/releases/download/v0.7/mklml_lnx_2017.0.2.20170209.tgz"
 
 DST=`dirname $0`/../external
 DST=`readlink -f $DST`

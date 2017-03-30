@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2016 Intel Corporation
+* Copyright 2016-2017 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -60,7 +60,7 @@ void check_bnrm_fwd(const test_bnrm_params_t &p,
     const memory::desc dst_d = dst.get_primitive_desc().desc();
 
     test_bnrm_sizes_t bp = p.sizes;
-    data_t eps = 1.e-5 * bp.mb * bp.h * bp.w;
+    data_t eps = 1.e-4 * bp.mb * bp.h * bp.w;
 
 #pragma omp parallel for
     for (int c = 0; c < bp.c; c++) {
@@ -96,8 +96,8 @@ void check_bnrm_fwd(const test_bnrm_params_t &p,
                 EXPECT_NEAR((variance_data[c] - ref_variance) / variance_norm_max, 0., eps);
             }
         }
-        data_t sqrt_variance = sqrt(ref_variance + p.eps);
-        sqrt_variance = data_t(1) / (sqrt_variance);
+        data_t ref_sqrt_variance = sqrt(ref_variance + p.eps);
+        data_t ref_rsqrt_variance = data_t(1) / (ref_sqrt_variance);
 
         if (use_weights) {
             memory::desc weights_d = weights.get_primitive_desc().desc();
@@ -108,7 +108,7 @@ void check_bnrm_fwd(const test_bnrm_params_t &p,
                             + h * bp.w + w;
                     data_t ref_dst = weights_data[map_index(weights_d, c)]
                             * (src_data[map_index(src_d, sdidx)]
-                            - ref_mean) * sqrt_variance
+                            - ref_mean) * ref_rsqrt_variance
                             + weights_data[map_index(weights_d, bp.c + c)];
                     data_t out = dst_data[map_index(dst_d, sdidx)];
                     data_t norm_max = std::max(fabs(out), fabs(ref_dst));
@@ -122,7 +122,7 @@ void check_bnrm_fwd(const test_bnrm_params_t &p,
                     int sdidx = n * bp.c * bp.h * bp.w + c * bp.h * bp.w
                             + h * bp.w + w;
                     data_t ref_dst = (src_data[map_index(src_d, sdidx)]
-                            - ref_mean) * sqrt_variance;
+                            - ref_mean) * ref_rsqrt_variance;
                     data_t out = dst_data[map_index(dst_d, sdidx)];
                     data_t norm_max = std::max(fabs(out), fabs(ref_dst));
                     if (norm_max < 10e-3) norm_max = data_t(1);
@@ -158,7 +158,7 @@ void check_bnrm_bwd(const test_bnrm_params_t &p,
 
     test_bnrm_sizes_t bp = p.sizes;
 
-    const data_t eps = 1.e-6 * bp.mb * bp.h * bp.w;
+    const data_t eps = 1.e-4 * bp.mb * bp.h * bp.w;
 
 #pragma omp parallel for
     for (int c = 0; c < bp.c; c++) {
@@ -400,101 +400,156 @@ TEST_P(bnrm_test_float, TestsBnrm)
     test_bnrm_params_t { ENGINE, \
     EXPAND_FORMATS(data, diff), EXPAND_SIZES(mb, c, h, w), eps }
 
+#define PARAMS_N(...) PARAMS(nchw, nchw, __VA_ARGS__)
+#define PARAMS_B8(...) PARAMS(nChw8c, nChw8c, __VA_ARGS__)
+#define PARAMS_B16(...) PARAMS(nChw16c, nChw16c, __VA_ARGS__)
+
 #define INST_TEST_CASE(str, ...) INSTANTIATE_TEST_CASE_P( \
         str, bnrm_test_float, ::testing::Values(__VA_ARGS__))
 
 INST_TEST_CASE(Simple_NCHW,
-    PARAMS(nchw, nchw, 2, 10, 4, 4, EPS)
+    PARAMS_N(2, 8, 1, 1, EPS),
+    PARAMS_N(2, 10, 1, 1, EPS),
+    PARAMS_N(2, 8, 4, 4, EPS),
+    PARAMS_N(2, 10, 4, 4, EPS)
 );
 
 INST_TEST_CASE(Simple_Blocked,
-    PARAMS(nChw8c, nChw8c, 2, 8, 6, 6, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 8, 4, 4, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 16, 4, 4, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 16, 4, 4, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 16, 8, 8, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 16, 8, 8, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 16, 16, 8, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 16, 16, 8, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 16, 10, 8, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 16, 10, 8, EPS)
+    PARAMS_B8(2, 8, 1, 1, EPS),
+    PARAMS_B8(2, 8, 4, 4, EPS),
+    PARAMS_B8(2, 8, 6, 6, EPS),
+    PARAMS_B8(2, 16, 4, 4, EPS),
+    PARAMS_B8(2, 16, 4, 4, EPS),
+    PARAMS_B8(2, 16, 8, 8, EPS),
+    PARAMS_B8(2, 16, 8, 8, EPS),
+    PARAMS_B8(2, 16, 16, 8, EPS),
+    PARAMS_B8(2, 16, 16, 8, EPS),
+    PARAMS_B8(2, 16, 10, 8, EPS),
+    PARAMS_B8(2, 16, 10, 8, EPS),
+    PARAMS_B16(2, 16, 4, 4, EPS),
+    PARAMS_B16(2, 16, 4, 4, EPS),
+    PARAMS_B16(2, 16, 8, 8, EPS),
+    PARAMS_B16(2, 16, 8, 8, EPS),
+    PARAMS_B16(2, 16, 16, 8, EPS),
+    PARAMS_B16(2, 16, 16, 8, EPS),
+    PARAMS_B16(2, 16, 10, 8, EPS),
+    PARAMS_B16(2, 16, 10, 8, EPS)
 );
 
 INST_TEST_CASE(GoogleNet_NCHW,
-    PARAMS(nchw, nchw, 2, 64, 112, 112, EPS),
-    PARAMS(nchw, nchw, 2, 64, 56, 56, EPS),
-    PARAMS(nchw, nchw, 2, 192, 56, 56, EPS),
-    PARAMS(nchw, nchw, 2, 96, 28, 28, EPS),
-    PARAMS(nchw, nchw, 2, 16, 28, 28, EPS),
-    PARAMS(nchw, nchw, 2, 64, 28, 28, EPS),
-    PARAMS(nchw, nchw, 2, 128, 28, 28, EPS),
-    PARAMS(nchw, nchw, 2, 32, 28, 28, EPS),
-    PARAMS(nchw, nchw, 2, 96, 28, 28, EPS),
-    PARAMS(nchw, nchw, 2, 96, 14, 14, EPS),
-    PARAMS(nchw, nchw, 2, 16, 14, 14, EPS),
-    PARAMS(nchw, nchw, 2, 192, 14, 14, EPS),
-    PARAMS(nchw, nchw, 2, 208, 14, 14, EPS),
-    PARAMS(nchw, nchw, 2, 48, 14, 14, EPS),
-    PARAMS(nchw, nchw, 2, 64, 14, 14, EPS),
-    PARAMS(nchw, nchw, 2, 112, 14, 14, EPS),
-    PARAMS(nchw, nchw, 2, 24, 14, 14, EPS),
-    PARAMS(nchw, nchw, 2, 160, 14, 14, EPS),
-    PARAMS(nchw, nchw, 2, 224, 14, 14, EPS),
-    PARAMS(nchw, nchw, 2, 128, 4, 4, EPS),
-    PARAMS(nchw, nchw, 2, 128, 14, 14, EPS),
-    PARAMS(nchw, nchw, 2, 512, 14, 14, EPS),
-    PARAMS(nchw, nchw, 2, 256, 14, 14, EPS),
-    PARAMS(nchw, nchw, 2, 144, 14, 14, EPS),
-    PARAMS(nchw, nchw, 2, 32, 14, 14, EPS),
-    PARAMS(nchw, nchw, 2, 228, 14, 14, EPS),
-    PARAMS(nchw, nchw, 2, 528, 14, 14, EPS),
-    PARAMS(nchw, nchw, 2, 320, 14, 14, EPS),
-    PARAMS(nchw, nchw, 2, 160, 7, 7, EPS),
-    PARAMS(nchw, nchw, 2, 32, 7, 7, EPS),
-    PARAMS(nchw, nchw, 2, 256, 7, 7, EPS),
-    PARAMS(nchw, nchw, 2, 320, 7, 7, EPS),
-    PARAMS(nchw, nchw, 2, 128, 7, 7, EPS),
-    PARAMS(nchw, nchw, 2, 192, 7, 7, EPS),
-    PARAMS(nchw, nchw, 2, 48, 7, 7, EPS),
-    PARAMS(nchw, nchw, 2, 384, 7, 7, EPS)
+    PARAMS_N(2, 64, 112, 112, EPS),
+    PARAMS_N(2, 64, 56, 56, EPS),
+    PARAMS_N(2, 192, 56, 56, EPS),
+    PARAMS_N(2, 96, 28, 28, EPS),
+    PARAMS_N(2, 16, 28, 28, EPS),
+    PARAMS_N(2, 64, 28, 28, EPS),
+    PARAMS_N(2, 128, 28, 28, EPS),
+    PARAMS_N(2, 32, 28, 28, EPS),
+    PARAMS_N(2, 96, 28, 28, EPS),
+    PARAMS_N(2, 96, 14, 14, EPS),
+    PARAMS_N(2, 16, 14, 14, EPS),
+    PARAMS_N(2, 192, 14, 14, EPS),
+    PARAMS_N(2, 208, 14, 14, EPS),
+    PARAMS_N(2, 48, 14, 14, EPS),
+    PARAMS_N(2, 64, 14, 14, EPS),
+    PARAMS_N(2, 112, 14, 14, EPS),
+    PARAMS_N(2, 24, 14, 14, EPS),
+    PARAMS_N(2, 160, 14, 14, EPS),
+    PARAMS_N(2, 224, 14, 14, EPS),
+    PARAMS_N(2, 128, 4, 4, EPS),
+    PARAMS_N(2, 128, 14, 14, EPS),
+    PARAMS_N(2, 512, 14, 14, EPS),
+    PARAMS_N(2, 256, 14, 14, EPS),
+    PARAMS_N(2, 144, 14, 14, EPS),
+    PARAMS_N(2, 32, 14, 14, EPS),
+    PARAMS_N(2, 228, 14, 14, EPS),
+    PARAMS_N(2, 528, 14, 14, EPS),
+    PARAMS_N(2, 320, 14, 14, EPS),
+    PARAMS_N(2, 160, 7, 7, EPS),
+    PARAMS_N(2, 32, 7, 7, EPS),
+    PARAMS_N(2, 256, 7, 7, EPS),
+    PARAMS_N(2, 320, 7, 7, EPS),
+    PARAMS_N(2, 128, 7, 7, EPS),
+    PARAMS_N(2, 192, 7, 7, EPS),
+    PARAMS_N(2, 48, 7, 7, EPS),
+    PARAMS_N(2, 384, 7, 7, EPS)
 );
 
-INST_TEST_CASE(GoogleNet_Blocked,
-    PARAMS(nChw8c, nChw8c, 2, 64, 112, 112, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 64, 56, 56, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 192, 56, 56, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 96, 28, 28, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 16, 28, 28, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 64, 28, 28, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 128, 28, 28, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 32, 28, 28, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 96, 28, 28, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 96, 14, 14, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 16, 14, 14, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 192, 14, 14, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 208, 14, 14, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 48, 14, 14, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 64, 14, 14, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 112, 14, 14, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 24, 14, 14, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 160, 14, 14, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 224, 14, 14, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 128, 4, 4, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 128, 14, 14, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 512, 14, 14, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 256, 14, 14, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 144, 14, 14, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 32, 14, 14, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 528, 14, 14, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 320, 14, 14, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 160, 7, 7, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 32, 7, 7, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 256, 7, 7, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 320, 7, 7, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 128, 7, 7, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 192, 7, 7, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 48, 7, 7, EPS),
-    PARAMS(nChw8c, nChw8c, 2, 384, 7, 7, EPS)
+INST_TEST_CASE(GoogleNet_Blocked_8,
+    PARAMS_B8(2, 64, 112, 112, EPS),
+    PARAMS_B8(2, 64, 56, 56, EPS),
+    PARAMS_B8(2, 192, 56, 56, EPS),
+    PARAMS_B8(2, 96, 28, 28, EPS),
+    PARAMS_B8(2, 16, 28, 28, EPS),
+    PARAMS_B8(2, 64, 28, 28, EPS),
+    PARAMS_B8(2, 128, 28, 28, EPS),
+    PARAMS_B8(2, 32, 28, 28, EPS),
+    PARAMS_B8(2, 96, 28, 28, EPS),
+    PARAMS_B8(2, 96, 14, 14, EPS),
+    PARAMS_B8(2, 16, 14, 14, EPS),
+    PARAMS_B8(2, 192, 14, 14, EPS),
+    PARAMS_B8(2, 208, 14, 14, EPS),
+    PARAMS_B8(2, 48, 14, 14, EPS),
+    PARAMS_B8(2, 64, 14, 14, EPS),
+    PARAMS_B8(2, 112, 14, 14, EPS),
+    PARAMS_B8(2, 24, 14, 14, EPS),
+    PARAMS_B8(2, 160, 14, 14, EPS),
+    PARAMS_B8(2, 224, 14, 14, EPS),
+    PARAMS_B8(2, 128, 4, 4, EPS),
+    PARAMS_B8(2, 128, 14, 14, EPS),
+    PARAMS_B8(2, 512, 14, 14, EPS),
+    PARAMS_B8(2, 256, 14, 14, EPS),
+    PARAMS_B8(2, 144, 14, 14, EPS),
+    PARAMS_B8(2, 32, 14, 14, EPS),
+    PARAMS_B8(2, 528, 14, 14, EPS),
+    PARAMS_B8(2, 320, 14, 14, EPS),
+    PARAMS_B8(2, 160, 7, 7, EPS),
+    PARAMS_B8(2, 32, 7, 7, EPS),
+    PARAMS_B8(2, 256, 7, 7, EPS),
+    PARAMS_B8(2, 320, 7, 7, EPS),
+    PARAMS_B8(2, 128, 7, 7, EPS),
+    PARAMS_B8(2, 192, 7, 7, EPS),
+    PARAMS_B8(2, 48, 7, 7, EPS),
+    PARAMS_B8(2, 384, 7, 7, EPS)
 );
+
+INST_TEST_CASE(GoogleNet_Blocked_16,
+    PARAMS_B16(2, 64, 112, 112, EPS),
+    PARAMS_B16(2, 64, 56, 56, EPS),
+    PARAMS_B16(2, 192, 56, 56, EPS),
+    PARAMS_B16(2, 96, 28, 28, EPS),
+    PARAMS_B16(2, 16, 28, 28, EPS),
+    PARAMS_B16(2, 64, 28, 28, EPS),
+    PARAMS_B16(2, 128, 28, 28, EPS),
+    PARAMS_B16(2, 32, 28, 28, EPS),
+    PARAMS_B16(2, 96, 28, 28, EPS),
+    PARAMS_B16(2, 96, 14, 14, EPS),
+    PARAMS_B16(2, 16, 14, 14, EPS),
+    PARAMS_B16(2, 192, 14, 14, EPS),
+    PARAMS_B16(2, 208, 14, 14, EPS),
+    PARAMS_B16(2, 48, 14, 14, EPS),
+    PARAMS_B16(2, 64, 14, 14, EPS),
+    PARAMS_B16(2, 112, 14, 14, EPS),
+    //PARAMS_B16(2, 24, 14, 14, EPS),
+    PARAMS_B16(2, 160, 14, 14, EPS),
+    PARAMS_B16(2, 224, 14, 14, EPS),
+    PARAMS_B16(2, 128, 4, 4, EPS),
+    PARAMS_B16(2, 128, 14, 14, EPS),
+    PARAMS_B16(2, 512, 14, 14, EPS),
+    PARAMS_B16(2, 256, 14, 14, EPS),
+    PARAMS_B16(2, 144, 14, 14, EPS),
+    PARAMS_B16(2, 32, 14, 14, EPS),
+    PARAMS_B16(2, 528, 14, 14, EPS),
+    PARAMS_B16(2, 320, 14, 14, EPS),
+    PARAMS_B16(2, 160, 7, 7, EPS),
+    PARAMS_B16(2, 32, 7, 7, EPS),
+    PARAMS_B16(2, 256, 7, 7, EPS),
+    PARAMS_B16(2, 320, 7, 7, EPS),
+    PARAMS_B16(2, 128, 7, 7, EPS),
+    PARAMS_B16(2, 192, 7, 7, EPS),
+    PARAMS_B16(2, 48, 7, 7, EPS),
+    PARAMS_B16(2, 384, 7, 7, EPS)
+);
+
 
 }

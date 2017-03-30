@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2016 Intel Corporation
+* Copyright 2016-2017 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -120,17 +120,18 @@ void simple_net(){
     const uint32_t local_size = 5;
     const double alpha = 0.0001;
     const double beta = 0.75;
+    const double k = 1.0;
 
     auto lrn_dst_memory = memory(relu_dst_memory.get_primitive_desc());
-
-    /* create lrn scratch memory from lrn src */
-    auto lrn_scratch_memory = memory(lrn_dst_memory.get_primitive_desc());
 
     /* create lrn primitive and add it to net */
     auto lrn_desc = lrn_forward::desc(prop_kind::forward, lrn_across_channels,
                 conv_prim_desc.dst_primitive_desc().desc(), local_size,
-                alpha, beta);
+                alpha, beta, k);
     auto lrn_prim_desc = lrn_forward::primitive_desc(lrn_desc, cpu_engine);
+
+    /* create lrn scratch memory from lrn primitive descriptor */
+    auto lrn_scratch_memory = memory(lrn_prim_desc.workspace_primitive_desc());
 
     net.push_back(lrn_forward(lrn_prim_desc, relu_dst_memory,
         lrn_scratch_memory, lrn_dst_memory));
@@ -163,12 +164,12 @@ void simple_net(){
         pool_dst_memory = memory(pool_pd.dst_primitive_desc());
     }
 
-    /* create pooling indices memory from pooling dst */
-    auto pool_indices_memory = memory(pool_dst_memory.get_primitive_desc());
+    /* create pooling indices memory from pooling primitive descriptor */
+    auto pool_indices_memory = memory(pool_pd.workspace_primitive_desc());
 
     /* create pooling primitive an add it to net */
-    net.push_back(pooling_forward(pool_pd, lrn_dst_memory, pool_indices_memory,
-        pool_dst_memory));
+    net.push_back(pooling_forward(pool_pd, lrn_dst_memory, pool_dst_memory,
+        pool_indices_memory));
 
     /* create reorder between internal and user data if it is needed and
      *  add it to net after pooling */

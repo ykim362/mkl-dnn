@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2016 Intel Corporation
+* Copyright 2016-2017 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -91,17 +91,19 @@ struct ref_pooling_bwd_t: public cpu_primitive_t {
             using namespace alg_kind;
             assert(engine()->kind() == engine_kind::cpu);
             bool ok = true
+                && set_default_params() == status::success
                 && utils::one_of(desc()->prop_kind, backward_data)
                 && utils::one_of(desc()->alg_kind, pooling_max, pooling_avg)
                 && utils::everyone_is(data_type, diff_dst_pd()->desc()->data_type,
-                        diff_src_pd()->desc()->data_type);
+                        diff_src_pd()->desc()->data_type)
+                && utils::implication(desc()->alg_kind != pooling_avg,
+                        hint_fwd_pd_ && hint_fwd_pd_->workspace_pd()
+                        && hint_fwd_pd_->workspace_pd()->engine()->kind()
+                                == engine_kind::cpu);
             if (!ok) return status::unimplemented;
 
-            if (desc()->alg_kind != pooling_avg) {
-                auto indices_desc = *diff_dst_pd()->desc();
-                indices_desc.data_type = data_type::s32;
-                ws_pd_ = cpu_memory_t::pd_t(engine_, &indices_desc);
-            }
+            if (desc()->alg_kind != pooling_avg)
+                ws_pd_ = *(cpu_memory_t::pd_t*)hint_fwd_pd_->workspace_pd();
 
             return status::success;
         }

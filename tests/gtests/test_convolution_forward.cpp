@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2016 Intel Corporation
+* Copyright 2016-2017 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -120,23 +120,15 @@ protected:
         auto bias_primitive_desc = memory::primitive_desc(c_bias_desc, eng);
         auto dst_primitive_desc = memory::primitive_desc(c_dst_desc, eng);
 
-        auto src_size = src_primitive_desc.get_size();
-        auto weights_size = weights_primitive_desc.get_size();
-        auto bias_size = bias_primitive_desc.get_size();
         auto dst_size = dst_primitive_desc.get_size();
 
         // TODO: free
-        auto src_data = new data_t[src_size];
-        auto weights_data = new data_t[weights_size];
-        auto bias_data = new data_t[bias_size];
-        auto dst_data = new data_t[dst_size];
         auto ref_dst_data = new data_t[dst_size];
 
-        auto c_src = memory(src_primitive_desc, src_data);
-        auto c_weights = memory(weights_primitive_desc, weights_data);
-        auto c_bias = with_bias ? memory(bias_primitive_desc, bias_data)
-            : memory(bias_primitive_desc);
-        auto c_dst = memory(dst_primitive_desc, dst_data);
+        auto c_src = memory(src_primitive_desc);
+        auto c_weights = memory(weights_primitive_desc);
+        auto c_bias = memory(bias_primitive_desc);
+        auto c_dst = memory(dst_primitive_desc);
 
         // Only true for dense format
         fill_data<data_t>(
@@ -153,8 +145,10 @@ protected:
 
         std::vector<int> padR = { cd.padh, cd.padw };
         for (int i = 0; i < 2; ++i) {
-        if ((cd.ih + cd.padh + padR[0] - cd.kh)/cd.strh + 1 != cd.oh) ++padR[0];
-        if ((cd.iw + cd.padw + padR[1] - cd.kw)/cd.strw + 1 != cd.ow) ++padR[1];
+            if ((cd.ih + cd.padh + padR[0] - cd.kh) / cd.strh + 1 != cd.oh)
+                ++padR[0];
+            if ((cd.iw + cd.padw + padR[1] - cd.kw) / cd.strw + 1 != cd.ow)
+                ++padR[1];
         }
 
         auto conv_desc = with_bias ?

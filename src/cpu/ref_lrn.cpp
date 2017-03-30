@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2016 Intel Corporation
+* Copyright 2016-2017 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -45,6 +45,7 @@ void ref_lrn_fwd_t<data_type>::execute_forward() {
     auto ker = [=](data_t *d, int mb, int oc, int oh, int ow) {
         const double alpha = conf_.desc()->lrn_alpha;
         const double beta = conf_.desc()->lrn_beta;
+        const double k = conf_.desc()->lrn_k;
 
         const int size = conf_.desc()->local_size;
         const int CSIZE = across_channels ? size : 1;
@@ -67,11 +68,10 @@ void ref_lrn_fwd_t<data_type>::execute_forward() {
                 }
             }
         }
-        data_t k = pow(1 + alpha * sum / summands, beta);
-        d[0] = src[data_d.off(mb, oc, oh, ow)] / k;
+        sum = k + alpha * sum / summands;
         if (ws)
-            ws[ws_d.off(mb, oc, oh, ow)]
-                = 1 / (k * (1 + alpha * sum / summands)); // for back prop
+            ws[ws_d.off(mb, oc, oh, ow)] = sum; // for back prop
+        d[0] = src[data_d.off(mb, oc, oh, ow)] / pow(sum, beta);
     };
 
     const int MB = conf_.MB();
@@ -107,7 +107,7 @@ void ref_lrn_bwd_t<data_type>::execute_backward() {
 
     const double alpha = conf_.desc()->lrn_alpha;
     const double beta = conf_.desc()->lrn_beta;
-    const double k = 1.0;
+    const double k = conf_.desc()->lrn_k;
     const int kernel_size = conf_.desc()->local_size;
 
     auto get_omega = [=](data_t c_k, int kernel_size, double alpha, int C,

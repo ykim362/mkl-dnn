@@ -1,4 +1,5 @@
-# Copyright 2016 Intel Corporation
+#===============================================================================
+# Copyright 2016-2017 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,9 +22,16 @@ target_link_libraries(simple-net-c ${LIB_NAME})
 add_test(simple-net-c simple-net-c)
 
 add_executable(simple-net-cpp simple_net.cpp)
-set_property(TARGET simple-net-cpp PROPERTY C_STANDARD 99)
+set_property(TARGET simple-net-cpp PROPERTY CXX_STANDARD 11)
 target_link_libraries(simple-net-cpp ${LIB_NAME})
 add_test(simple-net-cpp simple-net-cpp)
 
-add_test(simple-net-c simple-net-c)
-add_test(simple-net-cpp simple-net-cpp)
+add_executable(simple-training-net-c simple_training_net.c)
+set_property(TARGET simple-training-net-c PROPERTY C_STANDARD 99)
+target_link_libraries(simple-training-net-c ${LIB_NAME} m)
+add_test(simple-training-net-c simple-training-net-c)
+
+add_executable(simple-training-net-cpp simple_training_net.cpp)
+set_property(TARGET simple-training-net-cpp PROPERTY CXX_STANDARD 11)
+target_link_libraries(simple-training-net-cpp ${LIB_NAME} m)
+add_test(simple-training-net-cpp simple-training-net-cpp)

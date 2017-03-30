@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2016 Intel Corporation
+* Copyright 2016-2017 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@
 
 #include <stddef.h>
 #include <stdlib.h>
+#include <assert.h>
 
 namespace mkldnn {
 namespace impl {
@@ -33,11 +34,19 @@ namespace impl {
 
 namespace utils {
 
-/* SFINAE helper -- anoluge to std::enable_if */
+/* a bunch of std:: analogues to be compliant with any msvs version
+ *
+ * Rationale: msvs c++ (and even some c) headers contain special pragma that
+ * injects msvs-version check into object files in order to abi-mismatches
+ * during the static linking. This makes sense if e.g. std:: objects are passed
+ * through between application and library, which is not the case for mkl-dnn
+ * (since there is no any c++-rt dependent stuff, ideally...). */
+
+/* SFINAE helper -- analogue to std::enable_if */
 template<bool expr, class T = void> struct enable_if {};
 template<class T> struct enable_if<true, T> { typedef T type; };
 
-/* anlogue std::conditional */
+/* analogue std::conditional */
 template <bool, typename, typename> struct conditional {};
 template <typename T, typename F> struct conditional<true, T, F>
 { typedef T type; };
@@ -49,6 +58,17 @@ template <typename U, U t, U f> struct conditional_v<true, U, t, f>
 { static constexpr U value = t; };
 template <typename U, U t, U f> struct conditional_v<false, U, t, f>
 { static constexpr U value = f; };
+
+template <typename T> struct remove_reference { typedef T type; };
+template <typename T> struct remove_reference<T&> { typedef T type; };
+template <typename T> struct remove_reference<T&&> { typedef T type; };
+
+template <typename T>
+inline T&& forward(typename utils::remove_reference<T>::type &t)
+{ return static_cast<T&&>(t); }
+template <typename T>
+inline T&& forward(typename utils::remove_reference<T>::type &&t)
+{ return static_cast<T&&>(t); }
 
 template <typename T>
 inline T zero() { T zero = T(); return zero; }
@@ -107,6 +127,48 @@ inline T array_product(const T *arr, size_t size) {
     T prod = 1;
     for (size_t i = 0; i < size; ++i) prod *= arr[i];
     return prod;
+}
+
+template <typename T, typename U>
+inline T div_up(const T a, const U b) {
+    assert(b);
+    return (a + b - 1) / b;
+}
+
+template <typename T, typename U>
+inline T rnd_up(const T a, const U b) {
+    return div_up(a, b) * b;
+}
+
+template <typename T, typename U, typename V>
+inline U this_block_size(const T offset, const U max, const V block_size) {
+    assert(offset < max);
+    // TODO (Roma): can't use nstl::max() due to circular dependency... we
+    // need to fix this
+    const T block_boundary = offset + block_size;
+    if (block_boundary > max)
+        return max - offset;
+    else
+        return block_size;
+}
+
+template<typename T>
+inline T nd_iterator_init(T start) { return start; }
+template<typename T, typename U, typename W, typename... Args>
+inline T nd_iterator_init(T start, U &x, const W &X, Args &&... tuple) {
+    start = nd_iterator_init(start, utils::forward<Args>(tuple)...);
+    x = start % X;
+    return start / X;
+}
+
+inline bool nd_iterator_step() { return true; }
+template<typename U, typename W, typename... Args>
+inline bool nd_iterator_step(U &x, const W &X, Args &&... tuple) {
+    if (nd_iterator_step(utils::forward<Args>(tuple)...) ) {
+        x = (x + 1) % X;
+        return x == 0;
+    }
+    return false;
 }
 
 }

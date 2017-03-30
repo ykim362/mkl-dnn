@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2016 Intel Corporation
+* Copyright 2016-2017 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -165,6 +165,10 @@ INSTANTIATE_TEST_CASE_P(
                         memory::format::format_undef, memory::format::nc,
                         { 2, 32, 48, 6, 6 } },
                 inprod_test_params_float{ prop_kind::forward, engine::kind::cpu,
+                        memory::format::nChw16c, memory::format::oIhw16i,
+                        memory::format::format_undef, memory::format::nc,
+                        { 2, 32, 48, 6, 6 } },
+                inprod_test_params_float{ prop_kind::forward, engine::kind::cpu,
                         memory::format::nc, memory::format::oi,
                         memory::format::format_undef, memory::format::nc,
                         { 2, 32, 1152, 1, 1 } },
@@ -182,6 +186,10 @@ INSTANTIATE_TEST_CASE_P(
                         { 2, 32, 48, 6, 6 } },
                 inprod_test_params_float{ prop_kind::forward, engine::kind::cpu,
                         memory::format::nChw8c, memory::format::oIhw8i,
+                        memory::format::x, memory::format::nc,
+                        { 2, 32, 48, 6, 6 } },
+                inprod_test_params_float{ prop_kind::forward, engine::kind::cpu,
+                        memory::format::nChw16c, memory::format::oIhw16i,
                         memory::format::x, memory::format::nc,
                         { 2, 32, 48, 6, 6 } },
                 inprod_test_params_float{ prop_kind::forward, engine::kind::cpu,

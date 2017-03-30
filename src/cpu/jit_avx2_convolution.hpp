@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2016 Intel Corporation
+* Copyright 2016-2017 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -20,7 +20,10 @@
 #include "c_types_map.hpp"
 #include "cpu_convolution_pd.hpp"
 #include "cpu_engine.hpp"
+#include "cpu_reducer.hpp"
+#include "jit_primitive_conf.hpp"
 #include "jit_avx2_conv_kernel_f32.hpp"
+#include "mkldnn_thread.hpp"
 
 namespace mkldnn {
 namespace impl {
@@ -68,16 +71,13 @@ struct _jit_avx2_convolution_fwd_t: public cpu_primitive_t {
             using namespace memory_format;
 
             const bool flat = this->IC() == 3;
-            if (this->src_pd_.desc()->format == any) {
+            if (this->src_pd_.desc()->format == any)
                 CHECK(this->src_pd_.set_format(flat ? nchw : nChw8c));
-            }
-            if (this->dst_pd_.desc()->format == any) {
+            if (this->dst_pd_.desc()->format == any)
                 CHECK(this->dst_pd_.set_format(nChw8c));
-            }
-            if (this->weights_pd_.desc()->format == any) {
+            if (this->weights_pd_.desc()->format == any)
                 CHECK(this->weights_pd_.set_format(this->with_groups()
                             ? gOIhw8i8o : (flat ? Ohwi8o : OIhw8i8o)));
-            }
             if (this->bias_pd_.desc()->format == any)
                 CHECK(this->bias_pd_.set_format(x));
             return status::success;
@@ -141,16 +141,13 @@ struct jit_avx2_convolution_bwd_data_t: public cpu_primitive_t {
         virtual status_t set_default_params() override {
             using namespace memory_format;
 
-            if (this->diff_src_pd_.desc()->format == any) {
+            if (this->diff_src_pd_.desc()->format == any)
                 CHECK(this->diff_src_pd_.set_format(nChw8c));
-            }
-            if (this->diff_dst_pd_.desc()->format == any) {
+            if (this->diff_dst_pd_.desc()->format == any)
                 CHECK(this->diff_dst_pd_.set_format(nChw8c));
-            }
-            if (this->weights_pd_.desc()->format == any) {
+            if (this->weights_pd_.desc()->format == any)
                 CHECK(this->weights_pd_.set_format(this->with_groups()
                             ? gOIhw8o8i : OIhw8o8i));
-            }
             return status::success;
         }
     };
@@ -212,21 +209,17 @@ struct jit_avx2_convolution_bwd_weights_t: public cpu_primitive_t {
     protected:
         virtual status_t set_default_params() override {
             using namespace memory_format;
+            const bool flat = this->IC() == 3;
 
-            if (this->src_pd_.desc()->format == any) {
-                CHECK(this->src_pd_.set_format(nChw8c));
-            }
-            if (this->diff_dst_pd_.desc()->format == any) {
+            if (this->src_pd_.desc()->format == any)
+                CHECK(this->src_pd_.set_format(flat ? nchw : nChw8c));
+            if (this->diff_dst_pd_.desc()->format == any)
                 CHECK(this->diff_dst_pd_.set_format(nChw8c));
-            }
-            if (this->diff_weights_pd_.desc()->format == any) {
+            if (this->diff_weights_pd_.desc()->format == any)
                 CHECK(this->diff_weights_pd_.set_format(this->with_groups()
-                            ? gOIhw8i8o : OIhw8i8o));
-            }
-            if (this->diff_bias_pd_.desc()->format == any) {
+                        ? gOIhw8i8o : (flat ? Ohwi8o : OIhw8i8o)));
+            if (this->diff_bias_pd_.desc()->format == any)
                 CHECK(this->diff_bias_pd_.set_format(x));
-            }
-
             return status::success;
         }
     };
@@ -234,7 +227,22 @@ struct jit_avx2_convolution_bwd_weights_t: public cpu_primitive_t {
     jit_avx2_convolution_bwd_weights_t(const pd_t *pd,
             const input_vector &inputs, const output_vector &outputs)
         : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd)
-    { kernel_ = new jit_avx2_conv_bwd_weights_kernel_f32(conf_.jcp_); }
+        , kernel_(nullptr), reducer_weights_(nullptr), reducer_bias_(nullptr)
+    {
+        kernel_ = new jit_avx2_conv_bwd_weights_kernel_f32(conf_.jcp_);
+
+        const int max_threads = omp_get_max_threads();
+        const size_t max_buffer_size = 1<<21; /* just a heuristic */
+        const auto &j = conf_.jcp_;
+        reducer_weights_ = new cpu_reducer_t<data_type::f32>(reduce_balancer_t(
+                    max_threads, j.kh * j.kw * j.ic_block * j.oc_block,
+                    j.ngroups * j.nb_ic * j.nb_oc, j.mb, max_buffer_size));
+        if (conf_.with_bias()) {
+            reducer_bias_ = new cpu_reducer_t<data_type::f32>(
+                    reduce_balancer_t(max_threads, j.oc_block,
+                        j.ngroups * j.nb_oc, j.mb, max_buffer_size));
+        }
+    }
     ~jit_avx2_convolution_bwd_weights_t() { delete kernel_; };
 
     typedef typename prec_trait<data_type::f32>::type data_t;
@@ -248,6 +256,7 @@ private:
     void execute_backward_weights();
     pd_t conf_;
     jit_avx2_conv_bwd_weights_kernel_f32 *kernel_;
+    cpu_reducer_t<data_type::f32> *reducer_weights_, *reducer_bias_;
 };
 
 }

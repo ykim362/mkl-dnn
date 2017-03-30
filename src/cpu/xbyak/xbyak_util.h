@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2016 Intel Corporation
+* Copyright 2016-2017 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 *******************************************************************************/
+
 /*******************************************************************************
 * Copyright (c) 2007 MITSUNARI Shigeo
 * All rights reserved.
@@ -218,6 +219,7 @@ public:
 	static const Type tAVX512VBMI = uint64(1) << 43;
 	static const Type tAVX512_4VNNIW = uint64(1) << 44;
 	static const Type tAVX512_4FMAPS = uint64(1) << 45;
+	static const Type tPREFETCHWT1 = uint64(1) << 46;
 
 	Cpu()
 		: type_(NONE)
@@ -295,10 +297,11 @@ public:
 			if (data[1] & (1U << 20)) type_ |= tSMAP;
 			if (data[1] & (1U << 4)) type_ |= tHLE;
 			if (data[1] & (1U << 11)) type_ |= tRTM;
+			if (data[2] & (1U << 0)) type_ |= tPREFETCHWT1;
 		}
 		setFamily();
 	}
-	void putFamily()
+	void putFamily() const
 	{
 		printf("family=%d, model=%X, stepping=%d, extFamily=%d, extModel=%X\n",
 			family, model, stepping, extFamily, extModel);

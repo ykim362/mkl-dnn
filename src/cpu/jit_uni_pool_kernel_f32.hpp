@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2016 Intel Corporation
+* Copyright 2017 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -14,8 +14,8 @@
 * limitations under the License.
 *******************************************************************************/
 
-#ifndef CPU_JIT_AVX2_POOL_KERNEL_F32_HPP
-#define CPU_JIT_AVX2_POOL_KERNEL_F32_HPP
+#ifndef CPU_JIT_UNI_POOL_KERNEL_F32_HPP
+#define CPU_JIT_UNI_POOL_KERNEL_F32_HPP
 
 #include <cfloat>
 
@@ -27,6 +27,8 @@ namespace mkldnn {
 namespace impl {
 namespace cpu {
 
+using namespace Xbyak;
+
 struct jit_pool_conf_t {
     int mb, c;
     int ih, iw, oh, ow;
@@ -35,9 +37,10 @@ struct jit_pool_conf_t {
     int t_pad, l_pad;
     bool is_max;
     bool is_training;
+    bool is_backward;
 
     int nb_c, c_block;
-    int ur_h, ur_w;
+    int ur_w;
     int ur_w_tail;
 };
 
@@ -49,14 +52,14 @@ struct __attribute__ ((__packed__)) jit_pool_call_s {
     const float *dst_prf;
     const int *indices_prf;
     size_t kh_padding;
-    size_t kh_padding_prf;
+    size_t kh_padding_shift;
     size_t kw_padding;
     const float* init_value;
-    int* init_array;
 };
 
-struct jit_avx2_pool_kernel_f32: public jit_generator {
-    jit_avx2_pool_kernel_f32(jit_pool_conf_t ajpp): jpp(ajpp)
+template <cpu_isa_t isa>
+struct jit_uni_pool_kernel_f32: public jit_generator {
+    jit_uni_pool_kernel_f32(jit_pool_conf_t ajpp): jpp(ajpp)
     {
         this->generate();
         jit_ker = (decltype(jit_ker))this->getCode();
@@ -66,9 +69,30 @@ struct jit_avx2_pool_kernel_f32: public jit_generator {
     void operator()(jit_pool_call_s *arg) { jit_ker(arg); }
     static status_t init_conf(jit_pool_conf_t &jbp,
             const pooling_desc_t &pd, const memory_desc_wrapper &src_d,
-            const memory_desc_wrapper &dst_d, bool is_training);
+            const memory_desc_wrapper &dst_d);
 
 private:
+
+    using Vmm = typename utils::conditional<isa == avx2, Ymm, Zmm>::type;
+    const AddressFrame &vmmword = (isa == avx2) ? yword : zword;
+    void uni_vpxor(const Xmm& x1, const Xmm& x2, const Operand& op)
+        { if (isa == avx2) vpxor(x1, x2, op); else vpxord(x1, x2, op); }
+    void uni_vmovdqu(const Address& addr, const Xmm& x)
+        { if (isa == avx2) vmovdqu(addr, x); else vmovdqu32(addr, x); }
+    void uni_vmovdqu(const Xmm& x, const Address& addr)
+        { if (isa == avx2) vmovdqu(x, addr); else vmovdqu32(x, addr); }
+
+    Xmm xmm_one = Xmm(14);
+    Xmm xmm_tmp = Xmm(13);
+
+    Vmm vmm_one = Vmm(isa == avx2 ? 14 : 30);
+    Vmm vmm_tmp = Vmm(isa == avx2 ? 13 : 29);
+
+    Vmm vmm_input = Vmm(isa == avx2 ? 12 : 28);
+    Vmm vmm_k_offset = Vmm(isa == avx2 ? 15 : 31);
+
+    Opmask k_store_mask = Opmask(7);
+
     using reg64_t = const Xbyak::Reg64;
     reg64_t reg_input      = r8;
     reg64_t aux_reg_input  = r9;
@@ -80,19 +104,24 @@ private:
     reg64_t kj      = r14;
     reg64_t oi_iter = r15;
     reg64_t reg_kh  = rax;
+    reg64_t reg_k_shift  = rbx;
     reg64_t tmp_gpr = rcx;
-    reg64_t tmp_gpr2 = rdx;
 
     void (*jit_ker)(jit_pool_call_s *);
 
-    void avg_oh_step(int ur_w, int pad_l, int pad_r, const char *kh_label);
-    void max_oh_step(int ur_w, int pad_l, int pad_r, const char *kh_label);
+    void avg_step(int ur_w, int pad_l, int pad_r, const char *kh_label);
+    void max_step_fwd(int ur_w, int pad_l, int pad_r, const char *kh_label);
+    void max_step_bwd(int ur_w, int pad_l, int pad_r, const char *kh_label);
 
-    void oh_step(int ur_w, int pad_l, int pad_r, const char *kh_label) {
-        if (jpp.is_max)
-            max_oh_step(ur_w, pad_l, pad_r, kh_label);
+    void step(int ur_w, int pad_l, int pad_r, const char *kh_label) {
+        if (jpp.is_max) {
+            if(jpp.is_backward)
+                max_step_bwd(ur_w, pad_l, pad_r, kh_label);
+            else
+                max_step_fwd(ur_w, pad_l, pad_r, kh_label);
+        }
         else
-            avg_oh_step(ur_w, pad_l, pad_r, kh_label);
+            avg_step(ur_w, pad_l, pad_r, kh_label);
     }
 
     void generate();

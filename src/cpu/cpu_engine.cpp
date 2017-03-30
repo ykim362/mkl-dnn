@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2016 Intel Corporation
+* Copyright 2016-2017 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -23,20 +23,26 @@
 #include "cpu_concat.hpp"
 #include "cpu_sum.hpp"
 
+#include "cpu/jit_avx512_mic_1x1_convolution.hpp"
+#include "cpu/jit_avx512_mic_convolution.hpp"
+#include "cpu/jit_avx2_1x1_convolution.hpp"
 #include "cpu/jit_avx2_convolution.hpp"
+#include "cpu/jit_gemm_convolution.hpp"
 #include "cpu/ref_convolution.hpp"
 #include "cpu/jit_avx2_relu.hpp"
 #include "cpu/ref_relu.hpp"
 #include "cpu/ref_softmax.hpp"
-#include "cpu/jit_avx2_pooling.hpp"
+#include "cpu/jit_uni_pooling.hpp"
 #include "cpu/ref_pooling.hpp"
+#include "cpu/jit_avx512_mic_lrn.hpp"
 #include "cpu/jit_avx2_lrn.hpp"
 #include "cpu/ref_lrn.hpp"
-#include "cpu/jit_avx2_batch_normalization.hpp"
+#include "cpu/jit_uni_batch_normalization.hpp"
 #include "cpu/ref_batch_normalization.hpp"
 #include "cpu/ref_inner_product.hpp"
 #include "cpu/gemm_inner_product.hpp"
 #include "cpu/pgemm_rnn.hpp"
+#include "cpu/jit_uni_inner_product.hpp"
 #include "cpu/simple_reorder.hpp"
 
 namespace mkldnn {
@@ -117,9 +123,20 @@ static const rpd_create_f cpu_reorder_impl_list[] = {
 #define INSTANCE(inst) &primitive_desc_t::create<inst::pd_t>
 static const pd_create_f cpu_impl_list[] = {
     /* conv */
+    INSTANCE(jit_avx512_mic_1x1_convolution_fwd_t),
+    INSTANCE(jit_avx512_mic_1x1_convolution_bwd_data_t),
+    INSTANCE(jit_avx512_mic_convolution_fwd_t),
+    INSTANCE(jit_avx512_mic_convolution_bwd_data_t),
+    INSTANCE(jit_avx512_mic_convolution_bwd_weights_t),
+    INSTANCE(jit_avx2_1x1_convolution_fwd_t),
+    INSTANCE(jit_avx2_1x1_convolution_bwd_data_t),
+    INSTANCE(jit_avx2_1x1_convolution_bwd_weights_t),
     INSTANCE(jit_avx2_convolution_fwd_t),
     INSTANCE(jit_avx2_convolution_bwd_data_t),
     INSTANCE(jit_avx2_convolution_bwd_weights_t),
+    INSTANCE(jit_gemm_convolution_fwd_t),
+    INSTANCE(jit_gemm_convolution_bwd_data_t),
+    INSTANCE(jit_gemm_convolution_bwd_weights_t),
     INSTANCE(ref_convolution_fwd_t<data_type::f32>),
     INSTANCE(ref_convolution_bwd_data_t<data_type::f32>),
     INSTANCE(ref_convolution_bwd_weights_t<data_type::f32>),
@@ -131,24 +148,43 @@ static const pd_create_f cpu_impl_list[] = {
     /* softmax */
     INSTANCE(ref_softmax_fwd_t<data_type::f32>),
     /* pool */
-    INSTANCE(jit_avx2_pooling_fwd_t),
+    INSTANCE(jit_uni_pooling_fwd_t<avx512_mic>),
+    INSTANCE(jit_uni_pooling_bwd_t<avx512_mic>),
+    INSTANCE(jit_uni_pooling_fwd_t<avx2>),
+    INSTANCE(jit_uni_pooling_bwd_t<avx2>),
     INSTANCE(ref_pooling_fwd_t<data_type::f32>),
     INSTANCE(ref_pooling_bwd_t<data_type::f32>),
     /* lrn */
+    INSTANCE(jit_avx512_mic_lrn_fwd_t),
+    INSTANCE(jit_avx512_mic_lrn_bwd_t),
     INSTANCE(jit_avx2_lrn_fwd_t),
+    INSTANCE(jit_avx2_lrn_bwd_t),
     INSTANCE(ref_lrn_fwd_t<data_type::f32>),
     INSTANCE(ref_lrn_bwd_t<data_type::f32>),
     /* batch normalization */
-    INSTANCE(jit_avx2_batch_normalization_fwd_t),
+    INSTANCE(jit_uni_batch_normalization_fwd_t<avx512_mic>),
+    INSTANCE(jit_uni_batch_normalization_bwd_t<avx512_mic>),
+    INSTANCE(jit_uni_batch_normalization_fwd_t<avx2>),
+    INSTANCE(jit_uni_batch_normalization_bwd_t<avx2>),
     INSTANCE(ref_batch_normalization_fwd_t<data_type::f32>),
     INSTANCE(ref_batch_normalization_bwd_t<data_type::f32>),
     /* inner product */
+    INSTANCE(jit_uni_inner_product_fwd_t<avx512_mic>),
+    INSTANCE(jit_uni_inner_product_fwd_t<avx2>),
     INSTANCE(gemm_inner_product_fwd_t<data_type::f32>),
+    INSTANCE(gemm_inner_product_bwd_data_t<data_type::f32>),
+    INSTANCE(gemm_inner_product_bwd_weights_t<data_type::f32>),
+    INSTANCE(jit_uni_inner_product_bwd_weights_t<avx512_mic>),
+    INSTANCE(jit_uni_inner_product_bwd_data_t<avx512_mic>),
+    INSTANCE(jit_uni_inner_product_bwd_weights_t<avx2>),
+    INSTANCE(jit_uni_inner_product_bwd_data_t<avx2>),
     INSTANCE(ref_inner_product_fwd_t<data_type::f32>),
     INSTANCE(ref_inner_product_bwd_data_t<data_type::f32>),
     INSTANCE(ref_inner_product_bwd_weights_t<data_type::f32>),
     /* conv_relu */
+    INSTANCE(jit_avx2_1x1_convolution_relu_t),
     INSTANCE(jit_avx2_convolution_relu_t),
+    INSTANCE(jit_gemm_convolution_relu_t),
     INSTANCE(ref_convolution_relu_t<data_type::f32>),
     /* rnn */
     INSTANCE(pgemm_rnn_fwd_t<data_type::f32>),

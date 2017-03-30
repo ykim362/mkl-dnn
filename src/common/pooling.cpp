@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2016 Intel Corporation
+* Copyright 2016-2017 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -50,8 +50,8 @@ status_t pooling_desc_init(pooling_desc_t *pool_desc,
 
     const bool is_fwd = one_of(prop_kind, forward_training, forward_inference);
 
-    pd.src_desc = zero_md();
-    pd.dst_desc = zero_md();
+    pd.diff_src_desc = pd.src_desc = zero_md();
+    pd.diff_dst_desc = pd.dst_desc = zero_md();
 
     (is_fwd ? pd.src_desc : pd.diff_src_desc) = *src_desc;
     (is_fwd ? pd.dst_desc : pd.diff_dst_desc) = *dst_desc;
@@ -71,8 +71,8 @@ status_t pooling_desc_init(pooling_desc_t *pool_desc,
         && src_desc->dims[1] == dst_desc->dims[1];
     for (int i = 2; i <= 3; ++i)
         consistency = consistency && (
-                (src_desc->dims[i] - kernel[i - 2] + strides[i - 2] - 1
-                 + padding_l[i - 2] + padding_r[i - 2]) / strides[i - 2] + 1
+                (src_desc->dims[i] - kernel[i - 2] + padding_l[i - 2]
+                 + padding_r[i - 2]) / strides[i - 2] + 1
                 == dst_desc->dims[i]);
     if (!consistency) return invalid_arguments;
 
