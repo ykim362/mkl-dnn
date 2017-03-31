@@ -50,12 +50,18 @@ inline void lstm_fwd_ele_wise(data_t *Gates, const data_t *Ct_1, data_t *Ct,
 #pragma omp parallel for
 #endif
     for (size_t i = 0; i < Length; i++) {
-        Gates[i] = 1 / (1 + exp(-Gates[i]));
-        Gates[Length + i] = 1 / (1 + exp(-Gates[Length + i]));
-        Gates[2 * Length + i] = 1 / (1 + exp(-Gates[2 * Length + i]));
-        Gates[3 * Length + i] = tanh(Gates[3 * Length + i]);
-        Ct[i] = Ct_1[i] * Gates[Length + i] + Gates[i] * Gates[3 * Length + i];
-        Ht[i] = Gates[2 * Length + i] * tanh(Ct[i]);
+        Gates[i] =
+            Sigmoid<data_trait<data_t>::data_type>(Gates[i]);
+        Gates[Length + i] =
+            Sigmoid<data_trait<data_t>::data_type>(Gates[Length + i]);
+        Gates[2 * Length + i] =
+            Sigmoid<data_trait<data_t>::data_type>(Gates[2*Length + i]);
+        Gates[3 * Length + i] =
+            Tanh<data_trait<data_t>::data_type>(Gates[3*Length + i]);
+        Ct[i] = Ct_1[i] * Gates[Length + i]
+            + Gates[i] * Gates[3 * Length + i];
+        Ht[i] = Gates[2*Length + i]
+            * Tanh<data_trait<data_t>::data_type>(Ct[i]);
     }
 }
 
@@ -70,19 +76,18 @@ inline void lstm_bwd_ele_wise(const data_t *Gates, data_t *dGates,
 #pragma omp parallel for
 #endif
     for (size_t i = 0; i < Length; i++) {
-        dCt[i] += (1 - pow(tanh(Ct[i]), 2)) * dHt[i] * Gates[2 * Length + i];
-        dGates[2 * Length + i] = dHt[i] * tanh(Ct[i]);
-        dGates[Length + i] = dCt[i] * Ct_1[i];
+        dCt[i] += (1 - Pow<data_trait<data_t>::data_type>
+            (Tanh<data_trait<data_t>::data_type>(Ct[i]), 2))
+            * dHt[i] * Gates[2 * Length + i];
         dCt_1[i] = dCt[i] * Gates[Length + i];
-        dGates[i] = dCt[i] * Gates[3 * Length + i];
-        dGates[3 * Length + i] = dCt[i] * Gates[i];
-        dGates[i] = dGates[i] * Gates[i] * (1 - Gates[i]);
-        dGates[Length + i] = dGates[Length + i] * Gates[Length + i]
-                * (1 - Gates[Length + i]);
-        dGates[2 * Length + i] = dGates[2 * Length + i] * Gates[2 * Length + i]
-                * (1 - Gates[2 * Length + i]);
-        dGates[3 * Length + i]
-                = dGates[3 * Length + i] * (1 - pow(Gates[3 * Length + i], 2));
+        dGates[i] =dCt[i] * Gates[3 * Length + i]
+            * Gates[i] * (1 - Gates[i]);
+        dGates[Length + i] = dCt[i] * Ct_1[i] * Gates[Length + i]
+            * (1- Gates[Length + i]);;
+        dGates[2 * Length+i] = dHt[i] * Tanh<data_trait<data_t>::data_type>(Ct[i])
+            * Gates[2 * Length + i] * (1- Gates[2 * Length + i]);
+        dGates[3 * Length + i] = dCt[i] * Gates[i]
+            * (1 - Gates[3 * Length + i] * Gates[3 * Length + i]);
     }
 }
 
@@ -617,7 +622,6 @@ inline void rnn_fwd_ele_wise(const data_t *Gates, data_t *Ht,
 #pragma omp parallel for simd
 #elif defined(__GNUC__)
 #pragma omp parallel for
-#pragma omp simd
 #endif
         for (size_t i = 0; i < Length; i++) {
             if (Gates[i] < 0.0) {
@@ -631,10 +635,9 @@ inline void rnn_fwd_ele_wise(const data_t *Gates, data_t *Ht,
 #pragma omp parallel for simd
 #elif defined(__GNUC__)
 #pragma omp parallel for
-#pragma omp simd
 #endif
         for (size_t i = 0; i < Length; i++) {
-            Ht[i] = tanh(Gates[i]);
+            Ht[i] = Tanh<data_trait<data_t>::data_type>(Gates[i]);
         }
     }
 #endif
@@ -684,7 +687,6 @@ inline void rnn_bwd_ele_wise(const data_t *Gates, data_t *dGates,
 #pragma omp parallel for simd
 #elif defined(__GNUC__)
 #pragma omp parallel for
-#pragma omp simd
 #endif
         for (size_t i = 0; i < Length; i++) {
             if (Gates[i] <= 0.0) {
@@ -698,10 +700,10 @@ inline void rnn_bwd_ele_wise(const data_t *Gates, data_t *dGates,
 #pragma omp parallel for simd
 #elif defined(__GNUC__)
 #pragma omp parallel for
-#pragma omp simd
 #endif
         for (size_t i = 0; i < Length; i++) {
-            dGates[i] = (1.0 - pow(Gates[i], 2)) * dHt[i];
+            dGates[i] = (1.0 -
+                Pow<data_trait<data_t>::data_type>(Gates[i], 2)) * dHt[i];
         }
     }
 #endif
