@@ -83,7 +83,7 @@ inline void lstm_bwd_ele_wise(const data_t *Gates, data_t *dGates,
         dGates[i] =dCt[i] * Gates[3 * Length + i]
             * Gates[i] * (1 - Gates[i]);
         dGates[Length + i] = dCt[i] * Ct_1[i] * Gates[Length + i]
-            * (1- Gates[Length + i]);;
+            * (1- Gates[Length + i]);
         dGates[2 * Length+i] = dHt[i] * Tanh<data_trait<data_t>::data_type>(Ct[i])
             * Gates[2 * Length + i] * (1- Gates[2 * Length + i]);
         dGates[3 * Length + i] = dCt[i] * Gates[i]
@@ -943,7 +943,7 @@ inline void rnn_bwd_prop(const size_t seq_length, const size_t num_layers,
 
 #pragma omp parallel for
     for (size_t i = 0; i < h_space_size; i++)
-        memset(ts_ + dh_space_off + i, 0, sizeof(data_t));
+        ts_[dh_space_off + i] = 0;
     size_t w_off = 0;
     size_t in_size = 0;
     size_t wa = w1_size + (num_layers - 1) * wx_size;
