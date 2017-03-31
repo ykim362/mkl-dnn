@@ -41,6 +41,9 @@ using namespace mkldnn::impl::cpu::cpu_vml;
 #endif
 
 template <typename data_t>
+#if defined(__ICC)
+#pragma omp declare simd
+#endif
 inline void lstm_fwd_ele_wise(data_t *Gates, const data_t *Ct_1, data_t *Ct,
         data_t *Ht, size_t Length)
 {
@@ -66,6 +69,9 @@ inline void lstm_fwd_ele_wise(data_t *Gates, const data_t *Ct_1, data_t *Ct,
 }
 
 template <typename data_t>
+#if defined(__ICC)
+#pragma omp declare simd
+#endif
 inline void lstm_bwd_ele_wise(const data_t *Gates, data_t *dGates,
         const data_t *Ct_1, data_t *dCt_1, const data_t *Ct, data_t *dCt,
         const data_t *dHt, size_t Length)

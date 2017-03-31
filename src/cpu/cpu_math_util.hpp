@@ -264,6 +264,9 @@ inline void vTanh<data_type::f32>(cblas_int N,
 #endif //USE_MKL
 
 template <data_type_t data_type>
+#if defined(__ICC)
+#pragma omp declare simd
+#endif
 inline data_t<data_type> Pow(data_t<data_type> A,
         data_t<data_type> B);
 
@@ -273,6 +276,9 @@ inline float Pow<data_type::f32>(float A, float B) {
 }
 
 template <data_type_t data_type>
+#if defined(__ICC)
+#pragma omp declare simd
+#endif
 inline data_t<data_type> Sigmoid(data_t<data_type> A);
 
 template <>
@@ -281,6 +287,9 @@ inline float Sigmoid<data_type::f32>(float A) {
 }
 
 template <data_type_t data_type>
+#if defined(__ICC)
+#pragma omp declare simd
+#endif
 inline data_t<data_type> Tanh(data_t<data_type> A);
 
 template <>
