@@ -19,7 +19,12 @@
 
 #include "mkldnn.hpp"
 
-enum { RELU = 1, TANH = 2, LSTM = 3, GRU = 4 };
+enum {
+    RELU = mkldnn::rnn_relu,
+    TANH = mkldnn::rnn_tanh,
+    LSTM = mkldnn::rnn_lstm,
+    GRU = mkldnn::rnn_gru
+};
 
 enum { UNIDIRECT = 1, BIDIRECT = 2 };
 
@@ -35,10 +40,19 @@ struct test_lstm_desc_t {
     int input_mode;
     int state_outputs;
 };
+struct test_rnn_desc_t {
+    size_t state_size, input_size;
+    size_t seq_length, num_layers;
+    size_t batch_size;
+    int alg_kind;
+    int direction;
+    int input_mode;
+    int state_outputs;
+};
 
 template <typename data_t>
-inline void transpose(
-        const data_t *src, data_t *dst, const int M, const int N) {
+inline void transpose(const data_t *src, data_t *dst, const int M, const int N)
+{
     data_t **src_a = new data_t *[M];
     data_t **dst_a = new data_t *[N];
     for (int i = 0; i < M; i++)
@@ -53,8 +67,8 @@ inline void transpose(
 }
 
 template <typename data_t>
-inline void directcopy(
-        const data_t *src, data_t *dst, const int M, const int N) {
+inline void directcopy(const data_t *src, data_t *dst, const int M, const int N)
+{
 #pragma omp parallel for
     for (int n = 0; n < N * M; n++) {
         dst[n] = src[n];
@@ -62,7 +76,8 @@ inline void directcopy(
 }
 
 template <typename data_t>
-inline void axpycopy(const data_t *src, data_t *dst, const int M, const int N) {
+inline void axpycopy(const data_t *src, data_t *dst, const int M, const int N)
+{
 #pragma omp parallel for
     for (int n = 0; n < N * M; n++) {
         dst[n] += src[n];
@@ -72,7 +87,8 @@ inline void axpycopy(const data_t *src, data_t *dst, const int M, const int N) {
 template <typename data_t>
 inline void gemm(const int transA, const int transB, const data_t *A,
         const data_t *B, data_t *C, const int M, const int N, const int K,
-        const data_t beta) {
+        const data_t beta)
+{
     int m, n, k;
     if (beta == 0) {
         for (m = 0; m < M * N; m++) {
@@ -103,6 +119,15 @@ struct lstm_test_params {
     input_mode ainput_mode;
     memory::format rnx_format;
     test_lstm_desc_t test_ld;
+};
+struct rnn_test_params {
+    prop_kind aprop_kind;
+    engine::kind engine_kind;
+    algorithm aalgorithm;
+    direction adirection;
+    input_mode ainput_mode;
+    memory::format rnx_format;
+    test_rnn_desc_t test_rd;
 };
 }
 

@@ -36,10 +36,11 @@ status_t rnn_desc_init(rnn_desc_t *rnn_desc, prop_kind_t prop_kind,
         rnn_input_mode_t input_mode, size_t num_states, size_t num_layers,
         size_t num_seqs, int state_outputs, const memory_desc_t *x_desc,
         const memory_desc_t *hx_desc, const memory_desc_t *y_desc,
-        const memory_desc_t *weights_desc) {
+        const memory_desc_t *weights_desc)
+{
     bool args_ok = true
             && one_of(prop_kind, forward_training, forward_inference, backward)
-            && one_of(alg_kind, rnn_lstm, rnn_relu)
+            && one_of(alg_kind, rnn_relu, rnn_tanh, rnn_lstm)
             && one_of(direction, rnn_unidirectional, rnn_bidirectional)
             && one_of(input_mode, rnn_linear_input)
             && !any_null(x_desc, hx_desc, y_desc, weights_desc)
@@ -85,7 +86,8 @@ status_t mkldnn_rnn_forward_desc_init(rnn_desc_t *rnn_desc,
         rnn_input_mode_t input_mode, size_t num_states, size_t num_layers,
         size_t num_seqs, int state_outputs, const memory_desc_t *x_desc,
         const memory_desc_t *hx_desc, const memory_desc_t *y_desc,
-        const memory_desc_t *weights_desc) {
+        const memory_desc_t *weights_desc)
+{
     return rnn_desc_init(rnn_desc, prop_kind, alg_kind, direction, input_mode,
             num_states, num_layers, num_seqs, state_outputs, x_desc, hx_desc,
             y_desc, weights_desc);
@@ -96,7 +98,8 @@ status_t mkldnn_rnn_backward_desc_init(rnn_desc_t *rnn_desc,
         rnn_input_mode_t input_mode, size_t num_states, size_t num_layers,
         size_t num_seqs, int state_outputs, const memory_desc_t *x_desc,
         const memory_desc_t *hx_desc, const memory_desc_t *y_desc,
-        const memory_desc_t *weights_desc) {
+        const memory_desc_t *weights_desc)
+{
     return rnn_desc_init(rnn_desc, prop_kind, alg_kind, direction, input_mode,
             num_states, num_layers, num_seqs, state_outputs, x_desc, hx_desc,
             y_desc, weights_desc);

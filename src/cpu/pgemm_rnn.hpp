@@ -35,11 +35,14 @@ struct pgemm_rnn_fwd_t : public cpu_primitive_t {
     struct pd_t : public cpu_rnn_fwd_pd_t {
         pd_t(engine_t *engine, const rnn_desc_t *adesc,
                 const rnn_fwd_pd_t *hint_fwd_pd)
-            : cpu_rnn_fwd_pd_t(engine, adesc, hint_fwd_pd) {}
+            : cpu_rnn_fwd_pd_t(engine, adesc, hint_fwd_pd)
+        {
+        }
 
         DECLARE_COMMON_PD_T(pgemm_rnn_fwd_t);
 
-        virtual status_t init() override {
+        virtual status_t init() override
+        {
 #ifdef USE_MKL
             using namespace prop_kind;
             using namespace alg_kind;
@@ -47,7 +50,8 @@ struct pgemm_rnn_fwd_t : public cpu_primitive_t {
             bool ok = true && this->set_default_params() == status::success
                     && utils::one_of(desc()->prop_kind, forward_training,
                                forward_inference)
-                    && utils::one_of(desc()->alg_kind, rnn_lstm, rnn_relu)
+                    && utils::one_of(
+                               desc()->alg_kind, rnn_relu, rnn_tanh, rnn_lstm)
                     && utils::everyone_is(data_type, desc()->x_desc.data_type,
                                desc()->hx_desc.data_type,
                                desc()->y_desc.data_type,
@@ -70,7 +74,8 @@ struct pgemm_rnn_fwd_t : public cpu_primitive_t {
 
     pgemm_rnn_fwd_t(const pd_t *pd, const input_vector &inputs,
             const output_vector &outputs)
-        : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd), ts_(nullptr) {
+        : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd), ts_(nullptr)
+    {
         using namespace mkldnn::impl::utils;
         using namespace prop_kind;
         auto insize = (conf_.input_size() > conf_.hidden_size()) ?
@@ -83,14 +88,16 @@ struct pgemm_rnn_fwd_t : public cpu_primitive_t {
         }
         ts_ = new data_t[ts_size_];
     }
-    ~pgemm_rnn_fwd_t() {
+    ~pgemm_rnn_fwd_t()
+    {
         if (ts_)
             delete[] ts_;
     }
 
     typedef typename prec_trait<data_type>::type data_t;
 
-    virtual void execute(event_t *e) {
+    virtual void execute(event_t *e)
+    {
         switch (conf_.desc()->prop_kind) {
         case prop_kind::forward_training:
         case prop_kind::forward_inference: execute_forward(); break;
@@ -110,18 +117,22 @@ struct pgemm_rnn_bwd_t : public cpu_primitive_t {
     struct pd_t : public cpu_rnn_bwd_pd_t {
         pd_t(engine_t *engine, const rnn_desc_t *adesc,
                 const rnn_fwd_pd_t *hint_fwd_pd)
-            : cpu_rnn_bwd_pd_t(engine, adesc, hint_fwd_pd) {}
+            : cpu_rnn_bwd_pd_t(engine, adesc, hint_fwd_pd)
+        {
+        }
 
         DECLARE_COMMON_PD_T(pgemm_rnn_bwd_t);
 
-        virtual status_t init() override {
+        virtual status_t init() override
+        {
 #ifdef USE_MKL
             using namespace prop_kind;
             using namespace alg_kind;
             assert(engine()->kind() == engine_kind::cpu);
             bool ok = true && this->set_default_params() == status::success
                     && utils::one_of(desc()->prop_kind, backward)
-                    && utils::one_of(desc()->alg_kind, rnn_lstm)
+                    && utils::one_of(
+                               desc()->alg_kind, rnn_relu, rnn_tanh, rnn_lstm)
                     && utils::everyone_is(data_type, desc()->x_desc.data_type,
                                desc()->hx_desc.data_type,
                                desc()->y_desc.data_type,
@@ -155,7 +166,8 @@ struct pgemm_rnn_bwd_t : public cpu_primitive_t {
 
     pgemm_rnn_bwd_t(const pd_t *pd, const input_vector &inputs,
             const output_vector &outputs)
-        : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd), ts_(nullptr) {
+        : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd), ts_(nullptr)
+    {
         using namespace mkldnn::impl::utils;
         auto bsize = (conf_.input_size() > conf_.hidden_size()) ?
                 conf_.input_size() :
@@ -167,14 +179,16 @@ struct pgemm_rnn_bwd_t : public cpu_primitive_t {
                 + 2 * conf_.h_space_size();
         ts_ = new data_t[ts_size_];
     }
-    ~pgemm_rnn_bwd_t() {
+    ~pgemm_rnn_bwd_t()
+    {
         if (ts_)
             delete[] ts_;
     }
 
     typedef typename prec_trait<data_type>::type data_t;
 
-    virtual void execute(event_t *e) {
+    virtual void execute(event_t *e)
+    {
         switch (conf_.desc()->prop_kind) {
         case prop_kind::backward: execute_backward(); break;
         default: assert(!"invalid prop_kind");
