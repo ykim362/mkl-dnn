@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2016 Intel Corporation
+* Copyright 2017 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -14,9 +14,11 @@
 * limitations under the License.
 *******************************************************************************/
 
+#include <math.h>
+
 #include "c_types_map.hpp"
 #include "type_helpers.hpp"
-#include "math.h"
+
 namespace mkldnn {
 namespace impl {
 namespace cpu {
@@ -26,8 +28,8 @@ using data_t = typename prec_trait<data_type>::type;
 
 #ifdef USE_MKL
 #include "mkl_cblas.h"
-#include "mkl_vml_functions.h"
 #include "mkl_trans.h"
+
 typedef MKL_INT cblas_int;
 
 namespace cpu_blas {
@@ -53,35 +55,27 @@ inline void cblas_gemm<data_type::f32>(CBLAS_LAYOUT layout,
 
 template <data_type_t data_type>
 inline data_t<data_type>* cblas_gemm_alloc(CBLAS_IDENTIFIER identifier,
-                 const cblas_int m, const cblas_int n, const cblas_int k);
+        const cblas_int m, const cblas_int n, const cblas_int k);
 
 template <>
 inline float* cblas_gemm_alloc<data_type::f32>(CBLAS_IDENTIFIER identifier,
-                 const cblas_int m, const cblas_int n, const cblas_int k) {
-    return cblas_sgemm_alloc(identifier, m, n, k);
-}
+        const cblas_int m, const cblas_int n, const cblas_int k)
+{ return cblas_sgemm_alloc(identifier, m, n, k); }
 
 template <data_type_t data_type>
 inline void cblas_gemm_pack(const CBLAS_LAYOUT Layout,
         const CBLAS_IDENTIFIER identifier, const CBLAS_TRANSPOSE trans,
         const cblas_int m, const cblas_int n, const cblas_int k,
-        const data_t<data_type> alpha,
-        const data_t<data_type> *src,
-        const cblas_int ld,
-        data_t<data_type> *dest);
+        const data_t<data_type> alpha, const data_t<data_type> *src,
+        const cblas_int ld, data_t<data_type> *dest);
 
 
 template <>
 inline void cblas_gemm_pack<data_type::f32>(const CBLAS_LAYOUT Layout,
         const CBLAS_IDENTIFIER identifier, const CBLAS_TRANSPOSE trans,
         const cblas_int m, const cblas_int n, const cblas_int k,
-        const float alpha,
-        const float *src,
-        const cblas_int ld,
-        float *dest) {
-    cblas_sgemm_pack(Layout, identifier, trans,
-        m, n, k, alpha, src, ld, dest);
-}
+        const float alpha, const float *src, const cblas_int ld, float *dest)
+{ cblas_sgemm_pack(Layout, identifier, trans, m, n, k, alpha, src, ld, dest); }
 
 template <data_type_t data_type>
 inline void cblas_gemm_compute(const CBLAS_LAYOUT Layout,
@@ -91,7 +85,6 @@ inline void cblas_gemm_compute(const CBLAS_LAYOUT Layout,
         const data_t<data_type> *b, const cblas_int ldb,
         const data_t<data_type> beta,
         data_t<data_type> *c, const cblas_int ldc);
-
 
 template <>
 inline void cblas_gemm_compute<data_type::f32>(const CBLAS_LAYOUT Layout,
@@ -109,42 +102,37 @@ template <data_type_t data_type>
 inline void cblas_gemm_free(data_t<data_type> *dst);
 
 template <>
-inline void cblas_gemm_free<data_type::f32>(float *dst) {
-    cblas_sgemm_free(dst);
-}
+inline void cblas_gemm_free<data_type::f32>(float *dst)
+{ cblas_sgemm_free(dst); }
 
 
 template <data_type_t data_type>
-inline void cblas_axpy(cblas_int N,
-        data_t<data_type> alpha, const data_t<data_type> *X, cblas_int incx,
+inline void cblas_axpy(cblas_int N, data_t<data_type> alpha,
+        const data_t<data_type> *X, cblas_int incx, data_t<data_type> *Y,
+        cblas_int incy);
+
+template <>
+inline void cblas_axpy<data_type::f32>(cblas_int N, float alpha,
+        const float *X, cblas_int incx, float *Y, cblas_int incy)
+{ cblas_saxpy(N, alpha, X, incx, Y, incy); }
+
+template <data_type_t data_type>
+inline void cblas_scal(cblas_int N, data_t<data_type> a, data_t<data_type> *X,
+        cblas_int incx);
+
+template <>
+inline void cblas_scal<data_type::f32>(cblas_int N, float a, float *X,
+        cblas_int incx)
+{ cblas_sscal(N, a, X, incx); }
+
+template <data_type_t data_type>
+inline void cblas_copy(cblas_int N, const data_t<data_type> *X, cblas_int incx,
         data_t<data_type> *Y, cblas_int incy);
 
 template <>
-inline void cblas_axpy<data_type::f32>(cblas_int N,
-        float alpha, const float *X, cblas_int incx,
-        float *Y, cblas_int incy) {
-    cblas_saxpy(N, alpha, X, incx, Y, incy);
-}
-
-template <data_type_t data_type>
-inline void cblas_scal(cblas_int N,
-        data_t<data_type> a, data_t<data_type> *X, cblas_int incx);
-
-template <>
-inline void cblas_scal<data_type::f32>(cblas_int N,
-        float a, float *X, cblas_int incx) {
-    cblas_sscal(N, a, X, incx);
-}
-
-template <data_type_t data_type>
-inline void cblas_copy(cblas_int N, const data_t<data_type> *X,
-        cblas_int incx, data_t<data_type> *Y, cblas_int incy);
-
-template <>
 inline void cblas_copy<data_type::f32>(cblas_int N, const float *X,
-        cblas_int incx, float *Y, cblas_int incy) {
-    cblas_scopy(N, X, incx, Y, incy);
-}
+        cblas_int incx, float *Y, cblas_int incy)
+{ cblas_scopy(N, X, incx, Y, incy); }
 
 }
 
@@ -154,126 +142,28 @@ template <data_type_t data_type>
 using data_t = typename prec_trait<data_type>::type;
 
 template <data_type_t data_type>
-inline void omatcopy(char ordering, char trans,
-				cblas_int rows, cblas_int cols,
-				data_t<data_type> alpha,
-				const data_t<data_type> *A, cblas_int lda,
-                data_t<data_type> *B, cblas_int ldb);
+inline void omatcopy(char ordering, char trans, cblas_int rows, cblas_int cols,
+        data_t<data_type> alpha, const data_t<data_type> *A, cblas_int lda,
+        data_t<data_type> *B, cblas_int ldb);
 
 template <>
-inline void omatcopy<data_type::f32>(char ordering, char trans,
-				cblas_int rows, cblas_int cols,
-				float alpha,
-				const float *A, cblas_int lda,
-                float *B, cblas_int ldb) {
-    mkl_somatcopy(ordering, trans, rows, cols, alpha,
-    		A, lda, B, ldb);
-}
-}
-
-namespace cpu_vml {
-
-template <data_type_t data_type>
-using data_t = typename prec_trait<data_type>::type;
-
-template <data_type_t data_type>
-inline void vAdd(cblas_int N,
-        const data_t<data_type> *A, const data_t<data_type> *B,
-        data_t<data_type> *Y);
-
-template <>
-inline void vAdd<data_type::f32>(cblas_int N,
-        const float *A, const float *B,
-        float *Y) {
-    vsAdd(N, A, B, Y);
-}
-
-template <data_type_t data_type>
-inline void vSub(cblas_int N,
-        const data_t<data_type> *A, const data_t<data_type> *B,
-        data_t<data_type> *Y);
-
-template <>
-inline void vSub<data_type::f32>(cblas_int N,
-        const float *A, const float *B,
-        float *Y) {
-    vsSub(N, A, B, Y);
-}
-
-template <data_type_t data_type>
-inline void vMul(cblas_int N,
-        const data_t<data_type> *A, const data_t<data_type> *B,
-        data_t<data_type> *Y);
-
-template <>
-inline void vMul<data_type::f32>(cblas_int N,
-        const float *A, const float *B,
-        float *Y) {
-    vsMul(N, A, B, Y);
-}
-
-template <data_type_t data_type>
-inline void vDiv(cblas_int N,
-        const data_t<data_type> *A, const data_t<data_type> *B,
-        data_t<data_type> *Y);
-
-template <>
-inline void vDiv<data_type::f32>(cblas_int N,
-        const float *A, const float *B,
-        float *Y) {
-    vsDiv(N, A, B, Y);
-}
-
-template <data_type_t data_type>
-inline void vSqr(cblas_int N,
-        const data_t<data_type> *A,
-        data_t<data_type> *Y);
-
-template <>
-inline void vSqr<data_type::f32>(cblas_int N,
-        const float *A,
-        float *Y) {
-    vsSqr(N, A, Y);
-}
-
-template <data_type_t data_type>
-inline void vExp(cblas_int N,
-        const data_t<data_type> *A,
-        data_t<data_type> *Y);
-
-template <>
-inline void vExp<data_type::f32>(cblas_int N,
-        const float *A,
-        float *Y) {
-    vsExp(N, A, Y);
-}
-
-template <data_type_t data_type>
-inline void vTanh(cblas_int N,
-        const data_t<data_type> *A,
-        data_t<data_type> *Y);
-
-template <>
-inline void vTanh<data_type::f32>(cblas_int N,
-        const float *A,
-        float *Y) {
-    vsTanh(N, A, Y);
-}
+inline void omatcopy<data_type::f32>(char ordering, char trans, cblas_int rows,
+        cblas_int cols, float alpha, const float *A, cblas_int lda, float *B,
+        cblas_int ldb)
+{ mkl_somatcopy(ordering, trans, rows, cols, alpha, A, lda, B, ldb); }
 
 }
-#endif //USE_MKL
+
+#endif // USE_MKL
 
 template <data_type_t data_type>
 #if defined(__ICC)
 #pragma omp declare simd
 #endif
-inline data_t<data_type> Pow(data_t<data_type> A,
-        data_t<data_type> B);
+inline data_t<data_type> Pow(data_t<data_type> A, data_t<data_type> B);
 
 template <>
-inline float Pow<data_type::f32>(float A, float B) {
-      return powf(A, B);
-}
+inline float Pow<data_type::f32>(float A, float B) { return powf(A, B); }
 
 template <data_type_t data_type>
 #if defined(__ICC)
@@ -282,9 +172,7 @@ template <data_type_t data_type>
 inline data_t<data_type> Sigmoid(data_t<data_type> A);
 
 template <>
-inline float Sigmoid<data_type::f32>(float A) {
-      return 1/(1+expf(-A));
-}
+inline float Sigmoid<data_type::f32>(float A) { return 1 / (1 + expf(-A)); }
 
 template <data_type_t data_type>
 #if defined(__ICC)
@@ -293,11 +181,8 @@ template <data_type_t data_type>
 inline data_t<data_type> Tanh(data_t<data_type> A);
 
 template <>
-inline float Tanh<data_type::f32>(float A) {
-      return tanhf(A);
-}
+inline float Tanh<data_type::f32>(float A) { return tanhf(A); }
 
 }
 }
 }
-

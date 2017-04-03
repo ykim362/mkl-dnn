@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2016 Intel Corporation
+* Copyright 2017 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -14,8 +14,8 @@
 * limitations under the License.
 *******************************************************************************/
 
-#ifndef CPU_RNN_FWD_PD_HPP
-#define CPU_RNN_FWD_PD_HPP
+#ifndef CPU_RNN_PD_HPP
+#define CPU_RNN_PD_HPP
 
 #include <assert.h>
 
@@ -66,9 +66,8 @@ struct cpu_rnn_fwd_pd_t : public rnn_fwd_pd_t {
         default: return nullptr;
         }
     }
-    virtual const cpu_memory_pd_t *workspace_pd(int index = 0) const override {
-        return (index == 0 && !ws_pd_.is_zero()) ? &ws_pd_ : nullptr;
-    }
+    virtual const cpu_memory_pd_t *workspace_pd(int index = 0) const override
+    { return (index == 0 && !ws_pd_.is_zero()) ? &ws_pd_ : nullptr; }
 
 protected:
     cpu_memory_pd_t x_pd_;
@@ -84,22 +83,15 @@ protected:
 
     virtual status_t set_default_params() {
         using namespace memory_format;
-        if (x_pd_.desc()->format == any)
-            CHECK(x_pd_.set_format(rnx));
-        if (hx_pd_.desc()->format == any)
-            CHECK(hx_pd_.set_format(rnx));
-        if (!cx_pd_.is_zero())
-            if (cx_pd_.desc()->format == any)
-                CHECK(cx_pd_.set_format(rnx));
-        if (y_pd_.desc()->format == any)
-            CHECK(y_pd_.set_format(rnx));
-        if (!hy_pd_.is_zero())
-            if (hy_pd_.desc()->format == any)
-                CHECK(hy_pd_.set_format(rnx));
-        if (!cy_pd_.is_zero())
-            if (cy_pd_.desc()->format == any)
-                CHECK(cy_pd_.set_format(rnx));
-
+        if (x_pd_.desc()->format == any) CHECK(x_pd_.set_format(rnx));
+        if (hx_pd_.desc()->format == any) CHECK(hx_pd_.set_format(rnx));
+        if (!cx_pd_.is_zero() && cx_pd_.desc()->format == any)
+            CHECK(cx_pd_.set_format(rnx));
+        if (y_pd_.desc()->format == any) CHECK(y_pd_.set_format(rnx));
+        if (!hy_pd_.is_zero() && hy_pd_.desc()->format == any)
+            CHECK(hy_pd_.set_format(rnx));
+        if (!cy_pd_.is_zero() && cy_pd_.desc()->format == any)
+            CHECK(cy_pd_.set_format(rnx));
         return status::success;
     }
 };
@@ -136,9 +128,7 @@ struct cpu_rnn_bwd_pd_t : public rnn_bwd_pd_t {
         switch (index) {
         case 0: return &dy_pd_;
         case 1: return (index == 1 && !dhy_pd_.is_zero()) ? &dhy_pd_ : nullptr;
-        case 2:
-            return (index == 2 && !dcy_pd_.is_zero()) ? &dcy_pd_ : nullptr;
-            ;
+        case 2: return (index == 2 && !dcy_pd_.is_zero()) ? &dcy_pd_ : nullptr;
         default: return nullptr;
         }
     }
@@ -150,16 +140,13 @@ struct cpu_rnn_bwd_pd_t : public rnn_bwd_pd_t {
         default: return nullptr;
         }
     }
-    virtual const cpu_memory_pd_t *weights_pd(int index = 0) const override {
-        return index == 0 ? &weights_pd_ : nullptr;
-    }
+    virtual const cpu_memory_pd_t *weights_pd(int index = 0) const override
+    { return index == 0 ? &weights_pd_ : nullptr; }
     virtual const cpu_memory_pd_t *diff_weights_pd(
-            int index = 0) const override {
-        return index == 0 ? &diff_weights_pd_ : nullptr;
-    }
-    virtual const cpu_memory_pd_t *workspace_pd(int index = 0) const override {
-        return index == 0 ? &ws_pd_ : nullptr;
-    }
+            int index = 0) const override
+    { return index == 0 ? &diff_weights_pd_ : nullptr; }
+    virtual const cpu_memory_pd_t *workspace_pd(int index = 0) const override
+    { return index == 0 ? &ws_pd_ : nullptr; }
 
 protected:
     cpu_memory_pd_t x_pd_;
@@ -178,31 +165,23 @@ protected:
     virtual status_t init() = 0;
     virtual status_t set_default_params() {
         using namespace memory_format;
-        if (x_pd_.desc()->format == any)
-            CHECK(x_pd_.set_format(rnx));
-        if (hx_pd_.desc()->format == any)
-            CHECK(hx_pd_.set_format(rnx));
-        if (!cx_pd_.is_zero())
-            if (cx_pd_.desc()->format == any)
-                CHECK(cx_pd_.set_format(rnx));
-        if (dx_pd_.desc()->format == any)
-            CHECK(dx_pd_.set_format(rnx));
-        if (dhx_pd_.desc()->format == any)
-            CHECK(dhx_pd_.set_format(rnx));
-        if (!dcx_pd_.is_zero())
-            if (dcx_pd_.desc()->format == any)
-                CHECK(dcx_pd_.set_format(rnx));
-        if (dy_pd_.desc()->format == any)
-            CHECK(dy_pd_.set_format(rnx));
-        if (!dhy_pd_.is_zero())
-            if (dhy_pd_.desc()->format == any)
-                CHECK(dhy_pd_.set_format(rnx));
-        if (!dcy_pd_.is_zero())
-            if (dcy_pd_.desc()->format == any)
-                CHECK(dcy_pd_.set_format(rnx));
+        if (x_pd_.desc()->format == any) CHECK(x_pd_.set_format(rnx));
+        if (hx_pd_.desc()->format == any) CHECK(hx_pd_.set_format(rnx));
+        if (!cx_pd_.is_zero() && cx_pd_.desc()->format == any)
+            CHECK(cx_pd_.set_format(rnx));
+        if (dx_pd_.desc()->format == any) CHECK(dx_pd_.set_format(rnx));
+        if (dhx_pd_.desc()->format == any) CHECK(dhx_pd_.set_format(rnx));
+        if (!dcx_pd_.is_zero() && dcx_pd_.desc()->format == any)
+            CHECK(dcx_pd_.set_format(rnx));
+        if (dy_pd_.desc()->format == any) CHECK(dy_pd_.set_format(rnx));
+        if (!dhy_pd_.is_zero() && dhy_pd_.desc()->format == any)
+            CHECK(dhy_pd_.set_format(rnx));
+        if (!dcy_pd_.is_zero() && dcy_pd_.desc()->format == any)
+            CHECK(dcy_pd_.set_format(rnx));
         return status::success;
     }
 };
+
 }
 }
 }

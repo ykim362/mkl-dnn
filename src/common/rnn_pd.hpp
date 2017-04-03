@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2016 Intel Corporation
+* Copyright 2017 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -47,16 +47,13 @@ struct rnn_fwd_pd_t : public primitive_desc_t {
     virtual const memory_pd_t *input_pd(int index = 0) const override {
         if (desc_.alg_kind == rnn_lstm) {
             switch (index) {
-            case 0:
-            case 1:
-            case 2: return src_pd(index);
+            case 0: case 1: case 2: return src_pd(index);
             case 3: return weights_pd();
             default: return nullptr;
             }
         } else {
             switch (index) {
-            case 0:
-            case 1: return src_pd(index);
+            case 0: case 1: return src_pd(index);
             case 2: return weights_pd();
             default: return nullptr;
             }
@@ -66,16 +63,13 @@ struct rnn_fwd_pd_t : public primitive_desc_t {
         if (desc_.state_outputs) {
             if (desc_.alg_kind == rnn_lstm) {
                 switch (index) {
-                case 0:
-                case 1:
-                case 2: return dst_pd(index);
+                case 0: case 1: case 2: return dst_pd(index);
                 case 3: return workspace_pd();
                 default: return nullptr;
                 }
             } else {
                 switch (index) {
-                case 0:
-                case 1: return dst_pd(index);
+                case 0: case 1: return dst_pd(index);
                 case 2: return workspace_pd();
                 default: return nullptr;
                 }
@@ -89,12 +83,8 @@ struct rnn_fwd_pd_t : public primitive_desc_t {
         }
     }
 
-    virtual int n_inputs() const override {
-        if (desc_.alg_kind == rnn_lstm)
-            return 4;
-        else
-            return 3;
-    }
+    virtual int n_inputs() const override
+    { return desc_.alg_kind == rnn_lstm ? 4 : 3; }
     virtual int n_outputs() const override {
         if (desc_.state_outputs) {
             if (desc_.alg_kind == rnn_lstm) {
@@ -175,17 +165,13 @@ struct rnn_fwd_pd_t : public primitive_desc_t {
     inline size_t h_nlayer_size() const { return h_size() * layers(); }
     inline size_t gates_size() const { return h_size() * gates_num(); }
     inline size_t gates_nlayer_size() const { return gates_size() * layers(); }
-    inline size_t gates_space_size() const {
-        return gates_nlayer_size() * tau() * direction();
-    }
-    inline size_t h_space_size() const {
-        return h_nlayer_size() * tau() * direction();
-    }
+    inline size_t gates_space_size() const
+    { return gates_nlayer_size() * tau() * direction(); }
+    inline size_t h_space_size() const
+    { return h_nlayer_size() * tau() * direction(); }
     inline size_t workspace_size() const {
-        if (desc_.alg_kind == alg_kind::rnn_lstm)
-            return gates_space_size() + 2 * h_space_size();
-        else
-            return gates_space_size() + h_space_size();
+        return gates_space_size()
+            + (desc_.alg_kind == alg_kind::rnn_lstm ? 2 : 1) * h_space_size();
     }
 
 protected:
@@ -214,21 +200,15 @@ struct rnn_bwd_pd_t : public primitive_desc_t {
         if (desc_.alg_kind == rnn_lstm) {
             if (desc_.state_outputs) {
                 switch (index) {
-                case 0:
-                case 1:
-                case 2: return src_pd(index);
-                case 3:
-                case 4:
-                case 5: return diff_dst_pd(index - 3);
+                case 0: case 1: case 2: return src_pd(index);
+                case 3: case 4: case 5: return diff_dst_pd(index - 3);
                 case 6: return weights_pd();
                 case 7: return workspace_pd();
                 default: return nullptr;
                 }
             } else {
                 switch (index) {
-                case 0:
-                case 1:
-                case 2: return src_pd(index);
+                case 0: case 1: case 2: return src_pd(index);
                 case 3: return diff_dst_pd(index - 3);
                 case 4: return weights_pd();
                 case 5: return workspace_pd();
@@ -238,18 +218,15 @@ struct rnn_bwd_pd_t : public primitive_desc_t {
         } else {
             if (desc_.state_outputs) {
                 switch (index) {
-                case 0:
-                case 1: return src_pd(index);
-                case 2:
-                case 3: return diff_dst_pd(index - 2);
+                case 0: case 1: return src_pd(index);
+                case 2: case 3: return diff_dst_pd(index - 2);
                 case 4: return weights_pd();
                 case 5: return workspace_pd();
                 default: return nullptr;
                 }
             } else {
                 switch (index) {
-                case 0:
-                case 1: return src_pd(index);
+                case 0: case 1: return src_pd(index);
                 case 2: return diff_dst_pd(index - 2);
                 case 3: return weights_pd();
                 case 4: return workspace_pd();
@@ -261,16 +238,13 @@ struct rnn_bwd_pd_t : public primitive_desc_t {
     virtual const memory_pd_t *output_pd(int index = 0) const override {
         if (desc_.alg_kind == rnn_lstm) {
             switch (index) {
-            case 0:
-            case 1:
-            case 2: return diff_src_pd(index);
+            case 0: case 1: case 2: return diff_src_pd(index);
             case 3: return diff_weights_pd();
             default: return nullptr;
             }
         } else {
             switch (index) {
-            case 0:
-            case 1: return diff_src_pd(index);
+            case 0: case 1: return diff_src_pd(index);
             case 2: return diff_weights_pd();
             default: return nullptr;
             }
@@ -292,12 +266,8 @@ struct rnn_bwd_pd_t : public primitive_desc_t {
             }
         }
     }
-    virtual int n_outputs() const override {
-        if (desc_.alg_kind == rnn_lstm)
-            return 4;
-        else
-            return 3;
-    }
+    virtual int n_outputs() const override
+    { return desc_.alg_kind == rnn_lstm ? 4 : 3; }
 
     virtual status_t query(query_t what, int idx, void *result) const override {
         switch (what) {
@@ -315,12 +285,10 @@ struct rnn_bwd_pd_t : public primitive_desc_t {
     inline size_t direction() const {
         return (desc_.direction == rnn_direction::rnn_unidirectional) ? 1 : 2;
     }
-    inline size_t batch() const {
-        return static_cast<size_t>(desc_.x_desc.dims[1]);
-    }
-    inline size_t input_size() const {
-        return static_cast<size_t>(desc_.x_desc.dims[2]);
-    }
+    inline size_t batch() const
+    { return static_cast<size_t>(desc_.x_desc.dims[1]); }
+    inline size_t input_size() const
+    { return static_cast<size_t>(desc_.x_desc.dims[2]); }
     inline int state_outputs() const { return desc_.state_outputs; }
     inline int gates_num() const {
         switch (desc_.alg_kind) {
@@ -353,8 +321,8 @@ struct rnn_bwd_pd_t : public primitive_desc_t {
             default: return 0;
             }
             return size;
-        } else
-            return 0;
+        }
+        return 0;
     }
     inline size_t total_param_size() const {
         if (layers() > 1) {
@@ -367,17 +335,13 @@ struct rnn_bwd_pd_t : public primitive_desc_t {
     inline size_t h_nlayer_size() const { return h_size() * layers(); }
     inline size_t gates_size() const { return h_size() * gates_num(); }
     inline size_t gates_nlayer_size() const { return gates_size() * layers(); }
-    inline size_t gates_space_size() const {
-        return gates_nlayer_size() * tau() * direction();
-    }
-    inline size_t h_space_size() const {
-        return h_nlayer_size() * tau() * direction();
-    }
+    inline size_t gates_space_size() const
+    { return gates_nlayer_size() * tau() * direction(); }
+    inline size_t h_space_size() const
+    { return h_nlayer_size() * tau() * direction(); }
     inline size_t workspace_size() const {
-        if (desc_.alg_kind == alg_kind::rnn_lstm)
-            return gates_space_size() + 2 * h_space_size();
-        else
-            return gates_space_size() + h_space_size();
+        return gates_space_size()
+            + (desc_.alg_kind == alg_kind::rnn_lstm ? 2 : 1) * h_space_size();
     }
 
 protected:

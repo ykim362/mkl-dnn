@@ -257,13 +257,13 @@ typedef enum {
     /** LRN within a single channel */
     mkldnn_lrn_within_channel = 66,
     /** A vanillar-RNN with relu */
-    mkldnn_rnn_relu,
+    mkldnn_rnn_relu = 81,
     /** A vanillar-RNN with tanh */
-    mkldnn_rnn_tanh,
+    mkldnn_rnn_tanh = 82,
     /** An LSTM (Long Short-Term Memory) */
-    mkldnn_rnn_lstm,
+    mkldnn_rnn_lstm = 83,
     /** A GRU (Gated Recurrent Unit) */
-    mkldnn_rnn_gru,
+    mkldnn_rnn_gru = 84,
 } mkldnn_alg_kind_t;
 
 /** Kinds of directions for RNN. */

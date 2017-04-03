@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2016 Intel Corporation
+* Copyright 2017 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 #include "c_types_map.hpp"
 #include "type_helpers.hpp"
-#include <iostream>
 
 #include "cpu_math_util.hpp"
 #include "pgemm_rnn.hpp"
@@ -34,10 +33,10 @@ using namespace mkldnn::impl::data_type;
 using namespace mkldnn::impl::memory_format;
 using namespace mkldnn::impl::primitive_kind;
 using namespace mkldnn::impl::utils;
+
 #ifdef USE_MKL
 using namespace mkldnn::impl::cpu::cpu_blas;
 using namespace mkldnn::impl::cpu::cpu_trans;
-using namespace mkldnn::impl::cpu::cpu_vml;
 #endif
 
 template <typename data_t>
@@ -383,6 +382,7 @@ inline void lstm_fwd_prop(const size_t seq_length, const size_t num_layers,
     }
 #endif
 }
+
 template <typename data_t>
 inline void lstm_bwd_prop(const size_t seq_length, const size_t num_layers,
         const size_t batch_size, const size_t input_size,
@@ -1158,7 +1158,6 @@ void pgemm_rnn_fwd_t<data_type>::execute_forward()
     if (alg_kind == rnn_relu || alg_kind == rnn_tanh) {
         data_t *cx = nullptr;
         auto w = reinterpret_cast<const data_t *>(this->input_memory(2));
-        // std::cout << "w address: " << w << std::endl;
         rnn_fwd_prop(seq_length, num_layers, batch_size, input_size, state_size,
                 direction, alg_kind, w1_size, wx_size, h_size, x_size,
                 h_nlayer_size, gates_size, gates_nlayer_size, gates_space_size,
@@ -1269,6 +1268,7 @@ void pgemm_rnn_bwd_t<data_type>::execute_backward()
 
 template struct pgemm_rnn_fwd_t<data_type::f32>;
 template struct pgemm_rnn_bwd_t<data_type::f32>;
+
 }
 }
 }
