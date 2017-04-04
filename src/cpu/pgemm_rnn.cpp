@@ -48,7 +48,7 @@ inline void lstm_fwd_ele_wise(data_t *Gates, const data_t *Ct_1, data_t *Ct,
 {
 #if defined(__ICC)
 #pragma omp parallel for simd
-#elif defined(__GNUC__)
+#else
 #pragma omp parallel for
 #endif
     for (size_t i = 0; i < Length; i++) {
@@ -77,7 +77,7 @@ inline void lstm_bwd_ele_wise(const data_t *Gates, data_t *dGates,
 {
 #if defined(__ICC)
 #pragma omp parallel for simd
-#elif defined(__GNUC__)
+#else
 #pragma omp parallel for
 #endif
     for (size_t i = 0; i < Length; i++) {
@@ -408,7 +408,7 @@ inline void lstm_bwd_prop(const size_t seq_length, const size_t num_layers,
 
 #if defined(__ICC)
 #pragma omp parallel for simd
-#elif defined(__GNUC__)
+#else
 #pragma omp parallel for
 #endif
     for (size_t i = 0; i < 2 * h_space_size; i++)
@@ -630,7 +630,7 @@ inline void rnn_fwd_ele_wise(const data_t *Gates, data_t *Ht,
     if (alg_kind == rnn_relu) {
 #if defined(__ICC)
 #pragma omp parallel for simd
-#elif defined(__GNUC__)
+#else
 #pragma omp parallel for
 #endif
         for (size_t i = 0; i < Length; i++) {
@@ -643,7 +643,7 @@ inline void rnn_fwd_ele_wise(const data_t *Gates, data_t *Ht,
     } else if (alg_kind == rnn_tanh) {
 #if defined(__ICC)
 #pragma omp parallel for simd
-#elif defined(__GNUC__)
+#else
 #pragma omp parallel for
 #endif
         for (size_t i = 0; i < Length; i++) {
@@ -695,7 +695,7 @@ inline void rnn_bwd_ele_wise(const data_t *Gates, data_t *dGates,
     if (alg_kind == rnn_relu) {
 #if defined(__ICC)
 #pragma omp parallel for simd
-#elif defined(__GNUC__)
+#else
 #pragma omp parallel for
 #endif
         for (size_t i = 0; i < Length; i++) {
@@ -708,7 +708,7 @@ inline void rnn_bwd_ele_wise(const data_t *Gates, data_t *dGates,
     } else if (alg_kind == rnn_tanh) {
 #if defined(__ICC)
 #pragma omp parallel for simd
-#elif defined(__GNUC__)
+#else
 #pragma omp parallel for
 #endif
         for (size_t i = 0; i < Length; i++) {

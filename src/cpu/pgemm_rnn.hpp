@@ -81,10 +81,10 @@ struct pgemm_rnn_fwd_t : public cpu_primitive_t {
         auto ts_size_ = tmp * conf_.batch();
         if (conf_.desc()->prop_kind != forward_training)
             ts_size_ += conf_.workspace_size();
-        ts_ = new data_t[ts_size_];
+        ts_ = (data_t *)malloc(ts_size_ * sizeof(data_t), 64);
     }
 
-    ~pgemm_rnn_fwd_t() { if (ts_) delete[] ts_; }
+    ~pgemm_rnn_fwd_t() { if (ts_) free(ts_); }
 
     typedef typename prec_trait<data_type>::type data_t;
 
@@ -168,10 +168,10 @@ struct pgemm_rnn_bwd_t : public cpu_primitive_t {
         auto tmp = tmp1 > tmp2 ? tmp1 : tmp2;
         auto ts_size_ = tmp * conf_.batch() + conf_.gates_space_size()
                 + 2 * conf_.h_space_size();
-        ts_ = new data_t[ts_size_];
+        ts_ = (data_t *)malloc(ts_size_ * sizeof(data_t), 64);
     }
 
-    ~pgemm_rnn_bwd_t() { if (ts_) delete[] ts_; }
+    ~pgemm_rnn_bwd_t() { if (ts_) free(ts_); }
 
     typedef typename prec_trait<data_type>::type data_t;
 
