@@ -129,6 +129,7 @@ struct pgemm_rnn_bwd_t : public cpu_primitive_t {
             if (!ok) return status::unimplemented;
 
             bool stats_ok = true
+                && hint_fwd_pd_ != nullptr
                 && hint_fwd_pd_->layers() == desc()->num_layers
                 && hint_fwd_pd_->tau() == desc()->num_seqs
                 && hint_fwd_pd_->direction() == desc()->direction

@@ -406,9 +406,13 @@ inline void lstm_bwd_prop(const size_t seq_length, const size_t num_layers,
     const size_t dc_space_off = dh_space_off + h_space_size;
     const size_t tmp_space_off = dc_space_off + h_space_size;
 
+#if defined(__ICC)
+#pragma omp parallel for simd
+#elif defined(__GNUC__)
 #pragma omp parallel for
+#endif
     for (size_t i = 0; i < 2 * h_space_size; i++)
-        memset(ts_ + dh_space_off + i, 0, sizeof(data_t));
+        ts_[dh_space_off + i] = 0;
     size_t w_off = 0;
     size_t in_size = 0;
     size_t wa = w1_size + (num_layers - 1) * wx_size;
