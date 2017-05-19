@@ -222,17 +222,12 @@ inline void lstm_fwd_prop(const size_t seq_length, const size_t num_layers,
         ws_ptr = ts_;
         tmp_space_off = c_space_off + h_space_size;
     }
-    // data_t **weights_pack = new data_t *[total_layers];
     for (int l = 0; l < total_layers; l++) {
         dl = l / num_layers;
         rl = l % num_layers;
         roff = (rl == 0) ? 0 : (w1_size + (rl - 1) * wx_size);
         w_off = wa * dl + roff;
         in_size = (rl == 0) ? input_size : state_size;
-        // pack weights
-        // weights_pack[l]
-        //         = cblas_gemm_alloc<data_trait<data_t>::data_type>(CblasAMatrix,
-        //                 4 * state_size, batch_size, (in_size + state_size + 2));
         cblas_gemm_pack<data_trait<data_t>::data_type>(CblasRowMajor,
                 CblasAMatrix, CblasTrans, 4 * state_size, batch_size,
                 (in_size + state_size + 2), 1.0, w + w_off, 4 * state_size,
@@ -376,9 +371,6 @@ inline void lstm_fwd_prop(const size_t seq_length, const size_t num_layers,
             }
         }
     }
-    // for (int nl = 0; nl < total_layers; nl++) {
-    //     cblas_gemm_free<data_trait<data_t>::data_type>(weights_pack[nl]);
-    // }
 #endif
 }
 
@@ -456,17 +448,12 @@ inline void lstm_bwd_prop(const size_t seq_length, const size_t num_layers,
                     batch_size);
         }
     }
-    // data_t **weights_pack = new data_t *[total_layers];
     for (int l = 0; l < total_layers; l++) {
         dl = l / num_layers;
         rl = l % num_layers;
         roff = (rl == 0) ? 0 : (w1_size + (rl - 1) * wx_size);
         w_off = wa * dl + roff;
         in_size = (rl == 0) ? input_size : state_size;
-        // pack weights
-        // weights_pack[l]
-        //         = cblas_gemm_alloc<data_trait<data_t>::data_type>(CblasAMatrix,
-        //                 4 * state_size, batch_size, (in_size + state_size + 2));
         cblas_gemm_pack<data_trait<data_t>::data_type>(CblasRowMajor,
                 CblasAMatrix, CblasNoTrans, (in_size + state_size + 2),
                 batch_size, 4 * state_size, 1.0, w + w_off, 4 * state_size,
@@ -615,9 +602,6 @@ inline void lstm_bwd_prop(const size_t seq_length, const size_t num_layers,
             }
         }
     }
-    // for (int nl = 0; nl < total_layers; nl++) {
-    //     cblas_gemm_free<data_trait<data_t>::data_type>(weights_pack[nl]);
-    // }
 #endif
 }
 
@@ -633,11 +617,7 @@ inline void rnn_fwd_ele_wise(const data_t *Gates, data_t *Ht,
 #pragma omp parallel for
 #endif
         for (size_t i = 0; i < Length; i++) {
-            if (Gates[i] < 0.0) {
-                Ht[i] = 0.0;
-            } else {
-                Ht[i] = Gates[i];
-            }
+            Ht[i] = (Gates[i] > 0.0) ? Gates[i] : 0.0;
         }
     } else if (alg_kind == rnn_tanh) {
 #if defined(__ICC)
@@ -698,11 +678,7 @@ inline void rnn_bwd_ele_wise(const data_t *Gates, data_t *dGates,
 #pragma omp parallel for
 #endif
         for (size_t i = 0; i < Length; i++) {
-            if (Gates[i] <= 0.0) {
-                dGates[i] = 0.0;
-            } else {
-                dGates[i] = dHt[i];
-            }
+            dGates[i] = (Gates[i] > 0.0) ? dHt[i] : 0.0;
         }
     } else if (alg_kind == rnn_tanh) {
 #if defined(__ICC)
@@ -754,19 +730,16 @@ inline void rnn_bwd_prop_single(const size_t input_size,
             CblasPacked, CblasNoTrans, input_size + state_size + 2, batch_size,
             state_size, w, 0, dgates, batch_size, 0.0, tmp, batch_size);
 
-    // TODO check is this computation enough?
     if (tranx == TRANS) {
         omatcopy<data_trait<data_t>::data_type>('R', 'T', input_size,
                 batch_size, 1.0, tmp, batch_size, dx, input_size);
     } else {
-        // TODO check bias term?
         cblas_axpy<data_trait<data_t>::data_type>(x_size, 1, tmp, 1, dx, 1);
     }
     if (tranht_1 == TRANS) {
         omatcopy<data_trait<data_t>::data_type>('R', 'T', state_size,
                 batch_size, 1.0, tmp + x_size, batch_size, dht_1, state_size);
     } else {
-        // TODO check bias term?
         cblas_axpy<data_trait<data_t>::data_type>(
                 h_size, 1, tmp + x_size, 1, dht_1, 1);
     }
@@ -801,16 +774,12 @@ inline void rnn_fwd_prop(const size_t seq_length, const size_t num_layers,
         ws_ptr = ts_;
         tmp_space_off = hout_space_off + hout_space_size;
     }
-    // data_t **weights_pack = new data_t *[total_layers];
     for (int l = 0; l < total_layers; l++) {
         dl = l / num_layers;
         rl = l % num_layers;
         roff = (rl == 0) ? 0 : (w1_size + (rl - 1) * wx_size);
         w_off = wa * dl + roff;
         in_size = (rl == 0) ? input_size : state_size;
-        // pack weights
-        // weights_pack[l] = cblas_gemm_alloc<data_trait<data_t>::data_type>(
-        //         CblasAMatrix, state_size, batch_size, in_size + state_size + 2);
         cblas_gemm_pack<data_trait<data_t>::data_type>(CblasRowMajor,
                 CblasAMatrix, CblasTrans, state_size, batch_size,
                 in_size + state_size + 2, 1.0, w + w_off, state_size,
@@ -922,9 +891,6 @@ inline void rnn_fwd_prop(const size_t seq_length, const size_t num_layers,
             }
         }
     }
-    // for (int nl = 0; nl < total_layers; nl++) {
-    //     cblas_gemm_free<data_trait<data_t>::data_type>(weights_pack[nl]);
-    // }
 #endif
 }
 
@@ -988,16 +954,12 @@ inline void rnn_bwd_prop(const size_t seq_length, const size_t num_layers,
                     1);
         }
     }
-    // data_t **weights_pack = new data_t *[total_layers];
     for (int l = 0; l < total_layers; l++) {
         dl = l / num_layers;
         rl = l % num_layers;
         roff = (rl == 0) ? 0 : (w1_size + (rl - 1) * wx_size);
         w_off = wa * dl + roff;
         in_size = (rl == 0) ? input_size : state_size;
-        // pack weights
-        // weights_pack[l] = cblas_gemm_alloc<data_trait<data_t>::data_type>(
-        //         CblasAMatrix, state_size, batch_size, in_size + state_size + 2);
         cblas_gemm_pack<data_trait<data_t>::data_type>(CblasRowMajor,
                 CblasAMatrix, CblasNoTrans, in_size + state_size + 2,
                 batch_size, state_size, 1.0, w + w_off, state_size,
@@ -1111,9 +1073,6 @@ inline void rnn_bwd_prop(const size_t seq_length, const size_t num_layers,
             }
         }
     }
-    // for (int nl = 0; nl < total_layers; nl++) {
-    //     cblas_gemm_free<data_trait<data_t>::data_type>(weights_pack[nl]);
-    // }
 #endif
 }
 
