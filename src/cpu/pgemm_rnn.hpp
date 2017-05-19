@@ -23,6 +23,7 @@
 #include "cpu_engine.hpp"
 #include "cpu_rnn_pd.hpp"
 #include "type_helpers.hpp"
+#include "cpu_math_util.hpp"
 #include "utils.hpp"
 
 namespace mkldnn {
@@ -75,6 +76,7 @@ struct pgemm_rnn_fwd_t : public cpu_primitive_t {
     {
         using namespace mkldnn::impl::utils;
         using namespace prop_kind;
+        using namespace mkldnn::impl::cpu::cpu_blas;
         auto insize = conf_.input_size() > conf_.hidden_size()
             ? conf_.input_size() : conf_.hidden_size();
         auto tmp = insize + conf_.hidden_size() + 2;
@@ -82,9 +84,34 @@ struct pgemm_rnn_fwd_t : public cpu_primitive_t {
         if (conf_.desc()->prop_kind != forward_training)
             ts_size_ += conf_.workspace_size();
         ts_ = (data_t *)malloc(ts_size_ * sizeof(data_t), 64);
+        size_t total_layers = conf_.layers() * conf_.direction();
+        weights_pack_ = new data_t *[total_layers];
+        size_t rl, in_size, m;
+        for (size_t ii = 0; ii < total_layers; ++ii)
+        {
+            rl = ii % conf_.layers();
+            in_size = (rl == 0) ? conf_.input_size() : conf_.hidden_size();
+            m = conf_.hidden_size();
+            if (conf_.desc()->alg_kind == rnn_lstm) m *= 4;
+            weights_pack_[ii]
+                    = cblas_gemm_alloc<data_type>(CblasAMatrix,
+                            m, conf_.batch(), (in_size + conf_.hidden_size() + 2));
+        }
     }
 
-    ~pgemm_rnn_fwd_t() { if (ts_) free(ts_); }
+    ~pgemm_rnn_fwd_t() 
+    {
+        using namespace mkldnn::impl::cpu::cpu_blas;
+        if (weights_pack_)
+        {
+            size_t total_layers = conf_.layers() * conf_.direction();
+            for (size_t ii = 0; ii < total_layers; ++ii)
+                cblas_gemm_free<data_type>(weights_pack_[ii]);
+
+            delete[] weights_pack_;
+        }
+        if (ts_) free(ts_); 
+    }
 
     typedef typename prec_trait<data_type>::type data_t;
 
@@ -102,6 +129,7 @@ private:
     void execute_forward();
     pd_t conf_;
     data_t *ts_;
+    data_t **weights_pack_;
 };
 
 template <impl::data_type_t data_type>
@@ -161,6 +189,7 @@ struct pgemm_rnn_bwd_t : public cpu_primitive_t {
         : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd), ts_(nullptr)
     {
         using namespace mkldnn::impl::utils;
+        using namespace mkldnn::impl::cpu::cpu_blas;
         auto bsize = conf_.input_size() > conf_.hidden_size()
             ? conf_.input_size() : conf_.hidden_size();
         auto tmp1 = bsize + conf_.hidden_size() + 2;
@@ -169,9 +198,34 @@ struct pgemm_rnn_bwd_t : public cpu_primitive_t {
         auto ts_size_ = tmp * conf_.batch() + conf_.gates_space_size()
                 + 2 * conf_.h_space_size();
         ts_ = (data_t *)malloc(ts_size_ * sizeof(data_t), 64);
+        size_t total_layers = conf_.layers() * conf_.direction();
+        weights_pack_ = new data_t *[total_layers];
+        size_t rl, in_size, m;
+        for (size_t ii = 0; ii < total_layers; ++ii)
+        {
+            rl = ii % conf_.layers();
+            in_size = (rl == 0) ? conf_.input_size() : conf_.hidden_size();
+            m = conf_.hidden_size();
+            if (conf_.desc()->alg_kind == rnn_lstm) m *= 4;
+            weights_pack_[ii]
+                    = cblas_gemm_alloc<data_type>(CblasAMatrix,
+                            m, conf_.batch(), (in_size + conf_.hidden_size() + 2));
+        }
     }
 
-    ~pgemm_rnn_bwd_t() { if (ts_) free(ts_); }
+    ~pgemm_rnn_bwd_t()
+    {
+        using namespace mkldnn::impl::cpu::cpu_blas;
+        if (weights_pack_)
+        {
+            size_t total_layers = conf_.layers() * conf_.direction();
+            for (size_t ii = 0; ii < total_layers; ++ii)
+                cblas_gemm_free<data_type>(weights_pack_[ii]);
+
+            delete[] weights_pack_;
+        }
+        if (ts_) free(ts_);
+    }
 
     typedef typename prec_trait<data_type>::type data_t;
 
@@ -188,6 +242,7 @@ private:
     void execute_backward();
     pd_t conf_;
     data_t *ts_;
+    data_t **weights_pack_;
 };
 
 }

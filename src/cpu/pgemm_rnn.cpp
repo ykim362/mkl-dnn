@@ -17,7 +17,6 @@
 #include "c_types_map.hpp"
 #include "type_helpers.hpp"
 
-#include "cpu_math_util.hpp"
 #include "pgemm_rnn.hpp"
 
 namespace mkldnn {
@@ -203,7 +202,7 @@ inline void lstm_fwd_prop(const size_t seq_length, const size_t num_layers,
         const size_t gates_nlayer_size, const size_t gates_space_size,
         const size_t h_space_size, const data_t *x, const data_t *hx,
         const data_t *cx, const data_t *w, data_t *y, data_t *hy, data_t *cy,
-        data_t *ws, data_t *ts_)
+        data_t *ws, data_t *ts_, data_t** weights_pack)
 {
 #ifdef USE_MKL
     const size_t total_layers = num_layers * direction;
@@ -223,7 +222,7 @@ inline void lstm_fwd_prop(const size_t seq_length, const size_t num_layers,
         ws_ptr = ts_;
         tmp_space_off = c_space_off + h_space_size;
     }
-    data_t **weights_pack = new data_t *[total_layers];
+    // data_t **weights_pack = new data_t *[total_layers];
     for (int l = 0; l < total_layers; l++) {
         dl = l / num_layers;
         rl = l % num_layers;
@@ -231,9 +230,9 @@ inline void lstm_fwd_prop(const size_t seq_length, const size_t num_layers,
         w_off = wa * dl + roff;
         in_size = (rl == 0) ? input_size : state_size;
         // pack weights
-        weights_pack[l]
-                = cblas_gemm_alloc<data_trait<data_t>::data_type>(CblasAMatrix,
-                        4 * state_size, batch_size, (in_size + state_size + 2));
+        // weights_pack[l]
+        //         = cblas_gemm_alloc<data_trait<data_t>::data_type>(CblasAMatrix,
+        //                 4 * state_size, batch_size, (in_size + state_size + 2));
         cblas_gemm_pack<data_trait<data_t>::data_type>(CblasRowMajor,
                 CblasAMatrix, CblasTrans, 4 * state_size, batch_size,
                 (in_size + state_size + 2), 1.0, w + w_off, 4 * state_size,
@@ -377,9 +376,9 @@ inline void lstm_fwd_prop(const size_t seq_length, const size_t num_layers,
             }
         }
     }
-    for (int nl = 0; nl < total_layers; nl++) {
-        cblas_gemm_free<data_trait<data_t>::data_type>(weights_pack[nl]);
-    }
+    // for (int nl = 0; nl < total_layers; nl++) {
+    //     cblas_gemm_free<data_trait<data_t>::data_type>(weights_pack[nl]);
+    // }
 #endif
 }
 
@@ -393,7 +392,7 @@ inline void lstm_bwd_prop(const size_t seq_length, const size_t num_layers,
         const size_t h_space_size, const int state_outputs, const data_t *x,
         const data_t *hx, const data_t *cx, const data_t *dy, const data_t *dhy,
         const data_t *dcy, const data_t *w, const data_t *ws, data_t *dx,
-        data_t *dhx, data_t *dcx, data_t *dw, data_t *ts_)
+        data_t *dhx, data_t *dcx, data_t *dw, data_t *ts_, data_t **weights_pack)
 {
 #ifdef USE_MKL
     const size_t total_layers = num_layers * direction;
@@ -457,7 +456,7 @@ inline void lstm_bwd_prop(const size_t seq_length, const size_t num_layers,
                     batch_size);
         }
     }
-    data_t **weights_pack = new data_t *[total_layers];
+    // data_t **weights_pack = new data_t *[total_layers];
     for (int l = 0; l < total_layers; l++) {
         dl = l / num_layers;
         rl = l % num_layers;
@@ -465,9 +464,9 @@ inline void lstm_bwd_prop(const size_t seq_length, const size_t num_layers,
         w_off = wa * dl + roff;
         in_size = (rl == 0) ? input_size : state_size;
         // pack weights
-        weights_pack[l]
-                = cblas_gemm_alloc<data_trait<data_t>::data_type>(CblasAMatrix,
-                        4 * state_size, batch_size, (in_size + state_size + 2));
+        // weights_pack[l]
+        //         = cblas_gemm_alloc<data_trait<data_t>::data_type>(CblasAMatrix,
+        //                 4 * state_size, batch_size, (in_size + state_size + 2));
         cblas_gemm_pack<data_trait<data_t>::data_type>(CblasRowMajor,
                 CblasAMatrix, CblasNoTrans, (in_size + state_size + 2),
                 batch_size, 4 * state_size, 1.0, w + w_off, 4 * state_size,
@@ -616,9 +615,9 @@ inline void lstm_bwd_prop(const size_t seq_length, const size_t num_layers,
             }
         }
     }
-    for (int nl = 0; nl < total_layers; nl++) {
-        cblas_gemm_free<data_trait<data_t>::data_type>(weights_pack[nl]);
-    }
+    // for (int nl = 0; nl < total_layers; nl++) {
+    //     cblas_gemm_free<data_trait<data_t>::data_type>(weights_pack[nl]);
+    // }
 #endif
 }
 
@@ -783,7 +782,7 @@ inline void rnn_fwd_prop(const size_t seq_length, const size_t num_layers,
         const size_t gates_size, const size_t gates_nlayer_size,
         const size_t gates_space_size, const size_t hout_space_size,
         const data_t *x, const data_t *hx, const data_t *cx, const data_t *w,
-        data_t *y, data_t *hy, data_t *cy, data_t *ws, data_t *ts_)
+        data_t *y, data_t *hy, data_t *cy, data_t *ws, data_t *ts_, data_t **weights_pack)
 {
 #ifdef USE_MKL
     const size_t total_layers = num_layers * direction;
@@ -802,7 +801,7 @@ inline void rnn_fwd_prop(const size_t seq_length, const size_t num_layers,
         ws_ptr = ts_;
         tmp_space_off = hout_space_off + hout_space_size;
     }
-    data_t **weights_pack = new data_t *[total_layers];
+    // data_t **weights_pack = new data_t *[total_layers];
     for (int l = 0; l < total_layers; l++) {
         dl = l / num_layers;
         rl = l % num_layers;
@@ -810,8 +809,8 @@ inline void rnn_fwd_prop(const size_t seq_length, const size_t num_layers,
         w_off = wa * dl + roff;
         in_size = (rl == 0) ? input_size : state_size;
         // pack weights
-        weights_pack[l] = cblas_gemm_alloc<data_trait<data_t>::data_type>(
-                CblasAMatrix, state_size, batch_size, in_size + state_size + 2);
+        // weights_pack[l] = cblas_gemm_alloc<data_trait<data_t>::data_type>(
+        //         CblasAMatrix, state_size, batch_size, in_size + state_size + 2);
         cblas_gemm_pack<data_trait<data_t>::data_type>(CblasRowMajor,
                 CblasAMatrix, CblasTrans, state_size, batch_size,
                 in_size + state_size + 2, 1.0, w + w_off, state_size,
@@ -923,9 +922,9 @@ inline void rnn_fwd_prop(const size_t seq_length, const size_t num_layers,
             }
         }
     }
-    for (int nl = 0; nl < total_layers; nl++) {
-        cblas_gemm_free<data_trait<data_t>::data_type>(weights_pack[nl]);
-    }
+    // for (int nl = 0; nl < total_layers; nl++) {
+    //     cblas_gemm_free<data_trait<data_t>::data_type>(weights_pack[nl]);
+    // }
 #endif
 }
 
@@ -940,7 +939,7 @@ inline void rnn_bwd_prop(const size_t seq_length, const size_t num_layers,
         const int state_outputs, const data_t *x, const data_t *hx,
         const data_t *cx, const data_t *dy, const data_t *dhy,
         const data_t *dcy, const data_t *w, const data_t *ws, data_t *dx,
-        data_t *dhx, data_t *dcx, data_t *dw, data_t *ts_)
+        data_t *dhx, data_t *dcx, data_t *dw, data_t *ts_, data_t **weights_pack)
 {
 #ifdef USE_MKL
     const size_t total_layers = num_layers * direction;
@@ -989,7 +988,7 @@ inline void rnn_bwd_prop(const size_t seq_length, const size_t num_layers,
                     1);
         }
     }
-    data_t **weights_pack = new data_t *[total_layers];
+    // data_t **weights_pack = new data_t *[total_layers];
     for (int l = 0; l < total_layers; l++) {
         dl = l / num_layers;
         rl = l % num_layers;
@@ -997,8 +996,8 @@ inline void rnn_bwd_prop(const size_t seq_length, const size_t num_layers,
         w_off = wa * dl + roff;
         in_size = (rl == 0) ? input_size : state_size;
         // pack weights
-        weights_pack[l] = cblas_gemm_alloc<data_trait<data_t>::data_type>(
-                CblasAMatrix, state_size, batch_size, in_size + state_size + 2);
+        // weights_pack[l] = cblas_gemm_alloc<data_trait<data_t>::data_type>(
+        //         CblasAMatrix, state_size, batch_size, in_size + state_size + 2);
         cblas_gemm_pack<data_trait<data_t>::data_type>(CblasRowMajor,
                 CblasAMatrix, CblasNoTrans, in_size + state_size + 2,
                 batch_size, state_size, 1.0, w + w_off, state_size,
@@ -1112,9 +1111,9 @@ inline void rnn_bwd_prop(const size_t seq_length, const size_t num_layers,
             }
         }
     }
-    for (int nl = 0; nl < total_layers; nl++) {
-        cblas_gemm_free<data_trait<data_t>::data_type>(weights_pack[nl]);
-    }
+    // for (int nl = 0; nl < total_layers; nl++) {
+    //     cblas_gemm_free<data_trait<data_t>::data_type>(weights_pack[nl]);
+    // }
 #endif
 }
 
@@ -1165,14 +1164,14 @@ void pgemm_rnn_fwd_t<data_type>::execute_forward()
         rnn_fwd_prop(seq_length, num_layers, batch_size, input_size, state_size,
                 direction, alg_kind, w1_size, wx_size, h_size, x_size,
                 h_nlayer_size, gates_size, gates_nlayer_size, gates_space_size,
-                h_space_size, x, hx, cx, w, y, hy, cy, ws, ts_);
+                h_space_size, x, hx, cx, w, y, hy, cy, ws, ts_, weights_pack_);
     } else if (conf_.desc()->alg_kind == rnn_lstm) {
         auto cx = reinterpret_cast<const data_t *>(this->input_memory(2));
         auto w = reinterpret_cast<const data_t *>(this->input_memory(3));
         lstm_fwd_prop(seq_length, num_layers, batch_size, input_size,
                 state_size, direction, w1_size, wx_size, h_size, x_size,
                 h_nlayer_size, gates_size, gates_nlayer_size, gates_space_size,
-                h_space_size, x, hx, cx, w, y, hy, cy, ws, ts_);
+                h_space_size, x, hx, cx, w, y, hy, cy, ws, ts_, weights_pack_);
     }
 #endif // USE_MKL
 }
@@ -1259,13 +1258,13 @@ void pgemm_rnn_bwd_t<data_type>::execute_backward()
                 direction, alg_kind, w1_size, wx_size, h_size, x_size,
                 h_nlayer_size, gates_size, gates_nlayer_size, gates_space_size,
                 h_space_size, state_outputs, x, hx, cx, dy, dhy, dcy, w, ws, dx,
-                dhx, dcx, dw, ts_);
+                dhx, dcx, dw, ts_, weights_pack_);
     } else if (conf_.desc()->alg_kind == rnn_lstm) {
         lstm_bwd_prop(seq_length, num_layers, batch_size, input_size,
                 state_size, direction, w1_size, wx_size, h_size, x_size,
                 h_nlayer_size, gates_size, gates_nlayer_size, gates_space_size,
                 h_space_size, state_outputs, x, hx, cx, dy, dhy, dcy, w, ws, dx,
-                dhx, dcx, dw, ts_);
+                dhx, dcx, dw, ts_, weights_pack_);
     }
 #endif // USE_MKL
 }
