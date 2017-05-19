@@ -54,6 +54,7 @@ if (HAVE_MKL)
                                   test_lstm.cpp
                                   test_vanillarnn_forward.cpp
                                   test_vanillarnn.cpp
+                                  test_vanillarnn_benchmark.cpp
                                   )
 endif()
 
