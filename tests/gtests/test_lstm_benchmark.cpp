@@ -126,10 +126,10 @@ protected:
         ref_dweights.reset(new memory({ *weights_desc, *eng }));
 
         int iters = 20;
-        flops = 2.0 * (4.0 * (double)p.test_rd.state_size)
-                * (double)p.test_rd.batch_size
-                * (2.0 * (double)p.test_rd.state_size + 2.0)
-                * (double)p.test_rd.seq_length;
+        flops = 2.0 * (4.0 * (double)p.test_ld.state_size)
+                * (double)p.test_ld.batch_size
+                * (2.0 * (double)p.test_ld.state_size + 2.0)
+                * (double)p.test_ld.seq_length;
 
         // warm-up
         for (int _it = 0; _it < 5; _it++) {
