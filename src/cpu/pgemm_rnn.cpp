@@ -1,18 +1,18 @@
 /*******************************************************************************
-* Copyright 2017 Intel Corporation
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*     http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*******************************************************************************/
+ * Copyright 2017 Intel Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *******************************************************************************/
 
 #include "c_types_map.hpp"
 #include "type_helpers.hpp"
@@ -51,18 +51,16 @@ inline void lstm_fwd_ele_wise(data_t *Gates, const data_t *Ct_1, data_t *Ct,
 #pragma omp parallel for
 #endif
     for (size_t i = 0; i < Length; i++) {
-        Gates[i] =
-            Sigmoid<data_trait<data_t>::data_type>(Gates[i]);
-        Gates[Length + i] =
-            Sigmoid<data_trait<data_t>::data_type>(Gates[Length + i]);
-        Gates[2 * Length + i] =
-            Sigmoid<data_trait<data_t>::data_type>(Gates[2*Length + i]);
-        Gates[3 * Length + i] =
-            Tanh<data_trait<data_t>::data_type>(Gates[3*Length + i]);
-        Ct[i] = Ct_1[i] * Gates[Length + i]
-            + Gates[i] * Gates[3 * Length + i];
-        Ht[i] = Gates[2*Length + i]
-            * Tanh<data_trait<data_t>::data_type>(Ct[i]);
+        Gates[i] = Sigmoid<data_trait<data_t>::data_type>(Gates[i]);
+        Gates[Length + i]
+                = Sigmoid<data_trait<data_t>::data_type>(Gates[Length + i]);
+        Gates[2 * Length + i]
+                = Sigmoid<data_trait<data_t>::data_type>(Gates[2 * Length + i]);
+        Gates[3 * Length + i]
+                = Tanh<data_trait<data_t>::data_type>(Gates[3 * Length + i]);
+        Ct[i] = Ct_1[i] * Gates[Length + i] + Gates[i] * Gates[3 * Length + i];
+        Ht[i] = Gates[2 * Length + i]
+                * Tanh<data_trait<data_t>::data_type>(Ct[i]);
     }
 }
 
@@ -80,18 +78,20 @@ inline void lstm_bwd_ele_wise(const data_t *Gates, data_t *dGates,
 #pragma omp parallel for
 #endif
     for (size_t i = 0; i < Length; i++) {
-        dCt[i] += (1 - Pow<data_trait<data_t>::data_type>
-            (Tanh<data_trait<data_t>::data_type>(Ct[i]), 2))
-            * dHt[i] * Gates[2 * Length + i];
+        dCt[i] += (1
+                          - Pow<data_trait<data_t>::data_type>(
+                                    Tanh<data_trait<data_t>::data_type>(Ct[i]),
+                                    2))
+                * dHt[i] * Gates[2 * Length + i];
         dCt_1[i] = dCt[i] * Gates[Length + i];
-        dGates[i] =dCt[i] * Gates[3 * Length + i]
-            * Gates[i] * (1 - Gates[i]);
+        dGates[i] = dCt[i] * Gates[3 * Length + i] * Gates[i] * (1 - Gates[i]);
         dGates[Length + i] = dCt[i] * Ct_1[i] * Gates[Length + i]
-            * (1- Gates[Length + i]);
-        dGates[2 * Length+i] = dHt[i] * Tanh<data_trait<data_t>::data_type>(Ct[i])
-            * Gates[2 * Length + i] * (1- Gates[2 * Length + i]);
+                * (1 - Gates[Length + i]);
+        dGates[2 * Length + i] = dHt[i]
+                * Tanh<data_trait<data_t>::data_type>(Ct[i])
+                * Gates[2 * Length + i] * (1 - Gates[2 * Length + i]);
         dGates[3 * Length + i] = dCt[i] * Gates[i]
-            * (1 - Gates[3 * Length + i] * Gates[3 * Length + i]);
+                * (1 - Gates[3 * Length + i] * Gates[3 * Length + i]);
     }
 }
 
@@ -202,7 +202,7 @@ inline void lstm_fwd_prop(const size_t seq_length, const size_t num_layers,
         const size_t gates_nlayer_size, const size_t gates_space_size,
         const size_t h_space_size, const data_t *x, const data_t *hx,
         const data_t *cx, const data_t *w, data_t *y, data_t *hy, data_t *cy,
-        data_t *ws, data_t *ts_, data_t** weights_pack)
+        data_t *ws, data_t *ts_, data_t **weights_pack)
 {
 #ifdef USE_MKL
     const size_t total_layers = num_layers * direction;
@@ -244,7 +244,8 @@ inline void lstm_fwd_prop(const size_t seq_length, const size_t num_layers,
                 if (rt == 0 && rl == 0) {
                     lstm_fwd_prop_single<data_t>(input_size, state_size,
                             batch_size, x, TRANS, hx, TRANS, cx, TRANS,
-                            weights_pack[l], ws_ptr + h_space_off + rl * h_size
+                            weights_pack[l],
+                            ws_ptr + h_space_off + rl * h_size
                                     + rt * h_nlayer_size,
                             ws_ptr + c_space_off + rl * h_size
                                     + rt * h_nlayer_size,
@@ -256,7 +257,8 @@ inline void lstm_fwd_prop(const size_t seq_length, const size_t num_layers,
                             batch_size,
                             ws_ptr + h_space_off + (rl - 1) * h_size, NOTRANS,
                             hx + l * h_size, TRANS, cx + l * h_size, TRANS,
-                            weights_pack[l], ws_ptr + h_space_off + rl * h_size
+                            weights_pack[l],
+                            ws_ptr + h_space_off + rl * h_size
                                     + rt * h_nlayer_size,
                             ws_ptr + c_space_off + rl * h_size
                                     + rt * h_nlayer_size,
@@ -269,8 +271,9 @@ inline void lstm_fwd_prop(const size_t seq_length, const size_t num_layers,
                             ws_ptr + h_space_off + (rt - 1) * h_nlayer_size,
                             NOTRANS,
                             ws_ptr + c_space_off + (rt - 1) * h_nlayer_size,
-                            NOTRANS, weights_pack[l], ws_ptr + h_space_off
-                                    + rl * h_size + rt * h_nlayer_size,
+                            NOTRANS, weights_pack[l],
+                            ws_ptr + h_space_off + rl * h_size
+                                    + rt * h_nlayer_size,
                             ws_ptr + c_space_off + rl * h_size
                                     + rt * h_nlayer_size,
                             ws_ptr + gates_space_off + rl * gates_size
@@ -278,14 +281,18 @@ inline void lstm_fwd_prop(const size_t seq_length, const size_t num_layers,
                             ts_ + tmp_space_off);
                 } else if (rt > 0 && rl > 0) {
                     lstm_fwd_prop_single<data_t>(state_size, state_size,
-                            batch_size, ws_ptr + h_space_off + (rl - 1) * h_size
+                            batch_size,
+                            ws_ptr + h_space_off + (rl - 1) * h_size
                                     + rt * h_nlayer_size,
-                            NOTRANS, ws_ptr + h_space_off + rl * h_size
+                            NOTRANS,
+                            ws_ptr + h_space_off + rl * h_size
                                     + (rt - 1) * h_nlayer_size,
-                            NOTRANS, ws_ptr + c_space_off + rl * h_size
+                            NOTRANS,
+                            ws_ptr + c_space_off + rl * h_size
                                     + (rt - 1) * h_nlayer_size,
-                            NOTRANS, weights_pack[l], ws_ptr + h_space_off
-                                    + rl * h_size + rt * h_nlayer_size,
+                            NOTRANS, weights_pack[l],
+                            ws_ptr + h_space_off + rl * h_size
+                                    + rt * h_nlayer_size,
                             ws_ptr + c_space_off + rl * h_size
                                     + rt * h_nlayer_size,
                             ws_ptr + gates_space_off + rl * gates_size
@@ -295,8 +302,9 @@ inline void lstm_fwd_prop(const size_t seq_length, const size_t num_layers,
                 // save y output
                 if (rl == (num_layers - 1)) {
                     omatcopy<data_trait<data_t>::data_type>('R', 'T',
-                            state_size, batch_size, 1.0, ws_ptr + h_space_off
-                                    + rl * h_size + rt * h_nlayer_size,
+                            state_size, batch_size, 1.0,
+                            ws_ptr + h_space_off + rl * h_size
+                                    + rt * h_nlayer_size,
                             batch_size, y + t * h_size * direction, state_size);
                 }
                 if (direction == 1 && rt == (seq_length - 1)) {
@@ -323,8 +331,9 @@ inline void lstm_fwd_prop(const size_t seq_length, const size_t num_layers,
                             ws_ptr + h_space_off + (rt - 1) * h_nlayer_size,
                             NOTRANS,
                             ws_ptr + c_space_off + (rt - 1) * h_nlayer_size,
-                            NOTRANS, weights_pack[l], ws_ptr + h_space_off
-                                    + rl * h_size + rt * h_nlayer_size,
+                            NOTRANS, weights_pack[l],
+                            ws_ptr + h_space_off + rl * h_size
+                                    + rt * h_nlayer_size,
                             ws_ptr + c_space_off + rl * h_size
                                     + rt * h_nlayer_size,
                             ws_ptr + gates_space_off + rl * gates_size
@@ -332,14 +341,18 @@ inline void lstm_fwd_prop(const size_t seq_length, const size_t num_layers,
                             ts_ + tmp_space_off);
                 } else if (rl > 0) {
                     lstm_fwd_prop_single<data_t>(state_size, state_size,
-                            batch_size, ws_ptr + h_space_off + (rl - 1) * h_size
+                            batch_size,
+                            ws_ptr + h_space_off + (rl - 1) * h_size
                                     + rt * h_nlayer_size,
-                            NOTRANS, ws_ptr + h_space_off + rl * h_size
+                            NOTRANS,
+                            ws_ptr + h_space_off + rl * h_size
                                     + (rt - 1) * h_nlayer_size,
-                            NOTRANS, ws_ptr + c_space_off + rl * h_size
+                            NOTRANS,
+                            ws_ptr + c_space_off + rl * h_size
                                     + (rt - 1) * h_nlayer_size,
-                            NOTRANS, weights_pack[l], ws_ptr + h_space_off
-                                    + rl * h_size + rt * h_nlayer_size,
+                            NOTRANS, weights_pack[l],
+                            ws_ptr + h_space_off + rl * h_size
+                                    + rt * h_nlayer_size,
                             ws_ptr + c_space_off + rl * h_size
                                     + rt * h_nlayer_size,
                             ws_ptr + gates_space_off + rl * gates_size
@@ -349,8 +362,9 @@ inline void lstm_fwd_prop(const size_t seq_length, const size_t num_layers,
                 // save y output
                 if (rl == (num_layers - 1)) {
                     omatcopy<data_trait<data_t>::data_type>('R', 'T',
-                            state_size, batch_size, 1.0, ws_ptr + h_space_off
-                                    + rl * h_size + rt * h_nlayer_size,
+                            state_size, batch_size, 1.0,
+                            ws_ptr + h_space_off + rl * h_size
+                                    + rt * h_nlayer_size,
                             batch_size, y + t * h_size * direction + h_size,
                             state_size);
                 }
@@ -384,7 +398,8 @@ inline void lstm_bwd_prop(const size_t seq_length, const size_t num_layers,
         const size_t h_space_size, const int state_outputs, const data_t *x,
         const data_t *hx, const data_t *cx, const data_t *dy, const data_t *dhy,
         const data_t *dcy, const data_t *w, const data_t *ws, data_t *dx,
-        data_t *dhx, data_t *dcx, data_t *dw, data_t *ts_, data_t **weights_pack)
+        data_t *dhx, data_t *dcx, data_t *dw, data_t *ts_,
+        data_t **weights_pack)
 {
 #ifdef USE_MKL
     const size_t total_layers = num_layers * direction;
@@ -420,7 +435,8 @@ inline void lstm_bwd_prop(const size_t seq_length, const size_t num_layers,
         if (direction == 2)
             omatcopy<data_trait<data_t>::data_type>('R', 'T', batch_size,
                     state_size, 1.0, dy + seq * h_size * direction + h_size,
-                    state_size, ts_ + dh_space_off + (h_nlayer_size - h_size)
+                    state_size,
+                    ts_ + dh_space_off + (h_nlayer_size - h_size)
                             + (seq_length * direction - 1 - seq)
                                     * h_nlayer_size,
                     batch_size);
@@ -433,7 +449,8 @@ inline void lstm_bwd_prop(const size_t seq_length, const size_t num_layers,
                     state_size, 1.0, dhy + ly * h_size, state_size,
                     ts_ + tmp_space_off + ly * h_size, batch_size);
             cblas_axpy<data_trait<data_t>::data_type>(h_size, 1.0,
-                    ts_ + tmp_space_off + ly * h_size, 1, ts_ + dh_space_off
+                    ts_ + tmp_space_off + ly * h_size, 1,
+                    ts_ + dh_space_off
                             + (seq_length * direction - 1) * h_nlayer_size
                             + ly * h_size,
                     1);
@@ -469,21 +486,26 @@ inline void lstm_bwd_prop(const size_t seq_length, const size_t num_layers,
                 rt = 2 * seq_length - t - 1;
                 if (rl > 0) {
                     lstm_bwd_prop_single<data_t>(state_size, state_size,
-                            batch_size, ws + h_space_off + (rl - 1) * h_size
+                            batch_size,
+                            ws + h_space_off + (rl - 1) * h_size
                                     + rt * h_nlayer_size,
-                            NOTRANS, ws + h_space_off + rl * h_size
+                            NOTRANS,
+                            ws + h_space_off + rl * h_size
                                     + (rt - 1) * h_nlayer_size,
-                            NOTRANS, ws + c_space_off + rl * h_size
+                            NOTRANS,
+                            ws + c_space_off + rl * h_size
                                     + (rt - 1) * h_nlayer_size,
                             NOTRANS,
                             ws + c_space_off + rl * h_size + rt * h_nlayer_size,
-                            weights_pack[l], ws + gates_space_off
-                                    + rl * gates_size + rt * gates_nlayer_size,
+                            weights_pack[l],
+                            ws + gates_space_off + rl * gates_size
+                                    + rt * gates_nlayer_size,
                             ts_ + dh_space_off + rl * h_size
                                     + rt * h_nlayer_size,
                             ts_ + dc_space_off + rl * h_size
                                     + rt * h_nlayer_size,
-                            dw + w_off, ts_ + dh_space_off + (rl - 1) * h_size
+                            dw + w_off,
+                            ts_ + dh_space_off + (rl - 1) * h_size
                                     + rt * h_nlayer_size,
                             ts_ + dh_space_off + rl * h_size
                                     + (rt - 1) * h_nlayer_size,
@@ -494,20 +516,24 @@ inline void lstm_bwd_prop(const size_t seq_length, const size_t num_layers,
                             ts_ + tmp_space_off);
                 } else if (rl == 0) {
                     lstm_bwd_prop_single<data_t>(input_size, state_size,
-                            batch_size, x + t * x_size, TRANS, ws + h_space_off
-                                    + rl * h_size + (rt - 1) * h_nlayer_size,
-                            NOTRANS, ws + c_space_off + rl * h_size
+                            batch_size, x + t * x_size, TRANS,
+                            ws + h_space_off + rl * h_size
+                                    + (rt - 1) * h_nlayer_size,
+                            NOTRANS,
+                            ws + c_space_off + rl * h_size
                                     + (rt - 1) * h_nlayer_size,
                             NOTRANS,
                             ws + c_space_off + rl * h_size + rt * h_nlayer_size,
-                            weights_pack[l], ws + gates_space_off
-                                    + rl * gates_size + rt * gates_nlayer_size,
+                            weights_pack[l],
+                            ws + gates_space_off + rl * gates_size
+                                    + rt * gates_nlayer_size,
                             ts_ + dh_space_off + rl * h_size
                                     + rt * h_nlayer_size,
                             ts_ + dc_space_off + rl * h_size
                                     + rt * h_nlayer_size,
-                            dw + w_off, dx + t * x_size, ts_ + dh_space_off
-                                    + rl * h_size + (rt - 1) * h_nlayer_size,
+                            dw + w_off, dx + t * x_size,
+                            ts_ + dh_space_off + rl * h_size
+                                    + (rt - 1) * h_nlayer_size,
                             ts_ + dc_space_off + rl * h_size
                                     + (rt - 1) * h_nlayer_size,
                             ts_ + dgates_space_off + rl * gates_size
@@ -520,21 +546,26 @@ inline void lstm_bwd_prop(const size_t seq_length, const size_t num_layers,
                 rt = t;
                 if (rl > 0 && rt > 0) {
                     lstm_bwd_prop_single<data_t>(state_size, state_size,
-                            batch_size, ws + h_space_off + (rl - 1) * h_size
+                            batch_size,
+                            ws + h_space_off + (rl - 1) * h_size
                                     + rt * h_nlayer_size,
-                            NOTRANS, ws + h_space_off + rl * h_size
+                            NOTRANS,
+                            ws + h_space_off + rl * h_size
                                     + (rt - 1) * h_nlayer_size,
-                            NOTRANS, ws + c_space_off + rl * h_size
+                            NOTRANS,
+                            ws + c_space_off + rl * h_size
                                     + (rt - 1) * h_nlayer_size,
                             NOTRANS,
                             ws + c_space_off + rl * h_size + rt * h_nlayer_size,
-                            weights_pack[l], ws + gates_space_off
-                                    + rl * gates_size + rt * gates_nlayer_size,
+                            weights_pack[l],
+                            ws + gates_space_off + rl * gates_size
+                                    + rt * gates_nlayer_size,
                             ts_ + dh_space_off + rl * h_size
                                     + rt * h_nlayer_size,
                             ts_ + dc_space_off + rl * h_size
                                     + rt * h_nlayer_size,
-                            dw + w_off, ts_ + dh_space_off + (rl - 1) * h_size
+                            dw + w_off,
+                            ts_ + dh_space_off + (rl - 1) * h_size
                                     + rt * h_nlayer_size,
                             ts_ + dh_space_off + rl * h_size
                                     + (rt - 1) * h_nlayer_size,
@@ -545,20 +576,24 @@ inline void lstm_bwd_prop(const size_t seq_length, const size_t num_layers,
                             ts_ + tmp_space_off);
                 } else if (rl == 0 && rt > 0) {
                     lstm_bwd_prop_single<data_t>(input_size, state_size,
-                            batch_size, x + t * x_size, TRANS, ws + h_space_off
-                                    + rl * h_size + (rt - 1) * h_nlayer_size,
-                            NOTRANS, ws + c_space_off + rl * h_size
+                            batch_size, x + t * x_size, TRANS,
+                            ws + h_space_off + rl * h_size
+                                    + (rt - 1) * h_nlayer_size,
+                            NOTRANS,
+                            ws + c_space_off + rl * h_size
                                     + (rt - 1) * h_nlayer_size,
                             NOTRANS,
                             ws + c_space_off + rl * h_size + rt * h_nlayer_size,
-                            weights_pack[l], ws + gates_space_off
-                                    + rl * gates_size + rt * gates_nlayer_size,
+                            weights_pack[l],
+                            ws + gates_space_off + rl * gates_size
+                                    + rt * gates_nlayer_size,
                             ts_ + dh_space_off + rl * h_size
                                     + rt * h_nlayer_size,
                             ts_ + dc_space_off + rl * h_size
                                     + rt * h_nlayer_size,
-                            dw + w_off, dx + t * x_size, ts_ + dh_space_off
-                                    + rl * h_size + (rt - 1) * h_nlayer_size,
+                            dw + w_off, dx + t * x_size,
+                            ts_ + dh_space_off + rl * h_size
+                                    + (rt - 1) * h_nlayer_size,
                             ts_ + dc_space_off + rl * h_size
                                     + (rt - 1) * h_nlayer_size,
                             ts_ + dgates_space_off + rl * gates_size
@@ -566,18 +601,21 @@ inline void lstm_bwd_prop(const size_t seq_length, const size_t num_layers,
                             ts_ + tmp_space_off);
                 } else if (rl > 0 && rt == 0) {
                     lstm_bwd_prop_single<data_t>(state_size, state_size,
-                            batch_size, ws + h_space_off + (rl - 1) * h_size
+                            batch_size,
+                            ws + h_space_off + (rl - 1) * h_size
                                     + rt * h_nlayer_size,
                             NOTRANS, hx + l * h_size, TRANS, cx + l * h_size,
                             TRANS,
                             ws + c_space_off + rl * h_size + rt * h_nlayer_size,
-                            weights_pack[l], ws + gates_space_off
-                                    + rl * gates_size + rt * gates_nlayer_size,
+                            weights_pack[l],
+                            ws + gates_space_off + rl * gates_size
+                                    + rt * gates_nlayer_size,
                             ts_ + dh_space_off + rl * h_size
                                     + rt * h_nlayer_size,
                             ts_ + dc_space_off + rl * h_size
                                     + rt * h_nlayer_size,
-                            dw + w_off, ts_ + dh_space_off + (rl - 1) * h_size
+                            dw + w_off,
+                            ts_ + dh_space_off + (rl - 1) * h_size
                                     + rt * h_nlayer_size,
                             dhx + l * h_size, dcx + l * h_size,
                             ts_ + dgates_space_off + rl * gates_size
@@ -588,15 +626,17 @@ inline void lstm_bwd_prop(const size_t seq_length, const size_t num_layers,
                             batch_size, x + t * x_size, TRANS, hx + l * h_size,
                             TRANS, cx + l * h_size, TRANS,
                             ws + c_space_off + rl * h_size + rt * h_nlayer_size,
-                            weights_pack[l], ws + gates_space_off
-                                    + rl * gates_size + rt * gates_nlayer_size,
+                            weights_pack[l],
+                            ws + gates_space_off + rl * gates_size
+                                    + rt * gates_nlayer_size,
                             ts_ + dh_space_off + rl * h_size
                                     + rt * h_nlayer_size,
                             ts_ + dc_space_off + rl * h_size
                                     + rt * h_nlayer_size,
                             dw + w_off, dx + t * x_size, dhx + l * h_size,
-                            dcx + l * h_size, ts_ + dgates_space_off
-                                    + rl * gates_size + rt * gates_nlayer_size,
+                            dcx + l * h_size,
+                            ts_ + dgates_space_off + rl * gates_size
+                                    + rt * gates_nlayer_size,
                             ts_ + tmp_space_off);
                 }
             }
@@ -687,8 +727,8 @@ inline void rnn_bwd_ele_wise(const data_t *Gates, data_t *dGates,
 #pragma omp parallel for
 #endif
         for (size_t i = 0; i < Length; i++) {
-            dGates[i] = (1.0 -
-                Pow<data_trait<data_t>::data_type>(Gates[i], 2)) * dHt[i];
+            dGates[i] = (1.0 - Pow<data_trait<data_t>::data_type>(Gates[i], 2))
+                    * dHt[i];
         }
     }
 #endif
@@ -755,7 +795,8 @@ inline void rnn_fwd_prop(const size_t seq_length, const size_t num_layers,
         const size_t gates_size, const size_t gates_nlayer_size,
         const size_t gates_space_size, const size_t hout_space_size,
         const data_t *x, const data_t *hx, const data_t *cx, const data_t *w,
-        data_t *y, data_t *hy, data_t *cy, data_t *ws, data_t *ts_, data_t **weights_pack)
+        data_t *y, data_t *hy, data_t *cy, data_t *ws, data_t *ts_,
+        data_t **weights_pack)
 {
 #ifdef USE_MKL
     const size_t total_layers = num_layers * direction;
@@ -796,8 +837,9 @@ inline void rnn_fwd_prop(const size_t seq_length, const size_t num_layers,
                 if (rt == 0 && rl == 0) {
                     rnn_fwd_prop_single<data_t>(input_size, state_size,
                             batch_size, alg_kind, x, TRANS, hx, TRANS,
-                            weights_pack[l], ws_ptr + hout_space_off
-                                    + rl * h_size + rt * h_nlayer_size,
+                            weights_pack[l],
+                            ws_ptr + hout_space_off + rl * h_size
+                                    + rt * h_nlayer_size,
                             ws_ptr + gates_space_off + rl * gates_size
                                     + rt * gates_nlayer_size,
                             ts_ + tmp_space_off);
@@ -815,19 +857,23 @@ inline void rnn_fwd_prop(const size_t seq_length, const size_t num_layers,
                     rnn_fwd_prop_single<data_t>(input_size, state_size,
                             batch_size, alg_kind, x + t * x_size, TRANS,
                             ws_ptr + hout_space_off + (rt - 1) * h_nlayer_size,
-                            NOTRANS, weights_pack[l], ws_ptr + hout_space_off
-                                    + rl * h_size + rt * h_nlayer_size,
+                            NOTRANS, weights_pack[l],
+                            ws_ptr + hout_space_off + rl * h_size
+                                    + rt * h_nlayer_size,
                             ws_ptr + gates_space_off + rl * gates_size
                                     + rt * gates_nlayer_size,
                             ts_ + tmp_space_off);
                 } else if (rt > 0 && rl > 0) {
                     rnn_fwd_prop_single<data_t>(state_size, state_size,
-                            batch_size, alg_kind, ws_ptr + hout_space_off
-                                    + (rl - 1) * h_size + rt * h_nlayer_size,
-                            NOTRANS, ws_ptr + hout_space_off + rl * h_size
+                            batch_size, alg_kind,
+                            ws_ptr + hout_space_off + (rl - 1) * h_size
+                                    + rt * h_nlayer_size,
+                            NOTRANS,
+                            ws_ptr + hout_space_off + rl * h_size
                                     + (rt - 1) * h_nlayer_size,
-                            NOTRANS, weights_pack[l], ws_ptr + hout_space_off
-                                    + rl * h_size + rt * h_nlayer_size,
+                            NOTRANS, weights_pack[l],
+                            ws_ptr + hout_space_off + rl * h_size
+                                    + rt * h_nlayer_size,
                             ws_ptr + gates_space_off + rl * gates_size
                                     + rt * gates_nlayer_size,
                             ts_ + tmp_space_off);
@@ -835,8 +881,9 @@ inline void rnn_fwd_prop(const size_t seq_length, const size_t num_layers,
                 // save y output
                 if (rl == (num_layers - 1)) {
                     omatcopy<data_trait<data_t>::data_type>('R', 'T',
-                            state_size, batch_size, 1.0, ws_ptr + hout_space_off
-                                    + rl * h_size + rt * h_nlayer_size,
+                            state_size, batch_size, 1.0,
+                            ws_ptr + hout_space_off + rl * h_size
+                                    + rt * h_nlayer_size,
                             batch_size, y + t * h_size * direction, state_size);
                 }
                 if (direction == 1 && rt == (seq_length - 1)) {
@@ -855,19 +902,23 @@ inline void rnn_fwd_prop(const size_t seq_length, const size_t num_layers,
                     rnn_fwd_prop_single<data_t>(input_size, state_size,
                             batch_size, alg_kind, x + t * x_size, TRANS,
                             ws_ptr + hout_space_off + (rt - 1) * h_nlayer_size,
-                            NOTRANS, weights_pack[l], ws_ptr + hout_space_off
-                                    + rl * h_size + rt * h_nlayer_size,
+                            NOTRANS, weights_pack[l],
+                            ws_ptr + hout_space_off + rl * h_size
+                                    + rt * h_nlayer_size,
                             ws_ptr + gates_space_off + rl * gates_size
                                     + rt * gates_nlayer_size,
                             ts_ + tmp_space_off);
                 } else if (rl > 0) {
                     rnn_fwd_prop_single<data_t>(state_size, state_size,
-                            batch_size, alg_kind, ws_ptr + hout_space_off
-                                    + (rl - 1) * h_size + rt * h_nlayer_size,
-                            NOTRANS, ws_ptr + hout_space_off + rl * h_size
+                            batch_size, alg_kind,
+                            ws_ptr + hout_space_off + (rl - 1) * h_size
+                                    + rt * h_nlayer_size,
+                            NOTRANS,
+                            ws_ptr + hout_space_off + rl * h_size
                                     + (rt - 1) * h_nlayer_size,
-                            NOTRANS, weights_pack[l], ws_ptr + hout_space_off
-                                    + rl * h_size + rt * h_nlayer_size,
+                            NOTRANS, weights_pack[l],
+                            ws_ptr + hout_space_off + rl * h_size
+                                    + rt * h_nlayer_size,
                             ws_ptr + gates_space_off + rl * gates_size
                                     + rt * gates_nlayer_size,
                             ts_ + tmp_space_off);
@@ -875,8 +926,9 @@ inline void rnn_fwd_prop(const size_t seq_length, const size_t num_layers,
                 // save y output
                 if (rl == (num_layers - 1)) {
                     omatcopy<data_trait<data_t>::data_type>('R', 'T',
-                            state_size, batch_size, 1.0, ws_ptr + hout_space_off
-                                    + rl * h_size + rt * h_nlayer_size,
+                            state_size, batch_size, 1.0,
+                            ws_ptr + hout_space_off + rl * h_size
+                                    + rt * h_nlayer_size,
                             batch_size, y + t * h_size * direction + h_size,
                             state_size);
                 }
@@ -905,7 +957,8 @@ inline void rnn_bwd_prop(const size_t seq_length, const size_t num_layers,
         const int state_outputs, const data_t *x, const data_t *hx,
         const data_t *cx, const data_t *dy, const data_t *dhy,
         const data_t *dcy, const data_t *w, const data_t *ws, data_t *dx,
-        data_t *dhx, data_t *dcx, data_t *dw, data_t *ts_, data_t **weights_pack)
+        data_t *dhx, data_t *dcx, data_t *dw, data_t *ts_,
+        data_t **weights_pack)
 {
 #ifdef USE_MKL
     const size_t total_layers = num_layers * direction;
@@ -935,7 +988,8 @@ inline void rnn_bwd_prop(const size_t seq_length, const size_t num_layers,
         if (direction == 2)
             omatcopy<data_trait<data_t>::data_type>('R', 'T', batch_size,
                     state_size, 1.0, dy + seq * h_size * direction + h_size,
-                    state_size, ts_ + dh_space_off + (h_nlayer_size - h_size)
+                    state_size,
+                    ts_ + dh_space_off + (h_nlayer_size - h_size)
                             + (seq_length * direction - 1 - seq)
                                     * h_nlayer_size,
                     batch_size);
@@ -948,7 +1002,8 @@ inline void rnn_bwd_prop(const size_t seq_length, const size_t num_layers,
                     state_size, 1.0, dhy + ly * h_size, state_size,
                     ts_ + tmp_space_off + ly * h_size, batch_size);
             cblas_axpy<data_trait<data_t>::data_type>(h_size, 1.0,
-                    ts_ + tmp_space_off + ly * h_size, 1, ts_ + dh_space_off
+                    ts_ + tmp_space_off + ly * h_size, 1,
+                    ts_ + dh_space_off
                             + (seq_length * direction - 1) * h_nlayer_size
                             + ly * h_size,
                     1);
@@ -976,15 +1031,19 @@ inline void rnn_bwd_prop(const size_t seq_length, const size_t num_layers,
                 rt = 2 * seq_length - t - 1;
                 if (rl > 0) {
                     rnn_bwd_prop_single<data_t>(state_size, state_size,
-                            batch_size, alg_kind, ws + h_space_off
-                                    + (rl - 1) * h_size + rt * h_nlayer_size,
-                            NOTRANS, ws + h_space_off + rl * h_size
+                            batch_size, alg_kind,
+                            ws + h_space_off + (rl - 1) * h_size
+                                    + rt * h_nlayer_size,
+                            NOTRANS,
+                            ws + h_space_off + rl * h_size
                                     + (rt - 1) * h_nlayer_size,
-                            NOTRANS, weights_pack[l], ws + gates_space_off
-                                    + rl * gates_size + rt * gates_nlayer_size,
+                            NOTRANS, weights_pack[l],
+                            ws + gates_space_off + rl * gates_size
+                                    + rt * gates_nlayer_size,
                             ts_ + dh_space_off + rl * h_size
                                     + rt * h_nlayer_size,
-                            dw + w_off, ts_ + dh_space_off + (rl - 1) * h_size
+                            dw + w_off,
+                            ts_ + dh_space_off + (rl - 1) * h_size
                                     + rt * h_nlayer_size,
                             ts_ + dh_space_off + rl * h_size
                                     + (rt - 1) * h_nlayer_size,
@@ -996,12 +1055,14 @@ inline void rnn_bwd_prop(const size_t seq_length, const size_t num_layers,
                             batch_size, alg_kind, x + t * x_size, TRANS,
                             ws + h_space_off + rl * h_size
                                     + (rt - 1) * h_nlayer_size,
-                            NOTRANS, weights_pack[l], ws + gates_space_off
-                                    + rl * gates_size + rt * gates_nlayer_size,
+                            NOTRANS, weights_pack[l],
+                            ws + gates_space_off + rl * gates_size
+                                    + rt * gates_nlayer_size,
                             ts_ + dh_space_off + rl * h_size
                                     + rt * h_nlayer_size,
-                            dw + w_off, dx + t * x_size, ts_ + dh_space_off
-                                    + rl * h_size + (rt - 1) * h_nlayer_size,
+                            dw + w_off, dx + t * x_size,
+                            ts_ + dh_space_off + rl * h_size
+                                    + (rt - 1) * h_nlayer_size,
                             ts_ + dgates_space_off + rl * gates_size
                                     + rt * gates_nlayer_size,
                             ts_ + tmp_space_off);
@@ -1012,15 +1073,19 @@ inline void rnn_bwd_prop(const size_t seq_length, const size_t num_layers,
                 rt = t;
                 if (rl > 0 && rt > 0) {
                     rnn_bwd_prop_single<data_t>(state_size, state_size,
-                            batch_size, alg_kind, ws + h_space_off
-                                    + (rl - 1) * h_size + rt * h_nlayer_size,
-                            NOTRANS, ws + h_space_off + rl * h_size
+                            batch_size, alg_kind,
+                            ws + h_space_off + (rl - 1) * h_size
+                                    + rt * h_nlayer_size,
+                            NOTRANS,
+                            ws + h_space_off + rl * h_size
                                     + (rt - 1) * h_nlayer_size,
-                            NOTRANS, weights_pack[l], ws + gates_space_off
-                                    + rl * gates_size + rt * gates_nlayer_size,
+                            NOTRANS, weights_pack[l],
+                            ws + gates_space_off + rl * gates_size
+                                    + rt * gates_nlayer_size,
                             ts_ + dh_space_off + rl * h_size
                                     + rt * h_nlayer_size,
-                            dw + w_off, ts_ + dh_space_off + (rl - 1) * h_size
+                            dw + w_off,
+                            ts_ + dh_space_off + (rl - 1) * h_size
                                     + rt * h_nlayer_size,
                             ts_ + dh_space_off + rl * h_size
                                     + (rt - 1) * h_nlayer_size,
@@ -1032,19 +1097,22 @@ inline void rnn_bwd_prop(const size_t seq_length, const size_t num_layers,
                             batch_size, alg_kind, x + t * x_size, TRANS,
                             ws + h_space_off + rl * h_size
                                     + (rt - 1) * h_nlayer_size,
-                            NOTRANS, weights_pack[l], ws + gates_space_off
-                                    + rl * gates_size + rt * gates_nlayer_size,
+                            NOTRANS, weights_pack[l],
+                            ws + gates_space_off + rl * gates_size
+                                    + rt * gates_nlayer_size,
                             ts_ + dh_space_off + rl * h_size
                                     + rt * h_nlayer_size,
-                            dw + w_off, dx + t * x_size, ts_ + dh_space_off
-                                    + rl * h_size + (rt - 1) * h_nlayer_size,
+                            dw + w_off, dx + t * x_size,
+                            ts_ + dh_space_off + rl * h_size
+                                    + (rt - 1) * h_nlayer_size,
                             ts_ + dgates_space_off + rl * gates_size
                                     + rt * gates_nlayer_size,
                             ts_ + tmp_space_off);
                 } else if (rl > 0 && rt == 0) {
                     rnn_bwd_prop_single<data_t>(state_size, state_size,
-                            batch_size, alg_kind, ws + h_space_off
-                                    + (rl - 1) * h_size + rt * h_nlayer_size,
+                            batch_size, alg_kind,
+                            ws + h_space_off + (rl - 1) * h_size
+                                    + rt * h_nlayer_size,
                             NOTRANS, hx + l * h_size, TRANS, weights_pack[l],
                             ws + gates_space_off + rl * gates_size
                                     + rt * gates_nlayer_size,
@@ -1054,8 +1122,9 @@ inline void rnn_bwd_prop(const size_t seq_length, const size_t num_layers,
                             // dx + t * x_size,
                             ts_ + dh_space_off + (rl - 1) * h_size
                                     + rt * h_nlayer_size,
-                            dhx + l * h_size, ts_ + dgates_space_off
-                                    + rl * gates_size + rt * gates_nlayer_size,
+                            dhx + l * h_size,
+                            ts_ + dgates_space_off + rl * gates_size
+                                    + rt * gates_nlayer_size,
                             ts_ + tmp_space_off);
                 } else if (rl == 0 && rt == 0) {
                     rnn_bwd_prop_single<data_t>(input_size, state_size,
@@ -1231,6 +1300,6 @@ void pgemm_rnn_bwd_t<data_type>::execute_backward()
 template struct pgemm_rnn_fwd_t<data_type::f32>;
 template struct pgemm_rnn_bwd_t<data_type::f32>;
 
-}
-}
-}
+} // namespace cpu
+} // namespace impl
+} // namespace mkldnn

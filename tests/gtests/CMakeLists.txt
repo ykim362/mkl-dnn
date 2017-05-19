@@ -52,6 +52,7 @@ if (HAVE_MKL)
     file(GLOB MKL_PRIM_TEST_CASES_SRC RELATIVE ${CMAKE_SOURCE_DIR}/tests/gtests
                                   test_lstm_forward.cpp
                                   test_lstm.cpp
+                                  test_lstm_benchmark.cpp
                                   test_vanillarnn_forward.cpp
                                   test_vanillarnn.cpp
                                   test_vanillarnn_benchmark.cpp
