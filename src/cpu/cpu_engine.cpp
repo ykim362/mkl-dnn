@@ -45,6 +45,7 @@
 #include "cpu/ref_batch_normalization.hpp"
 #include "cpu/ref_inner_product.hpp"
 #include "cpu/gemm_inner_product.hpp"
+#include "cpu/pgemm_rnn.hpp"
 #include "cpu/jit_uni_inner_product.hpp"
 #include "cpu/jit_avx512_mic_s16s16s32_convolution.hpp"
 
@@ -272,6 +273,9 @@ static const pd_create_f cpu_impl_list[] = {
             data_type::s32, data_type::u8>),
     INSTANCE(ref_convolution_relu_t<data_type::s16,data_type::s16,
             data_type::s32, data_type::s32>),
+    /* rnn */
+    INSTANCE(pgemm_rnn_fwd_t<data_type::f32>),
+    INSTANCE(pgemm_rnn_bwd_t<data_type::f32>),
     /* eol */
     nullptr,
 };

@@ -64,7 +64,8 @@ else()
     else()
         set(SEVERITY "WARNING")
     endif()
-    message(${SEVERITY} "Intel(R) MKL not found. Some performance features may not be "
+    message(${SEVERITY} "Intel(R) MKL not found. RNN is not supported without MKL. "
+        "Some performance features may not be "
         "available. Please run scripts/prepare_mkl.sh to download a minimal "
         "set of libraries or get a full version from "
         "https://software.intel.com/en-us/intel-mkl")

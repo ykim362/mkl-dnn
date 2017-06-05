@@ -123,6 +123,8 @@ inline mkldnn::memory::desc create_md(mkldnn::memory::dims dims,
     case f::gOIhw8o8i:
     case f::gOIhw16o16i:
         ndims = 5; break;
+    case f::rnx:
+        ndims = 3; break;
     case f::format_undef:
         ndims = 0; break;
     case f::any:
@@ -198,6 +200,30 @@ static void compare_data(mkldnn::memory& ref, mkldnn::memory& dst)
             EXPECT_NEAR(e, 0.0, 1e-4) << "Index: " << i << " Total: " << num;
         }  else if (data_traits<data_t>::data_type == data_type::s32)
             EXPECT_EQ(ref, got) << "Index: " << i << " Total: " << num;
+    }
+}
+
+// compares only valid numbers
+template <typename data_t>
+static void compare_data_woinfnan(mkldnn::memory& ref, mkldnn::memory& dst)
+{
+    // Only true for dense format
+    size_t num = ref.get_primitive_desc().get_size() / sizeof(data_t);
+    data_t *ref_data = (data_t *)ref.get_data_handle();
+    data_t *dst_data = (data_t *)dst.get_data_handle();
+#   pragma omp parallel for schedule(static)
+    for (size_t i = 0; i < num; ++i) {
+        data_t ref = ref_data[i];
+        data_t got = dst_data[i];
+        if (isinf(ref_data[i]) && isinf(dst_data[i])) {
+            continue;
+        }
+        if (isnan(ref_data[i]) && isnan(dst_data[i])) {
+            continue;
+        }
+        data_t diff = got - ref;
+        data_t e = std::abs(ref) > 1e-4 ? diff / ref : diff;
+        EXPECT_NEAR(e, 0.0, 1e-4) << "Index: " << i << " Total: " << num;
     }
 }
 
