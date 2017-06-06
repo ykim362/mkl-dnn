@@ -50,7 +50,7 @@ file(GLOB PRIM_TEST_CASES_SRC
                               ) #temporary
 
 if (HAVE_MKL)
-    file(GLOB MKL_PRIM_TEST_CASES_SRC RELATIVE ${CMAKE_SOURCE_DIR}/tests/gtests
+    file(GLOB MKL_PRIM_TEST_CASES_SRC
                                   test_lstm_forward.cpp
                                   test_lstm.cpp
                                   test_lstm_benchmark.cpp

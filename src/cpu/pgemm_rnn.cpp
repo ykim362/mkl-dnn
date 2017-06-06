@@ -109,14 +109,25 @@ inline void lstm_fwd_prop_single(const size_t input_size,
         omatcopy<data_traits<data_t>::data_type>('R', 'T', batch_size,
                 input_size, 1.0, x, input_size, tmp, batch_size);
     } else {
-        cblas_copy<data_traits<data_t>::data_type>(x_size, x, 1, tmp, 1);
+#if defined(__ICC)
+#pragma omp parallel for simd
+#else
+#pragma omp parallel for
+#endif
+        for (size_t ii = 0; ii < x_size; ++ii)
+            tmp[ii] = x[ii];
     }
     if (tranht_1 == TRANS) {
         omatcopy<data_traits<data_t>::data_type>('R', 'T', batch_size,
                 state_size, 1.0, ht_1, state_size, tmp + x_size, batch_size);
     } else {
-        cblas_copy<data_traits<data_t>::data_type>(
-                h_size, ht_1, 1, tmp + x_size, 1);
+#if defined(__ICC)
+#pragma omp parallel for simd
+#else
+#pragma omp parallel for
+#endif
+        for (size_t ii = 0; ii < h_size; ++ii)
+            tmp[ii + x_size] = ht_1[ii];
     }
     array_set(tmp + x_size + h_size, 1.0, 2 * batch_size);
     cblas_gemm_compute<data_traits<data_t>::data_type>(CblasRowMajor,
@@ -159,14 +170,25 @@ inline void lstm_bwd_prop_single(const size_t input_size,
         omatcopy<data_traits<data_t>::data_type>('R', 'T', batch_size,
                 input_size, 1.0, x, input_size, tmp, batch_size);
     } else {
-        cblas_copy<data_traits<data_t>::data_type>(x_size, x, 1, tmp, 1);
+#if defined(__ICC)
+#pragma omp parallel for simd
+#else
+#pragma omp parallel for
+#endif
+        for (size_t ii = 0; ii < x_size; ++ii)
+            tmp[ii] = x[ii];
     }
     if (tranht_1 == TRANS) {
         omatcopy<data_traits<data_t>::data_type>('R', 'T', batch_size,
                 state_size, 1.0, ht_1, state_size, tmp + x_size, batch_size);
     } else {
-        cblas_copy<data_traits<data_t>::data_type>(
-                h_size, ht_1, 1, tmp + x_size, 1);
+#if defined(__ICC)
+#pragma omp parallel for simd
+#else
+#pragma omp parallel for
+#endif
+        for (size_t ii = 0; ii < h_size; ++ii)
+            tmp[ii + x_size] = ht_1[ii];
     }
     array_set(tmp + x_size + h_size, 1.0, 2 * batch_size);
     cblas_gemm<data_traits<data_t>::data_type>(CblasRowMajor, CblasNoTrans,
@@ -685,14 +707,25 @@ inline void rnn_fwd_prop_single(const size_t input_size,
         omatcopy<data_traits<data_t>::data_type>('R', 'T', batch_size,
                 input_size, 1.0, x, input_size, tmp, batch_size);
     } else {
-        cblas_copy<data_traits<data_t>::data_type>(x_size, x, 1, tmp, 1);
+#if defined(__ICC)
+#pragma omp parallel for simd
+#else
+#pragma omp parallel for
+#endif
+        for (size_t ii = 0; ii < x_size; ++ii)
+            tmp[ii] = x[ii];
     }
     if (tranht_1 == TRANS) {
         omatcopy<data_traits<data_t>::data_type>('R', 'T', batch_size,
                 state_size, 1.0, ht_1, state_size, tmp + x_size, batch_size);
     } else {
-        cblas_copy<data_traits<data_t>::data_type>(
-                h_size, ht_1, 1, tmp + x_size, 1);
+#if defined(__ICC)
+#pragma omp parallel for simd
+#else
+#pragma omp parallel for
+#endif
+        for (size_t ii = 0; ii < h_size; ++ii)
+            tmp[ii + x_size] = ht_1[ii];
     }
     array_set(tmp + x_size + h_size, 1.0, 2 * batch_size);
     // U*x + W*h + b1 + b2
@@ -753,14 +786,25 @@ inline void rnn_bwd_prop_single(const size_t input_size,
         omatcopy<data_traits<data_t>::data_type>('R', 'T', batch_size,
                 input_size, 1.0, x, input_size, tmp, batch_size);
     } else {
-        cblas_copy<data_traits<data_t>::data_type>(x_size, x, 1, tmp, 1);
+#if defined(__ICC)
+#pragma omp parallel for simd
+#else
+#pragma omp parallel for
+#endif
+        for (size_t ii = 0; ii < x_size; ++ii)
+            tmp[ii] = x[ii];
     }
     if (tranht_1 == TRANS) {
         omatcopy<data_traits<data_t>::data_type>('R', 'T', batch_size,
                 state_size, 1.0, ht_1, state_size, tmp + x_size, batch_size);
     } else {
-        cblas_copy<data_traits<data_t>::data_type>(
-                h_size, ht_1, 1, tmp + x_size, 1);
+#if defined(__ICC)
+#pragma omp parallel for simd
+#else
+#pragma omp parallel for
+#endif
+        for (size_t ii = 0; ii < h_size; ++ii)
+            tmp[ii + x_size] = ht_1[ii];
     }
     array_set(tmp + x_size + h_size, 1.0, 2 * batch_size);
     cblas_gemm<data_traits<data_t>::data_type>(CblasRowMajor, CblasNoTrans,

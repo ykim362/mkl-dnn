@@ -23,6 +23,8 @@
 namespace mkldnn {
 
 double l_total = 0.0;
+double l_min = 100000000.0;
+double l_cur = 0.0;
 double flops = 0.0;
 
 template <typename data_t>
@@ -128,25 +130,29 @@ protected:
         int iters = 20;
         flops = 2.0 * (4.0 * (double)p.test_ld.state_size)
                 * (double)p.test_ld.batch_size
-                * (2.0 * (double)p.test_ld.state_size + 2.0)
+                * ((double)p.test_ld.state_size + (double)p.test_ld.input_size + 4.0)
                 * (double)p.test_ld.seq_length;
 
         // warm-up
-        for (int _it = 0; _it < 5; _it++) {
+        for (int _it = 0; _it < 5; _it++)
             Forward();
-            // Backward();
-        }
 
         l_total = 0.0;
+        l_min = 10000000.0;
         for (int _it = 0; _it < iters; _it++) {
+            l_cur = 0.0;
             Forward();
-            // Backward();
+            if (l_cur < l_min)
+                l_min = l_cur;
         }
 
-        // l_total = sec(l_start, l_end);
-        printf("LSTM FWD benchmark - gflops = %.5g , time [s] = %.5g, GFLOPS = "
+        printf("LSTM FWD benchmark avg - gflops = %.5g , time [s] = %.5g, GFLOPS = "
                "%.5g\n",
                 flops * 1e-9, l_total / iters, iters * flops / l_total / 1e9);
+        printf("LSTM FWD benchmark best - gflops = %.5g , time [s] = %.5g, GFLOPS = "
+               "%.5g\n",
+                flops * 1e-9, l_min, flops / l_min / 1e9);
+
     }
 
     void Forward()
@@ -186,6 +192,8 @@ protected:
 
         gettimeofday(&l_end, NULL);
         l_total += (l_end.tv_sec - l_start.tv_sec)
+                + (l_end.tv_usec - l_start.tv_usec) / 1000000.0;
+        l_cur = (l_end.tv_sec - l_start.tv_sec)
                 + (l_end.tv_usec - l_start.tv_usec) / 1000000.0;
     }
 
@@ -242,83 +250,83 @@ INSTANTIATE_TEST_CASE_P(TestRNNForward0, lstm_test_float,
                         engine::kind::cpu, algorithm::rnn_lstm,
                         direction::rnn_unidirectional,
                         input_mode::rnn_linear_input, memory::format::rnx,
-                        { 512, 512, 25, 1, 16, LSTM, UNIDIRECT, LINEAR, 0 } },
+                        { 512, 512, 100, 1, 16, LSTM, UNIDIRECT, LINEAR, 0 } },
                 lstm_test_params_float{ prop_kind::forward_training,
                         engine::kind::cpu, algorithm::rnn_lstm,
                         direction::rnn_unidirectional,
                         input_mode::rnn_linear_input, memory::format::rnx,
-                        { 512, 512, 25, 1, 32, LSTM, UNIDIRECT, LINEAR, 0 } },
+                        { 512, 512, 100, 1, 32, LSTM, UNIDIRECT, LINEAR, 0 } },
                 lstm_test_params_float{ prop_kind::forward_training,
                         engine::kind::cpu, algorithm::rnn_lstm,
                         direction::rnn_unidirectional,
                         input_mode::rnn_linear_input, memory::format::rnx,
-                        { 512, 512, 25, 1, 64, LSTM, UNIDIRECT, LINEAR, 0 } },
+                        { 512, 512, 100, 1, 64, LSTM, UNIDIRECT, LINEAR, 0 } },
                 lstm_test_params_float{ prop_kind::forward_training,
                         engine::kind::cpu, algorithm::rnn_lstm,
                         direction::rnn_unidirectional,
                         input_mode::rnn_linear_input, memory::format::rnx,
-                        { 512, 512, 25, 1, 128, LSTM, UNIDIRECT, LINEAR, 0 } },
+                        { 512, 512, 100, 1, 128, LSTM, UNIDIRECT, LINEAR, 0 } },
                 lstm_test_params_float{ prop_kind::forward_training,
                         engine::kind::cpu, algorithm::rnn_lstm,
                         direction::rnn_unidirectional,
                         input_mode::rnn_linear_input, memory::format::rnx,
-                        { 1024, 1024, 25, 1, 16, LSTM, UNIDIRECT, LINEAR, 0 } },
+                        { 1024, 1024, 100, 1, 16, LSTM, UNIDIRECT, LINEAR, 0 } },
                 lstm_test_params_float{ prop_kind::forward_training,
                         engine::kind::cpu, algorithm::rnn_lstm,
                         direction::rnn_unidirectional,
                         input_mode::rnn_linear_input, memory::format::rnx,
-                        { 1024, 1024, 25, 1, 32, LSTM, UNIDIRECT, LINEAR, 0 } },
+                        { 1024, 1024, 100, 1, 32, LSTM, UNIDIRECT, LINEAR, 0 } },
                 lstm_test_params_float{ prop_kind::forward_training,
                         engine::kind::cpu, algorithm::rnn_lstm,
                         direction::rnn_unidirectional,
                         input_mode::rnn_linear_input, memory::format::rnx,
-                        { 1024, 1024, 25, 1, 64, LSTM, UNIDIRECT, LINEAR, 0 } },
+                        { 1024, 1024, 100, 1, 64, LSTM, UNIDIRECT, LINEAR, 0 } },
                 lstm_test_params_float{ prop_kind::forward_training,
                         engine::kind::cpu, algorithm::rnn_lstm,
                         direction::rnn_unidirectional,
                         input_mode::rnn_linear_input, memory::format::rnx,
-                        { 1024, 1024, 25, 1, 128, LSTM, UNIDIRECT, LINEAR,
+                        { 1024, 1024, 100, 1, 128, LSTM, UNIDIRECT, LINEAR,
                                 0 } },
                 lstm_test_params_float{ prop_kind::forward_training,
                         engine::kind::cpu, algorithm::rnn_lstm,
                         direction::rnn_unidirectional,
                         input_mode::rnn_linear_input, memory::format::rnx,
-                        { 2048, 2048, 25, 1, 16, LSTM, UNIDIRECT, LINEAR, 0 } },
+                        { 2048, 2048, 100, 1, 16, LSTM, UNIDIRECT, LINEAR, 0 } },
                 lstm_test_params_float{ prop_kind::forward_training,
                         engine::kind::cpu, algorithm::rnn_lstm,
                         direction::rnn_unidirectional,
                         input_mode::rnn_linear_input, memory::format::rnx,
-                        { 2048, 2048, 25, 1, 32, LSTM, UNIDIRECT, LINEAR, 0 } },
+                        { 2048, 2048, 100, 1, 32, LSTM, UNIDIRECT, LINEAR, 0 } },
                 lstm_test_params_float{ prop_kind::forward_training,
                         engine::kind::cpu, algorithm::rnn_lstm,
                         direction::rnn_unidirectional,
                         input_mode::rnn_linear_input, memory::format::rnx,
-                        { 2048, 2048, 25, 1, 64, LSTM, UNIDIRECT, LINEAR, 0 } },
+                        { 2048, 2048, 100, 1, 64, LSTM, UNIDIRECT, LINEAR, 0 } },
                 lstm_test_params_float{ prop_kind::forward_training,
                         engine::kind::cpu, algorithm::rnn_lstm,
                         direction::rnn_unidirectional,
                         input_mode::rnn_linear_input, memory::format::rnx,
-                        { 2048, 2048, 25, 1, 128, LSTM, UNIDIRECT, LINEAR,
+                        { 2048, 2048, 100, 1, 128, LSTM, UNIDIRECT, LINEAR,
                                 0 } },
                 lstm_test_params_float{ prop_kind::forward_training,
                         engine::kind::cpu, algorithm::rnn_lstm,
                         direction::rnn_unidirectional,
                         input_mode::rnn_linear_input, memory::format::rnx,
-                        { 4096, 4096, 25, 1, 16, LSTM, UNIDIRECT, LINEAR, 0 } },
+                        { 4096, 4096, 100, 1, 16, LSTM, UNIDIRECT, LINEAR, 0 } },
                 lstm_test_params_float{ prop_kind::forward_training,
                         engine::kind::cpu, algorithm::rnn_lstm,
                         direction::rnn_unidirectional,
                         input_mode::rnn_linear_input, memory::format::rnx,
-                        { 4096, 4096, 25, 1, 32, LSTM, UNIDIRECT, LINEAR, 0 } },
+                        { 4096, 4096, 100, 1, 32, LSTM, UNIDIRECT, LINEAR, 0 } },
                 lstm_test_params_float{ prop_kind::forward_training,
                         engine::kind::cpu, algorithm::rnn_lstm,
                         direction::rnn_unidirectional,
                         input_mode::rnn_linear_input, memory::format::rnx,
-                        { 4096, 4096, 25, 1, 64, LSTM, UNIDIRECT, LINEAR, 0 } },
+                        { 4096, 4096, 100, 1, 64, LSTM, UNIDIRECT, LINEAR, 0 } },
                 lstm_test_params_float{ prop_kind::forward_training,
                         engine::kind::cpu, algorithm::rnn_lstm,
                         direction::rnn_unidirectional,
                         input_mode::rnn_linear_input, memory::format::rnx,
-                        { 4096, 4096, 25, 1, 128, LSTM, UNIDIRECT, LINEAR,
+                        { 4096, 4096, 100, 1, 128, LSTM, UNIDIRECT, LINEAR,
                                 0 } }));
 } // namespace mkldnn
