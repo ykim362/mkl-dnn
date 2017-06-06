@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright 2016 Intel Corporation
+ * Copyright 2016-2017 Intel Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -80,9 +80,8 @@ protected:
                 = rd.state_size * (rd.state_size + rd.input_size + 2);
         const size_t wx_size
                 = rd.state_size * (rd.state_size + rd.state_size + 2);
-        const size_t total_w = rd.num_layers == 1 ?
-                dir * w1_size :
-                dir * (w1_size + (rd.num_layers - 1) * wx_size);
+        const size_t total_w = rd.num_layers == 1 ? dir * w1_size : dir
+                        * (w1_size + (rd.num_layers - 1) * wx_size);
 
         x_desc.reset(new memory::desc({ static_cast<int>(rd.seq_length),
                                               static_cast<int>(rd.batch_size),
@@ -120,7 +119,8 @@ protected:
         int iters = 20;
         flops = 2.0 * (double)p.test_rd.state_size
                 * (double)p.test_rd.batch_size
-                * ((double)p.test_rd.state_size + (double)p.test_rd.input_size + 3.0)
+                * ((double)p.test_rd.state_size + (double)p.test_rd.input_size
+                          + 3.0)
                 * (double)p.test_rd.seq_length;
 
         // warm-up
@@ -136,10 +136,12 @@ protected:
                 l_min = l_cur;
         }
 
-        printf("RNN FWD benchmark avg - gflops = %.5g , time [s] = %.5g, GFLOPS = "
+        printf("RNN FWD benchmark avg - gflops = %.5g , time [s] = %.5g, "
+               "GFLOPS = "
                "%.5g\n",
                 flops * 1e-9, l_total / iters, iters * flops / l_total / 1e9);
-        printf("LSTM FWD benchmark best - gflops = %.5g , time [s] = %.5g, GFLOPS = "
+        printf("LSTM FWD benchmark best - gflops = %.5g , time [s] = %.5g, "
+               "GFLOPS = "
                "%.5g\n",
                 flops * 1e-9, l_min, flops / l_min / 1e9);
     }
@@ -262,23 +264,27 @@ TEST_P(rnn_backward_test_float, TestsRNN)
 {
 }
 
-INSTANTIATE_TEST_CASE_P(TestRNNForward0, rnn_backward_test_float,
+INSTANTIATE_TEST_CASE_P(
+        TestRNNForward0, rnn_backward_test_float,
         ::testing::Values(
                 rnn_test_params_float{ prop_kind::forward_training,
                         engine::kind::cpu, algorithm::rnn_relu,
                         direction::rnn_unidirectional,
                         input_mode::rnn_linear_input, memory::format::rnx,
-                        { 1760, 1760, 100, 1, 16, RELU, UNIDIRECT, LINEAR, 0 } },
+                        { 1760, 1760, 100, 1, 16, RELU, UNIDIRECT, LINEAR,
+                                0 } },
                 rnn_test_params_float{ prop_kind::forward_training,
                         engine::kind::cpu, algorithm::rnn_relu,
                         direction::rnn_unidirectional,
                         input_mode::rnn_linear_input, memory::format::rnx,
-                        { 1760, 1760, 100, 1, 32, RELU, UNIDIRECT, LINEAR, 0 } },
+                        { 1760, 1760, 100, 1, 32, RELU, UNIDIRECT, LINEAR,
+                                0 } },
                 rnn_test_params_float{ prop_kind::forward_training,
                         engine::kind::cpu, algorithm::rnn_relu,
                         direction::rnn_unidirectional,
                         input_mode::rnn_linear_input, memory::format::rnx,
-                        { 1760, 1760, 100, 1, 64, RELU, UNIDIRECT, LINEAR, 0 } },
+                        { 1760, 1760, 100, 1, 64, RELU, UNIDIRECT, LINEAR,
+                                0 } },
                 rnn_test_params_float{ prop_kind::forward_training,
                         engine::kind::cpu, algorithm::rnn_relu,
                         direction::rnn_unidirectional,
@@ -289,17 +295,20 @@ INSTANTIATE_TEST_CASE_P(TestRNNForward0, rnn_backward_test_float,
                         engine::kind::cpu, algorithm::rnn_relu,
                         direction::rnn_unidirectional,
                         input_mode::rnn_linear_input, memory::format::rnx,
-                        { 2048, 2048, 100, 1, 16, RELU, UNIDIRECT, LINEAR, 0 } },
+                        { 2048, 2048, 100, 1, 16, RELU, UNIDIRECT, LINEAR,
+                                0 } },
                 rnn_test_params_float{ prop_kind::forward_training,
                         engine::kind::cpu, algorithm::rnn_relu,
                         direction::rnn_unidirectional,
                         input_mode::rnn_linear_input, memory::format::rnx,
-                        { 2048, 2048, 100, 1, 32, RELU, UNIDIRECT, LINEAR, 0 } },
+                        { 2048, 2048, 100, 1, 32, RELU, UNIDIRECT, LINEAR,
+                                0 } },
                 rnn_test_params_float{ prop_kind::forward_training,
                         engine::kind::cpu, algorithm::rnn_relu,
                         direction::rnn_unidirectional,
                         input_mode::rnn_linear_input, memory::format::rnx,
-                        { 2048, 2048, 100, 1, 64, RELU, UNIDIRECT, LINEAR, 0 } },
+                        { 2048, 2048, 100, 1, 64, RELU, UNIDIRECT, LINEAR,
+                                0 } },
                 rnn_test_params_float{ prop_kind::forward_training,
                         engine::kind::cpu, algorithm::rnn_relu,
                         direction::rnn_unidirectional,
@@ -310,17 +319,20 @@ INSTANTIATE_TEST_CASE_P(TestRNNForward0, rnn_backward_test_float,
                         engine::kind::cpu, algorithm::rnn_relu,
                         direction::rnn_unidirectional,
                         input_mode::rnn_linear_input, memory::format::rnx,
-                        { 2560, 2560, 100, 1, 16, RELU, UNIDIRECT, LINEAR, 0 } },
+                        { 2560, 2560, 100, 1, 16, RELU, UNIDIRECT, LINEAR,
+                                0 } },
                 rnn_test_params_float{ prop_kind::forward_training,
                         engine::kind::cpu, algorithm::rnn_relu,
                         direction::rnn_unidirectional,
                         input_mode::rnn_linear_input, memory::format::rnx,
-                        { 2560, 2560, 100, 1, 32, RELU, UNIDIRECT, LINEAR, 0 } },
+                        { 2560, 2560, 100, 1, 32, RELU, UNIDIRECT, LINEAR,
+                                0 } },
                 rnn_test_params_float{ prop_kind::forward_training,
                         engine::kind::cpu, algorithm::rnn_relu,
                         direction::rnn_unidirectional,
                         input_mode::rnn_linear_input, memory::format::rnx,
-                        { 2560, 2560, 100, 1, 64, RELU, UNIDIRECT, LINEAR, 0 } },
+                        { 2560, 2560, 100, 1, 64, RELU, UNIDIRECT, LINEAR,
+                                0 } },
                 rnn_test_params_float{ prop_kind::forward_training,
                         engine::kind::cpu, algorithm::rnn_relu,
                         direction::rnn_unidirectional,
