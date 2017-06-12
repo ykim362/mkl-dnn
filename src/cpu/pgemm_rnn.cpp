@@ -94,6 +94,9 @@ inline void lstm_bwd_ele_wise(const data_t *Gates, data_t *dGates,
 }
 
 template <typename data_t>
+#if defined(__ICC)
+#pragma omp declare simd
+#endif
 inline void lstm_fwd_prop_single(const size_t input_size,
         const size_t state_size, const size_t batch_size, const data_t *x,
         int tranx, const data_t *ht_1, int tranht_1, const data_t *ct_1,
