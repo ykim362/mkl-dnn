@@ -66,7 +66,7 @@ private:
     reg64_t aux_reg_inp_prf = rsi;
     reg64_t aux_reg_ker_prf = rdx;
 
-    reg64_t reg_current_ic = rsi;
+    reg64_t reg_channel = rsi;
     reg64_t reg_bias = rdx;
 
     reg64_t reg_kj = rax;
@@ -191,7 +191,7 @@ private:
     reg64_t reg_oi = rbx;
     reg64_t reg_kh = abi_not_param1;
 
-    reg64_t reg_current_ic = rsi;
+    reg64_t reg_channel = rsi;
 
     reg64_t reg_tmp = rbp;
 
@@ -235,6 +235,7 @@ struct jit_avx512_common_conv_bwd_weights_kernel_f32 : public jit_generator {
 private:
     using reg64_t = const Xbyak::Reg64;
     enum {typesize = sizeof(float)};
+    static const int max_ur_w;
 
     reg64_t param = abi_param1;
     reg64_t reg_input = rax;
@@ -268,13 +269,16 @@ private:
     inline void compute_oh_step_unroll_ow(int ic_block_step, int max_ur_w);
     inline void compute_ic_block_step(int ur_w,
             int pad_l, int pad_r, int ic_block_step,
-            int input_offset, int kernel_offset, int output_offset);
+            int input_offset, int kernel_offset, int output_offset,
+            bool input_wraparound = false);
     inline void compute_ic_block_step_fma(int ur_w,
             int pad_l, int pad_r, int ic_block_step,
-            int input_offset, int kernel_offset, int output_offset);
+            int input_offset, int kernel_offset, int output_offset,
+            bool input_wraparound);
     inline void compute_ic_block_step_4fma(int ur_w,
             int pad_l, int pad_r, int ic_block_step,
-            int input_offset, int kernel_offset, int output_offset);
+            int input_offset, int kernel_offset, int output_offset,
+            bool input_wraparound);
     inline void compute_oh_step_common(int ic_block_step, int max_ur_w);
     inline void compute_oh_step_disp();
     inline void compute_oh_loop_common();

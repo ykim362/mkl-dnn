@@ -25,6 +25,8 @@ namespace cpu {
 
 enum conv_version_t {ver_unused, ver_fma, ver_4fma, ver_4vnni};
 enum conv_loop_order_t {loop_cgn, loop_gnc, loop_ngc};
+enum conv_1x1_loop_order_t {loop_rbl, loop_rlb, loop_lbr, loop_lrb, loop_blr,
+                            loop_brl};
 
 struct jit_conv_conf_t {
     prop_kind_t prop_kind;
@@ -50,7 +52,9 @@ struct jit_conv_conf_t {
     int ur_h, ur_w;
     int ur_w_tail;
     bool is_1stconv;
+    /* 4fma */
     bool transpose_src;
+    int tr_iw;
     /* 4vnni */
     size_t typesize_in;
     size_t typesize_out;
@@ -60,6 +64,28 @@ struct jit_conv_conf_t {
     int ur_ow_max, ur_ow, ur_ow_tail;
     int ur_ow_nsteps;
     data_type_t bia_dt;
+};
+
+
+struct jit_conv_winograd_conf_t : public jit_conv_conf_t {
+    //Winograd specific attributes
+    //alpha determines the tile size
+    int alpha;
+    //number of tiles in x dimension
+    int itiles;
+    //number of tiles in y dimension
+    int jtiles;
+    //number of images in a block
+    int bimg;
+
+    int nb_Xc;
+    int dim_kernel;
+    int nb_iter;
+
+    bool double_buffering;
+    bool load_U;
+    int zmm_start;
+    int nb_reg;
 };
 
 struct __attribute__((__packed__)) jit_conv_call_s {
@@ -74,8 +100,8 @@ struct __attribute__((__packed__)) jit_conv_call_s {
     size_t kh_padding;
     size_t kh_padding_prf;
     size_t kw_padding;
-    size_t current_ic;
-    size_t current_ic_prf;
+    size_t channel;
+    size_t channel_prf;
     size_t oc_blocks;
     int ic_flag;
 };
@@ -112,7 +138,8 @@ struct jit_1x1_conv_conf_t {
     int bcast_loop_bcast_step, bcast_loop_bcast_substep;
     int fma_step;
     int load_grp_count;
-    bool use_outer;
+    conv_1x1_loop_order_t loop_order;
+    bool use_vmovntps;
 };
 
 struct jit_gemm_conv_conf_t {

@@ -105,6 +105,7 @@ inline mkldnn::memory::desc create_md(mkldnn::memory::dims dims,
         ndims = 2; break;
     case f::nchw:
     case f::nhwc:
+    case f::chwn:
     case f::nChw8c:
     case f::nChw16c:
     case f::oihw:
@@ -198,8 +199,9 @@ static void compare_data(mkldnn::memory& ref, mkldnn::memory& dst)
             data_t diff = got - ref;
             data_t e = std::abs(ref) > 1e-4 ? diff / ref : diff;
             EXPECT_NEAR(e, 0.0, 1e-4) << "Index: " << i << " Total: " << num;
-        }  else if (data_traits<data_t>::data_type == data_type::s32)
+        } else if (data_traits<data_t>::data_type == data_type::s32) {
             EXPECT_EQ(ref, got) << "Index: " << i << " Total: " << num;
+        }
     }
 }
 

@@ -24,6 +24,7 @@
 #include "cpu_sum.hpp"
 
 #include "cpu/jit_avx512_common_1x1_convolution.hpp"
+#include "cpu/jit_avx512_common_convolution_winograd.hpp"
 #include "cpu/jit_avx512_common_convolution.hpp"
 #include "cpu/jit_avx2_1x1_convolution.hpp"
 #include "cpu/jit_sse42_1x1_convolution.hpp"
@@ -105,12 +106,18 @@ static const rpd_create_f cpu_reorder_impl_list[] = {
     simple_reorder_t<f32, any, f32, any, fmt_order::any, spec::direct_copy_except_dim_0>::pd_t::create,
     simple_reorder_t<f32, nchw, f32, nChw8c, fmt_order::keep>::pd_t::create,
     simple_reorder_t<f32, nchw, f32, nChw8c, fmt_order::reverse>::pd_t::create,
+    simple_reorder_t<f32, chwn, f32, nChw8c, fmt_order::keep>::pd_t::create,
+    simple_reorder_t<f32, chwn, f32, nChw8c, fmt_order::reverse>::pd_t::create,
     simple_reorder_t<f32, nchw, f32, nChw16c, fmt_order::keep>::pd_t::create,
     simple_reorder_t<f32, nchw, f32, nChw16c, fmt_order::reverse>::pd_t::create,
     simple_reorder_t<s32, nchw, s32, nChw16c, fmt_order::keep>::pd_t::create,
     simple_reorder_t<s32, nchw, s32, nChw16c, fmt_order::reverse>::pd_t::create,
+    simple_reorder_t<f32, chwn, f32, nChw16c, fmt_order::keep>::pd_t::create,
+    simple_reorder_t<f32, chwn, f32, nChw16c, fmt_order::reverse>::pd_t::create,
     simple_reorder_t<f32, nchw, f32, nhwc, fmt_order::keep>::pd_t::create,
     simple_reorder_t<f32, nchw, f32, nhwc, fmt_order::reverse>::pd_t::create,
+    simple_reorder_t<f32, nchw, f32, chwn, fmt_order::keep>::pd_t::create,
+    simple_reorder_t<f32, nchw, f32, chwn, fmt_order::reverse>::pd_t::create,
     simple_reorder_t<f32, oihw, f32, OIhw8i8o, fmt_order::keep>::pd_t::create,
     simple_reorder_t<f32, oihw, f32, OIhw8i8o, fmt_order::reverse>::pd_t::create,
     simple_reorder_t<f32, oihw, f32, OIhw16i16o, fmt_order::keep>::pd_t::create,
@@ -158,6 +165,9 @@ static const pd_create_f cpu_impl_list[] = {
     INSTANCE(jit_avx512_common_1x1_convolution_fwd_t),
     INSTANCE(jit_avx512_common_1x1_convolution_bwd_data_t),
     INSTANCE(jit_avx512_common_1x1_convolution_bwd_weights_t),
+    INSTANCE(jit_avx512_common_convolution_winograd_fwd_t),
+    INSTANCE(jit_avx512_common_convolution_winograd_bwd_data_t),
+    INSTANCE(jit_avx512_common_convolution_winograd_bwd_weights_t),
     INSTANCE(jit_avx512_common_convolution_fwd_t),
     INSTANCE(jit_avx512_common_convolution_bwd_data_t),
     INSTANCE(jit_avx512_common_convolution_bwd_weights_t),
