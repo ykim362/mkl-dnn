@@ -140,7 +140,7 @@ protected:
                "GFLOPS = "
                "%.5g\n",
                 flops * 1e-9, l_total / iters, iters * flops / l_total / 1e9);
-        printf("LSTM FWD benchmark best - gflops = %.5g , time [s] = %.5g, "
+        printf("RNN FWD benchmark best - gflops = %.5g , time [s] = %.5g, "
                "GFLOPS = "
                "%.5g\n",
                 flops * 1e-9, l_min, flops / l_min / 1e9);
