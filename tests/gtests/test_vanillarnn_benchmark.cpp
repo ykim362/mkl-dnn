@@ -28,7 +28,7 @@ double l_cur = 0.0;
 double flops = 0.0;
 
 template <typename data_t>
-class rnn_backward_test : public ::testing::TestWithParam<rnn_test_params> {
+class rnn_test : public ::testing::TestWithParam<rnn_test_params> {
 private:
     std::shared_ptr<memory> x;
     std::shared_ptr<memory> hx;
@@ -167,12 +167,13 @@ protected:
         auto s = stream(stream::kind::lazy);
 
         struct timeval l_start, l_end;
-        gettimeofday(&l_start, NULL);
 
         if (with_workspace) {
             auto workspace_primitive_desc
                     = rnn_fwd_prim_desc->workspace_primitive_desc();
             workspace.reset(new memory(workspace_primitive_desc));
+
+            gettimeofday(&l_start, NULL);
             if (p.test_rd.state_outputs) {
                 auto l = rnn_forward(*rnn_fwd_prim_desc, x.get(), hx.get(),
                         nullptr, weights.get(), y.get(), hy.get(), nullptr,
@@ -187,6 +188,8 @@ protected:
                 s.submit(pipeline).wait();
             }
         } else {
+
+            gettimeofday(&l_start, NULL);
             if (p.test_rd.state_outputs) {
                 auto l = rnn_forward(*rnn_fwd_prim_desc, x.get(), hx.get(),
                         nullptr, weights.get(), y.get(), hy.get(), nullptr,
@@ -257,15 +260,15 @@ protected:
     }
 };
 
-using rnn_backward_test_float = rnn_backward_test<float>;
+using rnn_test_float = rnn_test<float>;
 using rnn_test_params_float = rnn_test_params;
 
-TEST_P(rnn_backward_test_float, TestsRNN)
+TEST_P(rnn_test_float, TestsRNN)
 {
 }
 
 INSTANTIATE_TEST_CASE_P(
-        TestRNNForward0, rnn_backward_test_float,
+        TestRNNForward0, rnn_test_float,
         ::testing::Values(
                 rnn_test_params_float{ prop_kind::forward_training,
                         engine::kind::cpu, algorithm::rnn_relu,

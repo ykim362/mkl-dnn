@@ -178,14 +178,15 @@ protected:
         std::vector<primitive> pipeline;
         auto s = stream(stream::kind::lazy);
 
-        struct timeval l_start, l_end;
-        gettimeofday(&l_start, NULL);
-
         if (with_workspace) {
             auto workspace_primitive_desc
                     = rnn_fwd_prim_desc->workspace_primitive_desc();
             workspace.reset(new memory(workspace_primitive_desc));
         }
+
+        struct timeval l_start, l_end;
+        gettimeofday(&l_start, NULL);
+        
         auto l = rnn_forward(*rnn_fwd_prim_desc, x.get(), hx.get(), cx.get(),
                 weights.get(), y.get(), hy.get(), cy.get(), workspace.get());
         pipeline.push_back(l);
