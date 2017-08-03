@@ -133,14 +133,14 @@ namespace engine_kind {
 
 using rnn_direction_t = mkldnn_rnn_direction_t;
 namespace rnn_direction {
-    const rnn_direction_t rnn_unidirectional = mkldnn_rnn_unidirectional;
-    const rnn_direction_t rnn_bidirectional = mkldnn_rnn_bidirectional;
+    const rnn_direction_t unidirectional = mkldnn_rnn_unidirectional;
+    const rnn_direction_t bidirectional = mkldnn_rnn_bidirectional;
 }
 
 using rnn_input_mode_t = mkldnn_rnn_input_mode_t;
 namespace rnn_input_mode {
-    const rnn_input_mode_t rnn_linear_input = mkldnn_rnn_linear_input;
-    const rnn_input_mode_t rnn_skip_input = mkldnn_rnn_skip_input;
+    const rnn_input_mode_t linear_input = mkldnn_rnn_linear_input;
+    const rnn_input_mode_t skip_input = mkldnn_rnn_skip_input;
 }
 
 using primitive_kind_t = mkldnn_primitive_kind_t;

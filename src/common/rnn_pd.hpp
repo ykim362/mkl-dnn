@@ -111,7 +111,7 @@ struct rnn_fwd_pd_t : public primitive_desc_t {
     inline size_t layers() const { return desc_.num_layers; }
     inline size_t hidden_size() const { return desc_.num_states; }
     inline size_t direction() const {
-        return (desc_.direction == rnn_direction::rnn_unidirectional) ? 1 : 2;
+        return (desc_.direction == rnn_direction::unidirectional) ? 1 : 2;
     }
     inline size_t batch() const {
         return static_cast<size_t>(desc_.x_desc.dims[1]);
@@ -283,7 +283,7 @@ struct rnn_bwd_pd_t : public primitive_desc_t {
     inline size_t layers() const { return desc_.num_layers; }
     inline size_t hidden_size() const { return desc_.num_states; }
     inline size_t direction() const {
-        return (desc_.direction == rnn_direction::rnn_unidirectional) ? 1 : 2;
+        return (desc_.direction == rnn_direction::unidirectional) ? 1 : 2;
     }
     inline size_t batch() const
     { return static_cast<size_t>(desc_.x_desc.dims[1]); }
