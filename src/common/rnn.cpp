@@ -39,25 +39,24 @@ status_t rnn_desc_init(rnn_desc_t *rnn_desc, prop_kind_t prop_kind,
         const memory_desc_t *weights_desc)
 {
     bool args_ok = true
-        && one_of(prop_kind, forward_training, forward_inference, backward)
-        && one_of(alg_kind, rnn_relu, rnn_tanh, rnn_lstm)
-        && one_of(direction, unidirectional, bidirectional)
-        && one_of(input_mode, linear_input)
-        && !any_null(x_desc, hx_desc, y_desc, weights_desc)
-        && num_states != 0 && num_layers != 0 && num_seqs != 0;
+            && one_of(prop_kind, forward_training, forward_inference, backward)
+            && one_of(alg_kind, rnn_relu, rnn_tanh, rnn_lstm)
+            && one_of(direction, unidirectional, bidirectional)
+            && one_of(input_mode, linear_input)
+            && !any_null(x_desc, hx_desc, y_desc, weights_desc)
+            && num_states != 0 && num_layers != 0 && num_seqs != 0;
     if (!args_ok)
         return invalid_arguments;
 
     int dir = (direction == unidirectional) ? 1 : 2;
-    bool consistency = true
-        && x_desc->ndims == 3 && hx_desc->ndims == 3
-        && y_desc->ndims == 3 && x_desc->dims[0] == y_desc->dims[0]
-        && x_desc->dims[1] == y_desc->dims[1]
-        && hx_desc->dims[1] == y_desc->dims[1]
-        && y_desc->dims[2] == dir * static_cast<int>(num_states)
-        && x_desc->dims[0] == static_cast<int>(num_seqs)
-        && hx_desc->dims[0] == static_cast<int>(num_layers)
-        && hx_desc->dims[2] == static_cast<int>(num_states);
+    bool consistency = true && x_desc->ndims == 3 && hx_desc->ndims == 3
+            && y_desc->ndims == 3 && x_desc->dims[0] == y_desc->dims[0]
+            && x_desc->dims[1] == y_desc->dims[1]
+            && hx_desc->dims[1] == y_desc->dims[1]
+            && y_desc->dims[2] == dir * static_cast<int>(num_states)
+            && x_desc->dims[0] == static_cast<int>(num_seqs)
+            && hx_desc->dims[0] == static_cast<int>(num_layers)
+            && hx_desc->dims[2] == static_cast<int>(num_states);
     if (!consistency)
         return invalid_arguments;
 
