@@ -56,9 +56,9 @@ inline memory_format_t format_normalize(const memory_format_t fmt) {
     using namespace memory_format;
     if (utils::one_of(fmt, x, nc, nchw, nhwc, chwn, nChw8c, nChw16c, oi, io,
                 oihw, ihwo, oIhw8i, oIhw16i, OIhw8i8o, OIhw16i16o, OIhw8i16o2i,
-                OIhw8o8i, OIhw16o16i, Ohwi8o, Ohwi16o, OhIw16o4i, goihw,
-                gOIhw8i8o, gOIhw16i16o, gOIhw8i16o2i, gOIhw8o8i, gOIhw16o16i,
-                gOhwi8o, gOhwi16o, gOhIw16o4i, rnx))
+                OIhw8o16i2o, OIhw8o8i, OIhw16o16i, Ohwi8o, Ohwi16o, OhIw16o4i,
+                goihw, gOIhw8i8o, gOIhw16i16o, gOIhw8i16o2i, gOIhw8o16i2o,
+                gOIhw8o8i, gOIhw16o16i, gOhwi8o, gOhwi16o, gOhIw16o4i, rnx))
         return blocked;
     return fmt;
 }
@@ -95,7 +95,7 @@ inline bool operator!=(const memory_desc_t &lhs, const memory_desc_t &rhs) {
 }
 
 inline memory_desc_t zero_md() {
-    memory_desc_t zero({});
+    memory_desc_t zero{};
     zero.primitive_kind = primitive_kind::memory;
     return zero;
 }
@@ -118,7 +118,7 @@ inline data_type_t default_accum_data_type(data_type_t src_dt,
         return s32;
 
     if (one_of(src_dt, s8, u8) && one_of(wei_dt, s8, u8, data_type::undef)
-            && one_of(dst_dt, s8, u8, data_type::undef))
+            && one_of(dst_dt, s8, u8, s32, data_type::undef))
         return s32;
 
     assert(!"unimplemented use-case: no default parameters available");

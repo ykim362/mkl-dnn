@@ -58,13 +58,16 @@ void balance2D(U nthr, U ithr, T ny, T &ny_start, T &ny_end,
 }
 /* convolution forward */
 
-template <bool with_relu>
-void _jit_avx512_common_1x1_convolution_fwd_t<with_relu>::execute_forward()
+template <bool with_relu, data_type_t src_type, data_type_t wei_type,
+        data_type_t dst_type>
+void _jit_avx512_common_1x1_convolution_fwd_t
+    <with_relu, src_type, wei_type, dst_type>::execute_forward()
 {
-    auto src = reinterpret_cast<const data_t *>(this->input_memory(0));
-    auto weights = reinterpret_cast<const data_t *>(this->input_memory(1));
-    auto bias = reinterpret_cast<const data_t *>(this->input_memory(2));
-    auto dst = reinterpret_cast<data_t *>(this->memory());
+    auto src = reinterpret_cast<const src_data_t *>(this->input_memory(0));
+    auto weights =
+        reinterpret_cast<const wei_data_t *>(this->input_memory(1));
+    auto bias = reinterpret_cast<const dst_data_t *>(this->input_memory(2));
+    auto dst = reinterpret_cast<dst_data_t *>(this->memory());
 
     const memory_desc_wrapper src_d(conf_.src_pd());
     const memory_desc_wrapper dst_d(conf_.dst_pd());
@@ -89,7 +92,8 @@ void _jit_avx512_common_1x1_convolution_fwd_t<with_relu>::execute_forward()
         int ithr = omp_get_thread_num(), nthr = omp_get_num_threads();
 
         jit_1x1_conv_call_s p = {};
-        rtus_driver_f32_t<avx512_common>::call_params_t rp = {};
+
+        rtus_driver_t<avx512_common>::call_params_t rp = {};
 
         const int nb_oc = jcp.nb_load;
         const int nb_ic = jcp.nb_reduce;
@@ -137,11 +141,11 @@ void _jit_avx512_common_1x1_convolution_fwd_t<with_relu>::execute_forward()
                 nstl::min(icb + nb_ic_blocking, nb_ic) - icb;
             p.reduce_pos_flag = 0
                 | (icb == 0
-                ? jit_avx512_common_1x1_conv_kernel_f32::
+                ? jit_avx512_common_1x1_conv_kernel::
                   REDUCE_FLAG_FIRST
                 : 0)
                 | (icb + nb_ic_blocking_step >= nb_ic
-                ? jit_avx512_common_1x1_conv_kernel_f32::
+                ? jit_avx512_common_1x1_conv_kernel::
                   REDUCE_FLAG_LAST
                 : 0);
 
@@ -212,22 +216,64 @@ void _jit_avx512_common_1x1_convolution_fwd_t<with_relu>::execute_forward()
                 }
                 ocb += load_step;
             }
+        } else if (jcp.loop_order == loop_rbl) {
+            for (int icb = 0; icb < nb_ic; icb += nb_ic_blocking) {
+                init_reduce(icb);
+                int iwork = bcast_start;
+                while (iwork < bcast_end) {
+                    int n, g, bcast_step, oh, ow, ih, iw;
+                    init_bcast(iwork, n, g, bcast_step, oh, ow, ih, iw);
+                    int ocb = ocb_start;
+                    while (ocb < ocb_end) {
+                        int load_step;
+                        init_load(ocb, load_step);
+                        inner_ker(ocb, icb, n, g, oh, ow, ih, iw);
+                        ocb += load_step;
+                    }
+                    iwork += bcast_step;
+                }
+            }
+        } else if (jcp.loop_order == loop_blr) {
+            int iwork = bcast_start;
+            while (iwork < bcast_end) {
+                int n, g, bcast_step, oh, ow, ih, iw;
+                init_bcast(iwork, n, g, bcast_step, oh, ow, ih, iw);
+                int ocb = ocb_start;
+                while (ocb < ocb_end) {
+                    int load_step;
+                    init_load(ocb, load_step);
+                    for (int icb = 0; icb < nb_ic; icb += nb_ic_blocking) {
+                        init_reduce(icb);
+                        inner_ker(ocb, icb, n, g, oh, ow, ih, iw);
+                    }
+                    ocb += load_step;
+                }
+                iwork += bcast_step;
+            }
         } else {
             assert(!"unsupported loop order");
         }
     }
 }
 
-template void _jit_avx512_common_1x1_convolution_fwd_t<true>::execute_forward();
-template void _jit_avx512_common_1x1_convolution_fwd_t<false>::execute_forward();
-
+template struct _jit_avx512_common_1x1_convolution_fwd_t<true, data_type::f32>;
+template struct _jit_avx512_common_1x1_convolution_fwd_t<false, data_type::f32>;
+template struct _jit_avx512_common_1x1_convolution_fwd_t<false, data_type::s16,
+    data_type::s16, data_type::s32>;
+template struct _jit_avx512_common_1x1_convolution_fwd_t<true, data_type::s16,
+    data_type::s16, data_type::s32>;
 /* convolution backward wtr data */
 
-void jit_avx512_common_1x1_convolution_bwd_data_t::execute_backward_data()
+template <data_type_t diff_dst_type, data_type_t wei_type,
+    data_type_t diff_src_type>
+void _jit_avx512_common_1x1_convolution_bwd_data_t
+    <diff_dst_type, wei_type, diff_src_type>::execute_backward_data()
 {
-    auto diff_dst = reinterpret_cast<const data_t *>(this->input_memory(0));
-    auto weights = reinterpret_cast<const data_t *>(this->input_memory(1));
-    auto diff_src = reinterpret_cast<data_t *>(this->memory());
+    auto diff_dst = reinterpret_cast<const diff_dst_data_t *>
+        (this->input_memory(0));
+    auto weights = reinterpret_cast<const wei_data_t *>
+        (this->input_memory(1));
+    auto diff_src = reinterpret_cast<diff_src_data_t *>(this->memory());
 
     const memory_desc_wrapper diff_dst_d(conf_.diff_dst_pd());
     const memory_desc_wrapper weights_d(conf_.weights_pd(0));
@@ -260,7 +306,7 @@ void jit_avx512_common_1x1_convolution_bwd_data_t::execute_backward_data()
         int ithr = omp_get_thread_num(), nthr = omp_get_num_threads();
 
         jit_1x1_conv_call_s p = {};
-        rtus_driver_f32_t<avx512_common>::call_params_t rp = {};
+        rtus_driver_t<avx512_common>::call_params_t rp = {};
 
         int bcast_start{0}, bcast_end{0}, icb_start{0}, icb_end{0};
         balance2D(nthr, ithr, work_amount, bcast_start, bcast_end,
@@ -339,7 +385,7 @@ void jit_avx512_common_1x1_convolution_bwd_data_t::execute_backward_data()
                             : weights_d.blk_off(ocb, icb)];
 
                         p.reduce_pos_flag = ocb == 0
-                            ? jit_avx512_common_1x1_conv_kernel_f32::
+                            ? jit_avx512_common_1x1_conv_kernel::
                               REDUCE_FLAG_FIRST
                             : 0;
 
@@ -356,6 +402,10 @@ void jit_avx512_common_1x1_convolution_bwd_data_t::execute_backward_data()
     }
 }
 
+template struct _jit_avx512_common_1x1_convolution_bwd_data_t<data_type::f32>;
+template struct _jit_avx512_common_1x1_convolution_bwd_data_t<data_type::s16,
+    data_type::s16, data_type::s32>;
+
 /* convolution backward wtr weights */
 
 jit_avx512_common_1x1_convolution_bwd_weights_t
@@ -365,7 +415,7 @@ jit_avx512_common_1x1_convolution_bwd_weights_t
     : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd), kernel_(nullptr)
     , rtus_driver_(nullptr), ws_per_thread_(0), scratch_(nullptr)
 {
-    kernel_ = new jit_avx512_common_1x1_conv_kernel_f32(conf_.jcp_);
+    kernel_ = new jit_avx512_common_1x1_conv_kernel(conf_.jcp_);
 
     const auto &jcp = kernel_->jcp;
 
@@ -399,7 +449,7 @@ jit_avx512_common_1x1_convolution_bwd_weights_t
                     oc_block, conf_.G() * conf_.OC() / oc_block,
                     conf_.MB(), max_buffer_size));
 
-    init_rtus_driver_f32<avx512_common>(this);
+    init_rtus_driver<avx512_common>(this);
 }
 void jit_avx512_common_1x1_convolution_bwd_weights_t::execute_backward_weights()
 {
@@ -445,9 +495,9 @@ void jit_avx512_common_1x1_convolution_bwd_weights_t::execute_backward_weights()
             data_t *store_to, size_t store_to_ld, const data_t *diff_dst,
             const data_t *src, int ithr) {
         jit_1x1_conv_call_s p = {};
-        rtus_driver_f32_t<avx512_common>::call_params_t rp = {};
+        rtus_driver_t<avx512_common>::call_params_t rp = {};
 
-        p.output_stride = store_to_ld * sizeof(float);
+        p.output_stride = store_to_ld * jcp.typesize_out;
 
         int oc_b_step = 0;
         for (int oc_b = 0; oc_b < nb_oc_blocking; oc_b += oc_b_step) {
@@ -475,7 +525,7 @@ void jit_avx512_common_1x1_convolution_bwd_weights_t::execute_backward_weights()
                     rp.os = p.reduce_dim;
 
                     p.reduce_pos_flag = sp_b == sp_b_start && first_image
-                        ? jit_avx512_common_1x1_conv_kernel_f32::
+                        ? jit_avx512_common_1x1_conv_kernel::
                           REDUCE_FLAG_FIRST
                         : 0;
 

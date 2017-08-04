@@ -118,6 +118,22 @@ private:
             vaddps(zmm, zmm, EVEX_compress_addr(reg, offset));
     }
 
+    inline void vcmp(Xbyak::Opmask kmask,
+        Xbyak::Zmm zmm_src1, Xbyak::Zmm zmm_src2, const unsigned char cmp) {
+        if (jcp.ver == ver_4vnni)
+            vpcmpd(kmask, zmm_src1, zmm_src2, cmp);
+        else
+            vcmpps(kmask, zmm_src1, zmm_src2, cmp);
+    }
+
+    inline void vmul(Xbyak::Zmm zmm_dst, Xbyak::Opmask kmask,
+                     Xbyak::Zmm zmm_src1, Xbyak::Zmm zmm_src2) {
+        if (jcp.ver == ver_4vnni)
+            vpmulld(zmm_dst | kmask, zmm_src1, zmm_src2);
+        else
+            vmulps(zmm_dst | kmask, zmm_src1, zmm_src2);
+    }
+
     inline int get_output_offset(int oi, int n_oc_block) {
         return jcp.typesize_out
             * (n_oc_block * jcp.oh * jcp.ow + oi) * jcp.oc_block;
@@ -205,10 +221,17 @@ private:
         assert(idx < ker_reg_base_idx);
         return Xbyak::Zmm(idx);
     }
+    inline void vadd(Xbyak::Zmm zmm, reg64_t reg, int offset) {
+        if (jcp.ver == ver_4vnni)
+            vpaddd(zmm, zmm, EVEX_compress_addr(reg, offset));
+        else
+            vaddps(zmm, zmm, EVEX_compress_addr(reg, offset));
+    }
 
     inline void prepare_output(int ur_w);
     inline void store_output(int ur_w);
     inline void compute_loop_4fma(int ur_w, int l_overflow, int r_overflow);
+    inline void compute_loop_4vnni(int ur_w, int l_overflow, int r_overflow);
     inline void compute_loop_fma(int ur_w, int l_overflow, int r_overflow);
     inline void compute_loop(int ur_w, int l_overflow, int r_overflow);
     void generate();
@@ -247,21 +270,6 @@ private:
     reg64_t reg_ur_w_trips  = r10;
     reg64_t reg_oj = r15;
     reg64_t reg_ih_count = rbx;
-
-    reg64_t aux_reg_bcast_data = r14;
-    reg64_t aux_reg_load_data  = r15;
-
-    reg64_t bk_loop = rdx;
-    reg64_t bcast_loop = rsi;
-
-    reg64_t reg_init_flag = r13;
-
-    reg64_t aux_bk_loop = r12;
-    reg64_t reg_bbcast = rax;
-    reg64_t reg_bload = r11;
-    reg64_t aux1_reg_bcast_data = rbx;
-    reg64_t aux_reg_out_data = abi_not_param1;
-    reg64_t reg_output_loadblk_step = abi_param1;
 
     inline void compute_oh_step_unroll_ow_icblock(int ic_block_step,
             int max_ur_w);

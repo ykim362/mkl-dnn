@@ -59,13 +59,15 @@ inline void jit_conv_ker_pipeline(jit_conv_ker_t ker, jit_conv_call_s &p,
          ? (d).blk_off((g), __VA_ARGS__) \
          : (d).blk_off(__VA_ARGS__))
 
-template <bool with_relu>
-void _jit_avx512_common_convolution_fwd_t<with_relu>::execute_forward()
+template <bool with_relu, data_type_t src_type, data_type_t wei_type,
+          data_type_t dst_type>
+void _jit_avx512_common_convolution_fwd_t
+    <with_relu, src_type, wei_type, dst_type>::execute_forward()
 {
-    auto src = reinterpret_cast<const data_t *>(this->input_memory(0));
-    auto weights = reinterpret_cast<const data_t *>(this->input_memory(1));
-    auto bias = reinterpret_cast<const data_t *>(this->input_memory(2));
-    auto dst = reinterpret_cast<data_t *>(this->memory());
+    auto src = reinterpret_cast<const src_data_t *>(this->input_memory(0));
+    auto weights = reinterpret_cast<const wei_data_t *>(this->input_memory(1));
+    auto bias = reinterpret_cast<const dst_data_t *>(this->input_memory(2));
+    auto dst = reinterpret_cast<dst_data_t *>(this->memory());
 
     const memory_desc_wrapper src_d(conf_.src_pd());
     const memory_desc_wrapper dst_d(conf_.dst_pd());
@@ -124,13 +126,15 @@ void _jit_avx512_common_convolution_fwd_t<with_relu>::execute_forward()
                 {
                     int i_t_overflow = -min(0, ij);
                     int i_b_overflow = max(jcp.ih, ij + jcp.kh) - jcp.ih;
+                    int kh_padding
+                        = nstl::max(0, jcp.kh - i_t_overflow - i_b_overflow);
 
                     jit_conv_ker_pipeline(kernel_->jit_ker, par_conv,
                             src_c + i_t_overflow * src_h_stride,
                             dst_c,
                             wht_w + i_t_overflow * wht_h_stride,
                             bias_w,
-                            icb, jcp.kh - i_t_overflow - i_b_overflow);
+                            icb, kh_padding);
 
                     src_c += src_h_stride * jcp.stride_h;
                     dst_c += dst_h_stride;
@@ -153,13 +157,21 @@ void _jit_avx512_common_convolution_fwd_t<with_relu>::execute_forward()
                 src, dst, weights, bias, 0, 0);
     }
 }
-template void _jit_avx512_common_convolution_fwd_t<true>::execute_forward();
-template void _jit_avx512_common_convolution_fwd_t<false>::execute_forward();
+template struct _jit_avx512_common_convolution_fwd_t<false, data_type::f32>;
+template struct _jit_avx512_common_convolution_fwd_t<true, data_type::f32>;
+template struct _jit_avx512_common_convolution_fwd_t<false, data_type::s16,
+        data_type::s16, data_type::s32>;
+template struct _jit_avx512_common_convolution_fwd_t<true, data_type::s16,
+        data_type::s16, data_type::s32>;
 
-void jit_avx512_common_convolution_bwd_data_t::execute_backward_data() {
-    auto diff_dst = reinterpret_cast<const data_t *>(this->input_memory(0));
-    auto weights = reinterpret_cast<const data_t *>(this->input_memory(1));
-    auto diff_src = reinterpret_cast<data_t*>(this->memory());
+template <data_type_t diff_dst_type, data_type_t wei_type,
+          data_type_t diff_src_type>
+void jit_avx512_common_convolution_bwd_data_t<diff_dst_type, wei_type,
+          diff_src_type>::execute_backward_data() {
+    auto diff_dst = reinterpret_cast<const diff_dst_data_t *>
+                                                       (this->input_memory(0));
+    auto weights = reinterpret_cast<const wei_data_t *>(this->input_memory(1));
+    auto diff_src = reinterpret_cast<diff_src_data_t*>(this->memory());
 
     const memory_desc_wrapper diff_dst_d(conf_.diff_dst_pd());
     const memory_desc_wrapper diff_src_d(conf_.diff_src_pd());
@@ -236,6 +248,10 @@ void jit_avx512_common_convolution_bwd_data_t::execute_backward_data() {
     }
 }
 
+template struct jit_avx512_common_convolution_bwd_data_t<data_type::f32>;
+template struct jit_avx512_common_convolution_bwd_data_t<data_type::s16,
+    data_type::s16, data_type::s32>;
+
 void jit_avx512_common_convolution_bwd_weights_t::execute_backward_weights() {
     auto src = reinterpret_cast<const data_t * > (this->input_memory(0));
     auto diff_dst = reinterpret_cast<const data_t * > (this->input_memory(1));
@@ -260,9 +276,10 @@ void jit_avx512_common_convolution_bwd_weights_t::execute_backward_weights() {
     };
 
     auto ker_transpose = [&](int ithr, int nthr) {
+
         const size_t work_amount = jcp.mb * jcp.ngroups * jcp.nb_ic * jcp.ih;
 
-        size_t start, end;
+        size_t start{0}, end{0};
         balance211(work_amount, nthr, ithr, start, end);
 
         int img{0}, g{0}, b_ic{0}, j{0};
@@ -270,42 +287,36 @@ void jit_avx512_common_convolution_bwd_weights_t::execute_backward_weights() {
                 img, jcp.mb, g, jcp.ngroups, b_ic, jcp.nb_ic, j, jcp.ih);
 
         const int _ic = g * jcp.nb_ic + b_ic;
-        const data_t *src1 = &src[src_d.blk_off(img, _ic, j)];
+        data_t *src1 = (data_t*)&src[src_d.blk_off(img, _ic, j)];
         data_t *tr_src1 = &tr_src[tr_src_off(img, _ic, j)];
 
         assert(jcp.ic_block == 16);
-        constexpr int ic_block = 16;
-        const size_t src_stride = jcp.iw * ic_block;
-        const size_t tr_src_stride = jcp.tr_iw * ic_block;
 
-        const int l_pad = jcp.l_pad;
-        const int iwlp = l_pad + jcp.iw;
-        const int tr_iw = jcp.tr_iw;
+        const size_t src_stride = jcp.iw * jcp.ic_block;
+        const size_t tr_src_stride = jcp.tr_iw * jcp.ic_block;
 
-        for (size_t iwork = start; iwork < end; iwork++) {
-#           pragma omp simd collapse(2)
-            for (int i = 0; i < l_pad; i++)
-#               pragma unroll
-                for (int j = 0; j < ic_block; j++)
-                    tr_src1[j * jcp.tr_iw + i] = 0.0;
+        const int pf_depth = 4;
+        struct { data_t *src, *tr_src; } pf_circ_buf[pf_depth];
+        size_t work_len = end - start;
 
-#           pragma omp simd collapse(2)
-            for (int i = l_pad; i < iwlp; i++)
-#               pragma unroll
-                for (int j = 0; j < ic_block; j++)
-                    tr_src1[j * jcp.tr_iw + i] = src1[(i - l_pad) * 16 + j];
+        for (size_t iwork = 0; iwork < work_len + pf_depth - 1; iwork++) {
+            pf_circ_buf[iwork % pf_depth] = {src1, tr_src1};
 
-#           pragma omp simd collapse(2)
-            for (int i = iwlp; i < tr_iw; i++)
-#               pragma unroll
-                for (int j = 0; j < ic_block; j++)
-                    tr_src1[j * jcp.tr_iw + i] = 0.0;
-
+            if (iwork >= pf_depth - 1) {
+                int old_idx = (iwork - pf_depth + 1) % pf_depth;
+                jit_src_transpose_s par_trans = { };
+                par_trans.src = pf_circ_buf[old_idx].src;
+                par_trans.tr_src = pf_circ_buf[old_idx].tr_src;
+                par_trans.src_prf = src1;
+                par_trans.tr_src_prf = tr_src1;
+                trans_kernel_->jit_ker(&par_trans);
+            }
             src1 += src_stride;
             tr_src1 += tr_src_stride;
         }
 
 #       pragma omp barrier
+
     };
 
     auto ker = [&](int ithr, int nthr) {

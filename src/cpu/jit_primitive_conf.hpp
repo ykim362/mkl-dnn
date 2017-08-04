@@ -40,6 +40,7 @@ struct jit_conv_conf_t {
     int r_pad, b_pad;
     int kh, kw;
     int stride_h, stride_w;
+    int dilate_h, dilate_w;
     memory_format_t src_fmt;
     bool with_bias, with_relu;
     double relu_negative_slope;
@@ -64,6 +65,7 @@ struct jit_conv_conf_t {
     int ur_ow_max, ur_ow, ur_ow_tail;
     int ur_ow_nsteps;
     data_type_t bia_dt;
+    data_type_t dst_dt;
 };
 
 
@@ -88,7 +90,7 @@ struct jit_conv_winograd_conf_t : public jit_conv_conf_t {
     int nb_reg;
 };
 
-struct __attribute__((__packed__)) jit_conv_call_s {
+struct jit_conv_call_s {
     const void *src; /* hack, non-const for backward_data */
     const void *dst; /* hack, non-const for forward */
     const void *filt; /* hack, non-const for backward_weights */
@@ -140,6 +142,9 @@ struct jit_1x1_conv_conf_t {
     int load_grp_count;
     conv_1x1_loop_order_t loop_order;
     bool use_vmovntps;
+    /* 4vnni */
+    size_t typesize_in;
+    size_t typesize_out;
 };
 
 struct jit_gemm_conv_conf_t {
@@ -151,6 +156,7 @@ struct jit_gemm_conv_conf_t {
     int l_pad, t_pad;
     int kh, kw;
     int stride_h, stride_w;
+    int dilate_h, dilate_w;
     memory_format_t src_fmt;
     bool with_bias, with_relu;
     double relu_negative_slope;
@@ -161,11 +167,11 @@ struct jit_gemm_conv_conf_t {
     size_t im2col_size;
 };
 
-struct __attribute__((__packed__)) jit_1x1_conv_call_s {
-    const float *bcast_data;
-    const float *load_data;
-    const float *output_data;
-    const float *bias_data; // used in forward and backward_weights only
+struct jit_1x1_conv_call_s {
+    const void *bcast_data;
+    const void *load_data;
+    const void *output_data;
+    const void *bias_data; // used in forward and backward_weights only
 
     size_t load_dim;
     size_t bcast_dim;
