@@ -16,7 +16,6 @@
 
 #include "mkldnn_test_common.hpp"
 #include "rnn_common.hpp"
-#include "utils.hpp"
 #include "gtest/gtest.h"
 
 namespace mkldnn {
@@ -27,8 +26,6 @@ void compute_ref_lstm_fwd(const test_lstm_desc_t &ld, const memory::desc &x_d,
         const memory &cx, const memory &weights, const memory &y,
         const memory &hy, const memory &cy)
 {
-    using namespace mkldnn::impl::utils;
-
     data_t *x_ptr = (data_t *)x.get_data_handle();
     data_t *hx_ptr = (data_t *)hx.get_data_handle();
     data_t *cx_ptr = (data_t *)cx.get_data_handle();
@@ -244,7 +241,6 @@ void compute_ref_lstm_bwd(const test_lstm_desc_t &ld, const memory::desc &x_d,
         const memory &dx, const memory &dhx, const memory &dcx,
         const memory &dweights)
 {
-    using namespace mkldnn::impl::utils;
     data_t *x_ptr = (data_t *)x.get_data_handle();
     data_t *hx_ptr = (data_t *)hx.get_data_handle();
     data_t *cx_ptr = (data_t *)cx.get_data_handle();
@@ -612,7 +608,6 @@ private:
 protected:
     virtual void SetUp()
     {
-        using namespace mkldnn::impl::utils;
         p = ::testing::TestWithParam<lstm_test_params>::GetParam();
         ASSERT_TRUE(p.engine_kind == engine::kind::cpu);
         ASSERT_TRUE(p.aalgorithm == algorithm::rnn_lstm);

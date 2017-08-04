@@ -16,7 +16,6 @@
 
 #include "mkldnn_test_common.hpp"
 #include "rnn_common.hpp"
-#include "utils.hpp"
 #include "gtest/gtest.h"
 #include <sys/time.h>
 
@@ -61,7 +60,6 @@ private:
 protected:
     virtual void SetUp()
     {
-        using namespace mkldnn::impl::utils;
         p = ::testing::TestWithParam<rnn_test_params>::GetParam();
         ASSERT_TRUE(p.engine_kind == engine::kind::cpu);
         ASSERT_TRUE(p.aalgorithm == algorithm::rnn_relu

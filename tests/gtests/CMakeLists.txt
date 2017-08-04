@@ -22,7 +22,6 @@ set(MAIN_SRC_GTEST main.cpp)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}
                     ${CMAKE_CURRENT_SOURCE_DIR}/gtest
                     ${CMAKE_CURRENT_SOURCE_DIR}/in
-                    ${CMAKE_SOURCE_DIR}/src/common
                     )
 # TODO: enable me!
 #file(GLOB API_TEST_CASES_SRC api_tests/*.cpp)

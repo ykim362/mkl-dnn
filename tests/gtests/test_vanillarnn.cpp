@@ -16,7 +16,6 @@
 
 #include "mkldnn_test_common.hpp"
 #include "rnn_common.hpp"
-#include "utils.hpp"
 #include "gtest/gtest.h"
 
 namespace mkldnn {
@@ -26,8 +25,6 @@ void compute_ref_rnn_fwd(const test_rnn_desc_t &rd, const memory::desc &x_d,
         const memory::desc &weights_d, const memory &x, const memory &hx,
         const memory &weights, const memory &y, const memory &hy)
 {
-    using namespace mkldnn::impl::utils;
-
     data_t *x_ptr = (data_t *)x.get_data_handle();
     data_t *hx_ptr = (data_t *)hx.get_data_handle();
     data_t *weights_ptr = (data_t *)weights.get_data_handle();
@@ -213,7 +210,6 @@ void compute_ref_rnn_bwd(const test_rnn_desc_t &rd, const memory::desc &x_d,
         const memory &ws, const memory &dx, const memory &dhx,
         const memory &dweights)
 {
-    using namespace mkldnn::impl::utils;
     data_t *x_ptr = (data_t *)x.get_data_handle();
     data_t *hx_ptr = (data_t *)hx.get_data_handle();
     data_t *dy_ptr = (data_t *)dy.get_data_handle();
@@ -505,7 +501,7 @@ private:
 protected:
     virtual void SetUp()
     {
-        using namespace mkldnn::impl::utils;
+        // using namespace mkldnn::impl::utils;
         p = ::testing::TestWithParam<rnn_test_params>::GetParam();
         ASSERT_TRUE(p.engine_kind == engine::kind::cpu);
         ASSERT_TRUE(p.aalgorithm == algorithm::rnn_relu

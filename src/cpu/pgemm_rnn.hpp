@@ -41,21 +41,19 @@ struct pgemm_rnn_fwd_t : public cpu_primitive_t {
 
         virtual status_t init() override {
 #ifdef USE_MKL
-            using namespace prop_kind;
-            using namespace alg_kind;
             assert(engine()->kind() == engine_kind::cpu);
             bool ok = true
                 && this->set_default_params() == status::success
-                && utils::one_of(desc()->prop_kind, forward_training,
-                        forward_inference)
-                && utils::one_of(desc()->alg_kind, rnn_relu, rnn_tanh,
-                        rnn_lstm)
+                && utils::one_of(desc()->prop_kind, prop_kind::forward_training,
+                        prop_kind::forward_inference)
+                && utils::one_of(desc()->alg_kind, alg_kind::rnn_relu, alg_kind::rnn_tanh,
+                        alg_kind::rnn_lstm)
                 && utils::everyone_is(data_type, desc()->x_desc.data_type,
                         desc()->hx_desc.data_type, desc()->y_desc.data_type,
                         desc()->weights_desc.data_type);
             if (!ok) return status::unimplemented;
 
-            if (desc_.prop_kind == forward_training) {
+            if (desc_.prop_kind == prop_kind::forward_training) {
                 auto ws_size = static_cast<int>(workspace_size());
                 memory_desc_t ws_d;
                 mkldnn_memory_desc_init(&ws_d, 1, &ws_size, data_type,
@@ -74,14 +72,11 @@ struct pgemm_rnn_fwd_t : public cpu_primitive_t {
             const output_vector &outputs)
         : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd), ts_(nullptr)
     {
-        using namespace mkldnn::impl::utils;
-        using namespace prop_kind;
-        using namespace mkldnn::impl::cpu::cpu_blas;
         auto insize = conf_.input_size() > conf_.hidden_size()
             ? conf_.input_size() : conf_.hidden_size();
         auto tmp = insize + conf_.hidden_size() + 2;
         auto ts_size_ = tmp * conf_.batch();
-        if (conf_.desc()->prop_kind != forward_training)
+        if (conf_.desc()->prop_kind != prop_kind::forward_training)
             ts_size_ += conf_.workspace_size();
         ts_ = (data_t *)malloc(ts_size_ * sizeof(data_t), 64);
         size_t total_layers = conf_.layers() * conf_.direction();
@@ -92,25 +87,24 @@ struct pgemm_rnn_fwd_t : public cpu_primitive_t {
             rl = ii % conf_.layers();
             in_size = (rl == 0) ? conf_.input_size() : conf_.hidden_size();
             m = conf_.hidden_size();
-            if (conf_.desc()->alg_kind == rnn_lstm) m *= 4;
+            if (conf_.desc()->alg_kind == alg_kind::rnn_lstm) m *= 4;
             weights_pack_[ii]
-                    = cblas_gemm_alloc<data_type>(CblasAMatrix,
+                    = cpu_blas::cblas_gemm_alloc<data_type>(CblasAMatrix,
                             m, conf_.batch(), (in_size + conf_.hidden_size() + 2));
         }
     }
 
-    ~pgemm_rnn_fwd_t() 
+    ~pgemm_rnn_fwd_t()
     {
-        using namespace mkldnn::impl::cpu::cpu_blas;
         if (weights_pack_)
         {
             size_t total_layers = conf_.layers() * conf_.direction();
             for (size_t ii = 0; ii < total_layers; ++ii)
-                cblas_gemm_free<data_type>(weights_pack_[ii]);
+                cpu_blas::cblas_gemm_free<data_type>(weights_pack_[ii]);
 
             delete[] weights_pack_;
         }
-        if (ts_) free(ts_); 
+        if (ts_) free(ts_);
     }
 
     typedef typename prec_traits<data_type>::type data_t;
@@ -143,14 +137,12 @@ struct pgemm_rnn_bwd_t : public cpu_primitive_t {
 
         virtual status_t init() override {
 #ifdef USE_MKL
-            using namespace prop_kind;
-            using namespace alg_kind;
             assert(engine()->kind() == engine_kind::cpu);
             bool ok = true
                 && this->set_default_params() == status::success
-                && utils::one_of(desc()->prop_kind, backward)
-                && utils::one_of(desc()->alg_kind, rnn_relu, rnn_tanh,
-                        rnn_lstm)
+                && utils::one_of(desc()->prop_kind, prop_kind::backward)
+                && utils::one_of(desc()->alg_kind, alg_kind::rnn_relu, alg_kind::rnn_tanh,
+                        alg_kind::rnn_lstm)
                 && utils::everyone_is(data_type, desc()->x_desc.data_type,
                         desc()->hx_desc.data_type, desc()->y_desc.data_type,
                         desc()->weights_desc.data_type);
@@ -188,8 +180,6 @@ struct pgemm_rnn_bwd_t : public cpu_primitive_t {
             const output_vector &outputs)
         : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd), ts_(nullptr)
     {
-        using namespace mkldnn::impl::utils;
-        using namespace mkldnn::impl::cpu::cpu_blas;
         auto bsize = conf_.input_size() > conf_.hidden_size()
             ? conf_.input_size() : conf_.hidden_size();
         auto tmp1 = bsize + conf_.hidden_size() + 2;
@@ -206,21 +196,20 @@ struct pgemm_rnn_bwd_t : public cpu_primitive_t {
             rl = ii % conf_.layers();
             in_size = (rl == 0) ? conf_.input_size() : conf_.hidden_size();
             m = conf_.hidden_size();
-            if (conf_.desc()->alg_kind == rnn_lstm) m *= 4;
+            if (conf_.desc()->alg_kind == alg_kind::rnn_lstm) m *= 4;
             weights_pack_[ii]
-                    = cblas_gemm_alloc<data_type>(CblasAMatrix,
+                    = cpu_blas::cblas_gemm_alloc<data_type>(CblasAMatrix,
                             m, conf_.batch(), (in_size + conf_.hidden_size() + 2));
         }
     }
 
     ~pgemm_rnn_bwd_t()
     {
-        using namespace mkldnn::impl::cpu::cpu_blas;
         if (weights_pack_)
         {
             size_t total_layers = conf_.layers() * conf_.direction();
             for (size_t ii = 0; ii < total_layers; ++ii)
-                cblas_gemm_free<data_type>(weights_pack_[ii]);
+                cpu_blas::cblas_gemm_free<data_type>(weights_pack_[ii]);
 
             delete[] weights_pack_;
         }

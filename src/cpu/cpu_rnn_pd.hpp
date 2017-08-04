@@ -82,16 +82,15 @@ protected:
     virtual status_t init() = 0;
 
     virtual status_t set_default_params() {
-        using namespace memory_format;
-        if (x_pd_.desc()->format == any) CHECK(x_pd_.set_format(rnx));
-        if (hx_pd_.desc()->format == any) CHECK(hx_pd_.set_format(rnx));
-        if (!cx_pd_.is_zero() && cx_pd_.desc()->format == any)
-            CHECK(cx_pd_.set_format(rnx));
-        if (y_pd_.desc()->format == any) CHECK(y_pd_.set_format(rnx));
-        if (!hy_pd_.is_zero() && hy_pd_.desc()->format == any)
-            CHECK(hy_pd_.set_format(rnx));
-        if (!cy_pd_.is_zero() && cy_pd_.desc()->format == any)
-            CHECK(cy_pd_.set_format(rnx));
+        if (x_pd_.desc()->format == memory_format::any) CHECK(x_pd_.set_format(memory_format::rnx));
+        if (hx_pd_.desc()->format == memory_format::any) CHECK(hx_pd_.set_format(memory_format::rnx));
+        if (!cx_pd_.is_zero() && cx_pd_.desc()->format == memory_format::any)
+            CHECK(cx_pd_.set_format(memory_format::rnx));
+        if (y_pd_.desc()->format == memory_format::any) CHECK(y_pd_.set_format(memory_format::rnx));
+        if (!hy_pd_.is_zero() && hy_pd_.desc()->format == memory_format::any)
+            CHECK(hy_pd_.set_format(memory_format::rnx));
+        if (!cy_pd_.is_zero() && cy_pd_.desc()->format == memory_format::any)
+            CHECK(cy_pd_.set_format(memory_format::rnx));
         return status::success;
     }
 };
@@ -164,20 +163,19 @@ protected:
 
     virtual status_t init() = 0;
     virtual status_t set_default_params() {
-        using namespace memory_format;
-        if (x_pd_.desc()->format == any) CHECK(x_pd_.set_format(rnx));
-        if (hx_pd_.desc()->format == any) CHECK(hx_pd_.set_format(rnx));
-        if (!cx_pd_.is_zero() && cx_pd_.desc()->format == any)
-            CHECK(cx_pd_.set_format(rnx));
-        if (dx_pd_.desc()->format == any) CHECK(dx_pd_.set_format(rnx));
-        if (dhx_pd_.desc()->format == any) CHECK(dhx_pd_.set_format(rnx));
-        if (!dcx_pd_.is_zero() && dcx_pd_.desc()->format == any)
-            CHECK(dcx_pd_.set_format(rnx));
-        if (dy_pd_.desc()->format == any) CHECK(dy_pd_.set_format(rnx));
-        if (!dhy_pd_.is_zero() && dhy_pd_.desc()->format == any)
-            CHECK(dhy_pd_.set_format(rnx));
-        if (!dcy_pd_.is_zero() && dcy_pd_.desc()->format == any)
-            CHECK(dcy_pd_.set_format(rnx));
+        if (x_pd_.desc()->format == memory_format::any) CHECK(x_pd_.set_format(memory_format::rnx));
+        if (hx_pd_.desc()->format == memory_format::any) CHECK(hx_pd_.set_format(memory_format::rnx));
+        if (!cx_pd_.is_zero() && cx_pd_.desc()->format == memory_format::any)
+            CHECK(cx_pd_.set_format(memory_format::rnx));
+        if (dx_pd_.desc()->format == memory_format::any) CHECK(dx_pd_.set_format(memory_format::rnx));
+        if (dhx_pd_.desc()->format == memory_format::any) CHECK(dhx_pd_.set_format(memory_format::rnx));
+        if (!dcx_pd_.is_zero() && dcx_pd_.desc()->format == memory_format::any)
+            CHECK(dcx_pd_.set_format(memory_format::rnx));
+        if (dy_pd_.desc()->format == memory_format::any) CHECK(dy_pd_.set_format(memory_format::rnx));
+        if (!dhy_pd_.is_zero() && dhy_pd_.desc()->format == memory_format::any)
+            CHECK(dhy_pd_.set_format(memory_format::rnx));
+        if (!dcy_pd_.is_zero() && dcy_pd_.desc()->format == memory_format::any)
+            CHECK(dcy_pd_.set_format(memory_format::rnx));
         return status::success;
     }
 };

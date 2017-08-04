@@ -64,6 +64,9 @@ inline void transpose(const data_t *src, data_t *dst, const int M, const int N)
             dst_a[n][m] = src_a[m][n];
         }
     }
+
+    delete[] src_a;
+    delete[] dst_a;
 }
 
 template <typename data_t>
@@ -110,6 +113,12 @@ inline void gemm(const int transA, const int transB, const data_t *A,
         }
     }
 }
+
+template<typename T, typename U>
+inline void array_set(T *arr, const U& val, size_t size) {
+    for (size_t i = 0; i < size; ++i) arr[i] = val;
+}
+
 namespace mkldnn {
 struct lstm_test_params {
     prop_kind aprop_kind;

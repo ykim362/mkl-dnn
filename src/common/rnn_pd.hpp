@@ -23,7 +23,6 @@
 #include "primitive_desc.hpp"
 #include "utils.hpp"
 
-using namespace mkldnn::impl::alg_kind;
 namespace mkldnn {
 namespace impl {
 
@@ -32,7 +31,7 @@ struct rnn_fwd_pd_t : public primitive_desc_t {
     typedef rnn_fwd_pd_t hint_class;
     static constexpr auto base_pkind = primitive_kind::rnn;
 
-    rnn_fwd_pd_t(mkldnn::impl::engine_t *engine, const rnn_desc_t *adesc,
+    rnn_fwd_pd_t(engine_t *engine, const rnn_desc_t *adesc,
             const rnn_fwd_pd_t *hint_fwd_pd)
         : primitive_desc_t(engine, primitive_kind::rnn)
         , desc_(*adesc)
@@ -45,7 +44,7 @@ struct rnn_fwd_pd_t : public primitive_desc_t {
     }
 
     virtual const memory_pd_t *input_pd(int index = 0) const override {
-        if (desc_.alg_kind == rnn_lstm) {
+        if (desc_.alg_kind == alg_kind::rnn_lstm) {
             switch (index) {
             case 0: case 1: case 2: return src_pd(index);
             case 3: return weights_pd();
@@ -61,7 +60,7 @@ struct rnn_fwd_pd_t : public primitive_desc_t {
     }
     virtual const memory_pd_t *output_pd(int index = 0) const override {
         if (desc_.state_outputs) {
-            if (desc_.alg_kind == rnn_lstm) {
+            if (desc_.alg_kind == alg_kind::rnn_lstm) {
                 switch (index) {
                 case 0: case 1: case 2: return dst_pd(index);
                 case 3: return workspace_pd();
@@ -84,10 +83,10 @@ struct rnn_fwd_pd_t : public primitive_desc_t {
     }
 
     virtual int n_inputs() const override
-    { return desc_.alg_kind == rnn_lstm ? 4 : 3; }
+    { return desc_.alg_kind == alg_kind::rnn_lstm ? 4 : 3; }
     virtual int n_outputs() const override {
         if (desc_.state_outputs) {
-            if (desc_.alg_kind == rnn_lstm) {
+            if (desc_.alg_kind == alg_kind::rnn_lstm) {
                 return 3 + (workspace_pd() != nullptr);
             } else {
                 return 2 + (workspace_pd() != nullptr);
@@ -107,20 +106,20 @@ struct rnn_fwd_pd_t : public primitive_desc_t {
 
     /* common rnn aux functions */
 
-    inline size_t tau() const { return desc_.num_seqs; }
-    inline size_t layers() const { return desc_.num_layers; }
-    inline size_t hidden_size() const { return desc_.num_states; }
-    inline size_t direction() const {
+    size_t tau() const { return desc_.num_seqs; }
+    size_t layers() const { return desc_.num_layers; }
+    size_t hidden_size() const { return desc_.num_states; }
+    size_t direction() const {
         return (desc_.direction == rnn_direction::unidirectional) ? 1 : 2;
     }
-    inline size_t batch() const {
+    size_t batch() const {
         return static_cast<size_t>(desc_.x_desc.dims[1]);
     }
-    inline size_t input_size() const {
+    size_t input_size() const {
         return static_cast<size_t>(desc_.x_desc.dims[2]);
     }
-    inline int state_outputs() const { return desc_.state_outputs; }
-    inline int gates_num() const {
+    int state_outputs() const { return desc_.state_outputs; }
+    int gates_num() const {
         switch (desc_.alg_kind) {
         case alg_kind::rnn_relu: return 1;
         case alg_kind::rnn_tanh: return 1;
@@ -129,7 +128,7 @@ struct rnn_fwd_pd_t : public primitive_desc_t {
         default: return 0;
         }
     }
-    inline size_t w1_size() const {
+    size_t w1_size() const {
         size_t size = hidden_size() * (hidden_size() + input_size() + 2);
         switch (desc_.alg_kind) {
         case alg_kind::rnn_relu: size *= 1; break;
@@ -140,7 +139,7 @@ struct rnn_fwd_pd_t : public primitive_desc_t {
         }
         return size;
     }
-    inline size_t wx_size() const {
+    size_t wx_size() const {
         if (layers() > 1) {
             size_t size = hidden_size() * (hidden_size() + hidden_size() + 2);
             switch (desc_.alg_kind) {
@@ -154,22 +153,22 @@ struct rnn_fwd_pd_t : public primitive_desc_t {
         } else
             return 0;
     }
-    inline size_t total_param_size() const {
+    size_t total_param_size() const {
         if (layers() > 1) {
             return direction() * (w1_size() + (layers() - 1) * wx_size());
         } else
             return direction() * w1_size();
     }
-    inline size_t h_size() const { return batch() * hidden_size(); }
-    inline size_t x_size() const { return batch() * input_size(); }
-    inline size_t h_nlayer_size() const { return h_size() * layers(); }
-    inline size_t gates_size() const { return h_size() * gates_num(); }
-    inline size_t gates_nlayer_size() const { return gates_size() * layers(); }
-    inline size_t gates_space_size() const
+    size_t h_size() const { return batch() * hidden_size(); }
+    size_t x_size() const { return batch() * input_size(); }
+    size_t h_nlayer_size() const { return h_size() * layers(); }
+    size_t gates_size() const { return h_size() * gates_num(); }
+    size_t gates_nlayer_size() const { return gates_size() * layers(); }
+    size_t gates_space_size() const
     { return gates_nlayer_size() * tau() * direction(); }
-    inline size_t h_space_size() const
+    size_t h_space_size() const
     { return h_nlayer_size() * tau() * direction(); }
-    inline size_t workspace_size() const {
+    size_t workspace_size() const {
         return gates_space_size()
             + (desc_.alg_kind == alg_kind::rnn_lstm ? 2 : 1) * h_space_size();
     }
@@ -184,7 +183,7 @@ struct rnn_bwd_pd_t : public primitive_desc_t {
     typedef rnn_fwd_pd_t hint_class;
     static constexpr auto base_pkind = primitive_kind::rnn;
 
-    rnn_bwd_pd_t(mkldnn::impl::engine_t *engine, const rnn_desc_t *adesc,
+    rnn_bwd_pd_t(engine_t *engine, const rnn_desc_t *adesc,
             const rnn_fwd_pd_t *hint_fwd_pd)
         : primitive_desc_t(engine, primitive_kind::rnn)
         , desc_(*adesc)
@@ -197,7 +196,7 @@ struct rnn_bwd_pd_t : public primitive_desc_t {
     }
 
     virtual const memory_pd_t *input_pd(int index = 0) const override {
-        if (desc_.alg_kind == rnn_lstm) {
+        if (desc_.alg_kind == alg_kind::rnn_lstm) {
             if (desc_.state_outputs) {
                 switch (index) {
                 case 0: case 1: case 2: return src_pd(index);
@@ -236,7 +235,7 @@ struct rnn_bwd_pd_t : public primitive_desc_t {
         }
     }
     virtual const memory_pd_t *output_pd(int index = 0) const override {
-        if (desc_.alg_kind == rnn_lstm) {
+        if (desc_.alg_kind == alg_kind::rnn_lstm) {
             switch (index) {
             case 0: case 1: case 2: return diff_src_pd(index);
             case 3: return diff_weights_pd();
@@ -253,13 +252,13 @@ struct rnn_bwd_pd_t : public primitive_desc_t {
 
     virtual int n_inputs() const override {
         if (desc_.state_outputs)
-            if (desc_.alg_kind == rnn_lstm) {
+            if (desc_.alg_kind == alg_kind::rnn_lstm) {
                 return 7 + (workspace_pd() != nullptr);
             } else {
                 return 5 + (workspace_pd() != nullptr);
             }
         else {
-            if (desc_.alg_kind == rnn_lstm) {
+            if (desc_.alg_kind == alg_kind::rnn_lstm) {
                 return 5 + (workspace_pd() != nullptr);
             } else {
                 return 4 + (workspace_pd() != nullptr);
@@ -267,7 +266,7 @@ struct rnn_bwd_pd_t : public primitive_desc_t {
         }
     }
     virtual int n_outputs() const override
-    { return desc_.alg_kind == rnn_lstm ? 4 : 3; }
+    { return desc_.alg_kind == alg_kind::rnn_lstm ? 4 : 3; }
 
     virtual status_t query(query_t what, int idx, void *result) const override {
         switch (what) {
@@ -279,18 +278,18 @@ struct rnn_bwd_pd_t : public primitive_desc_t {
 
     /* common rnn aux functions */
 
-    inline size_t tau() const { return desc_.num_seqs; }
-    inline size_t layers() const { return desc_.num_layers; }
-    inline size_t hidden_size() const { return desc_.num_states; }
-    inline size_t direction() const {
+    size_t tau() const { return desc_.num_seqs; }
+    size_t layers() const { return desc_.num_layers; }
+    size_t hidden_size() const { return desc_.num_states; }
+    size_t direction() const {
         return (desc_.direction == rnn_direction::unidirectional) ? 1 : 2;
     }
-    inline size_t batch() const
+    size_t batch() const
     { return static_cast<size_t>(desc_.x_desc.dims[1]); }
-    inline size_t input_size() const
+    size_t input_size() const
     { return static_cast<size_t>(desc_.x_desc.dims[2]); }
-    inline int state_outputs() const { return desc_.state_outputs; }
-    inline int gates_num() const {
+    int state_outputs() const { return desc_.state_outputs; }
+    int gates_num() const {
         switch (desc_.alg_kind) {
         case alg_kind::rnn_relu: return 1;
         case alg_kind::rnn_tanh: return 1;
@@ -299,7 +298,7 @@ struct rnn_bwd_pd_t : public primitive_desc_t {
         default: return 0;
         }
     }
-    inline size_t w1_size() const {
+    size_t w1_size() const {
         size_t size = hidden_size() * (hidden_size() + input_size() + 2);
         switch (desc_.alg_kind) {
         case alg_kind::rnn_relu: size *= 1; break;
@@ -310,7 +309,7 @@ struct rnn_bwd_pd_t : public primitive_desc_t {
         }
         return size;
     }
-    inline size_t wx_size() const {
+    size_t wx_size() const {
         if (layers() > 1) {
             size_t size = hidden_size() * (hidden_size() + hidden_size() + 2);
             switch (desc_.alg_kind) {
@@ -324,22 +323,22 @@ struct rnn_bwd_pd_t : public primitive_desc_t {
         }
         return 0;
     }
-    inline size_t total_param_size() const {
+    size_t total_param_size() const {
         if (layers() > 1) {
             return direction() * (w1_size() + (layers() - 1) * wx_size());
         } else
             return direction() * w1_size();
     }
-    inline size_t h_size() const { return batch() * hidden_size(); }
-    inline size_t x_size() const { return batch() * input_size(); }
-    inline size_t h_nlayer_size() const { return h_size() * layers(); }
-    inline size_t gates_size() const { return h_size() * gates_num(); }
-    inline size_t gates_nlayer_size() const { return gates_size() * layers(); }
-    inline size_t gates_space_size() const
+    size_t h_size() const { return batch() * hidden_size(); }
+    size_t x_size() const { return batch() * input_size(); }
+    size_t h_nlayer_size() const { return h_size() * layers(); }
+    size_t gates_size() const { return h_size() * gates_num(); }
+    size_t gates_nlayer_size() const { return gates_size() * layers(); }
+    size_t gates_space_size() const
     { return gates_nlayer_size() * tau() * direction(); }
-    inline size_t h_space_size() const
+    size_t h_space_size() const
     { return h_nlayer_size() * tau() * direction(); }
-    inline size_t workspace_size() const {
+    size_t workspace_size() const {
         return gates_space_size()
             + (desc_.alg_kind == alg_kind::rnn_lstm ? 2 : 1) * h_space_size();
     }
