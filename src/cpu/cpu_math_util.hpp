@@ -19,6 +19,16 @@
 #include "c_types_map.hpp"
 #include "type_helpers.hpp"
 
+#if defined(_OPENMP)
+#if _OPENMP < 201307
+#define OMP_SIMD omp declare simd
+#define OMP_FOR_SIMD omp parallel for
+#else
+#define OMP_SIMD omp simd
+#define OMP_FOR_SIMD omp parallel for simd
+#endif // 
+#endif // _OPENMP
+
 namespace mkldnn {
 namespace impl {
 namespace cpu {
@@ -157,21 +167,27 @@ inline void omatcopy<data_type::f32>(char ordering, char trans, cblas_int rows,
 #endif // USE_MKL
 
 template <data_type_t data_type>
-#pragma omp declare simd
+#if defined(_OPENMP)
+#pragma OMP_SIMD
+#endif
 inline data_t<data_type> Pow(data_t<data_type> A, data_t<data_type> B);
 
 template <>
 inline float Pow<data_type::f32>(float A, float B) { return powf(A, B); }
 
 template <data_type_t data_type>
-#pragma omp declare simd
+#if defined(_OPENMP)
+#pragma OMP_SIMD
+#endif
 inline data_t<data_type> Sigmoid(data_t<data_type> A);
 
 template <>
 inline float Sigmoid<data_type::f32>(float A) { return 1 / (1 + expf(-A)); }
 
 template <data_type_t data_type>
-#pragma omp declare simd
+#if defined(_OPENMP)
+#pragma OMP_SIMD
+#endif
 inline data_t<data_type> Tanh(data_t<data_type> A);
 
 template <>

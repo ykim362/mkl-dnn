@@ -234,10 +234,10 @@ static void compare_data_woinfnan(mkldnn::memory& ref, mkldnn::memory& dst)
     for (size_t i = 0; i < num; ++i) {
         data_t ref = ref_data[i];
         data_t got = dst_data[i];
-        if (isinf(ref_data[i]) && isinf(dst_data[i])) {
+        if (std::isinf(ref_data[i]) && std::isinf(dst_data[i])) {
             continue;
         }
-        if (isnan(ref_data[i]) && isnan(dst_data[i])) {
+        if (std::isnan(ref_data[i]) && std::isnan(dst_data[i])) {
             continue;
         }
         data_t diff = got - ref;

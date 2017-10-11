@@ -38,12 +38,26 @@ using namespace mkldnn::impl::cpu::cpu_blas;
 using namespace mkldnn::impl::cpu::cpu_trans;
 #endif
 
+#if defined(_OPENMP)
+#if _OPENMP < 201307
+#define OMP_SIMD omp declare simd
+#define OMP_FOR_SIMD omp parallel for
+#else
+#define OMP_SIMD omp simd
+#define OMP_FOR_SIMD omp parallel for simd
+#endif // _OPENMP < 201307
+#endif // _OPENMP
+
 template <typename data_t>
-#pragma omp declare simd
+#if defined(_OPENMP)
+#pragma OMP_SIMD
+#endif
 inline void lstm_fwd_ele_wise(data_t *Gates, const data_t *Ct_1, data_t *Ct,
         data_t *Ht, size_t Length)
 {
-#pragma omp parallel for simd
+#if defined(_OPENMP)
+#pragma OMP_FOR_SIMD
+#endif
     for (size_t i = 0; i < Length; i++) {
         Gates[i] = Sigmoid<data_traits<data_t>::data_type>(Gates[i]);
         Gates[Length + i]
@@ -59,12 +73,16 @@ inline void lstm_fwd_ele_wise(data_t *Gates, const data_t *Ct_1, data_t *Ct,
 }
 
 template <typename data_t>
-#pragma omp declare simd
+#if defined(_OPENMP)
+#pragma OMP_SIMD
+#endif
 inline void lstm_bwd_ele_wise(const data_t *Gates, data_t *dGates,
         const data_t *Ct_1, data_t *dCt_1, const data_t *Ct, data_t *dCt,
         const data_t *dHt, size_t Length)
 {
-#pragma omp parallel for simd
+#if defined(_OPENMP)
+#pragma OMP_FOR_SIMD
+#endif
     for (size_t i = 0; i < Length; i++) {
         dCt[i] += (1 - Pow<data_traits<data_t>::data_type>(
                                Tanh<data_traits<data_t>::data_type>(Ct[i]), 2))
@@ -82,7 +100,9 @@ inline void lstm_bwd_ele_wise(const data_t *Gates, data_t *dGates,
 }
 
 template <typename data_t>
-#pragma omp declare simd
+#if defined(_OPENMP)
+#pragma OMP_SIMD
+#endif
 inline void lstm_fwd_prop_single(const size_t input_size,
         const size_t state_size, const size_t batch_size, const data_t *x,
         int tranx, const data_t *ht_1, int tranht_1, const data_t *ct_1,
@@ -96,7 +116,9 @@ inline void lstm_fwd_prop_single(const size_t input_size,
         omatcopy<data_traits<data_t>::data_type>('R', 'T', batch_size,
                 input_size, 1.0, x, input_size, tmp, batch_size);
     } else {
-#pragma omp parallel for simd
+#if defined(_OPENMP)
+#pragma OMP_FOR_SIMD
+#endif
         for (size_t ii = 0; ii < x_size; ++ii)
             tmp[ii] = x[ii];
     }
@@ -104,7 +126,9 @@ inline void lstm_fwd_prop_single(const size_t input_size,
         omatcopy<data_traits<data_t>::data_type>('R', 'T', batch_size,
                 state_size, 1.0, ht_1, state_size, tmp + x_size, batch_size);
     } else {
-#pragma omp parallel for simd
+#if defined(_OPENMP)
+#pragma OMP_FOR_SIMD
+#endif
         for (size_t ii = 0; ii < h_size; ++ii)
             tmp[ii + x_size] = ht_1[ii];
     }
@@ -149,7 +173,9 @@ inline void lstm_bwd_prop_single(const size_t input_size,
         omatcopy<data_traits<data_t>::data_type>('R', 'T', batch_size,
                 input_size, 1.0, x, input_size, tmp, batch_size);
     } else {
-#pragma omp parallel for simd
+#if defined(_OPENMP)
+#pragma OMP_FOR_SIMD
+#endif
         for (size_t ii = 0; ii < x_size; ++ii)
             tmp[ii] = x[ii];
     }
@@ -157,7 +183,9 @@ inline void lstm_bwd_prop_single(const size_t input_size,
         omatcopy<data_traits<data_t>::data_type>('R', 'T', batch_size,
                 state_size, 1.0, ht_1, state_size, tmp + x_size, batch_size);
     } else {
-#pragma omp parallel for simd
+#if defined(_OPENMP)
+#pragma OMP_FOR_SIMD
+#endif
         for (size_t ii = 0; ii < h_size; ++ii)
             tmp[ii + x_size] = ht_1[ii];
     }
@@ -391,7 +419,9 @@ inline void lstm_bwd_prop(const size_t seq_length, const size_t num_layers,
     const size_t dc_space_off = dh_space_off + h_space_size;
     const size_t tmp_space_off = dc_space_off + h_space_size;
 
-#pragma omp parallel for simd
+#if defined(_OPENMP)
+#pragma OMP_FOR_SIMD
+#endif
     for (size_t i = 0; i < 2 * h_space_size; i++)
         ts_[dh_space_off + i] = 0;
     size_t w_off = 0;
@@ -601,12 +631,16 @@ inline void rnn_fwd_ele_wise(const data_t *Gates, data_t *Ht,
 {
 #ifdef USE_MKL
     if (alg_kind == rnn_relu) {
-#pragma omp parallel for simd
+#if defined(_OPENMP)
+#pragma OMP_FOR_SIMD
+#endif
         for (size_t i = 0; i < Length; i++) {
             Ht[i] = (Gates[i] > 0.0) ? Gates[i] : 0.0;
         }
     } else if (alg_kind == rnn_tanh) {
-#pragma omp parallel for simd
+#if defined(_OPENMP)
+#pragma OMP_FOR_SIMD
+#endif
         for (size_t i = 0; i < Length; i++) {
             Ht[i] = Tanh<data_traits<data_t>::data_type>(Gates[i]);
         }
@@ -627,7 +661,9 @@ inline void rnn_fwd_prop_single(const size_t input_size,
         omatcopy<data_traits<data_t>::data_type>('R', 'T', batch_size,
                 input_size, 1.0, x, input_size, tmp, batch_size);
     } else {
-#pragma omp parallel for simd
+#if defined(_OPENMP)
+#pragma OMP_FOR_SIMD
+#endif
         for (size_t ii = 0; ii < x_size; ++ii)
             tmp[ii] = x[ii];
     }
@@ -635,7 +671,9 @@ inline void rnn_fwd_prop_single(const size_t input_size,
         omatcopy<data_traits<data_t>::data_type>('R', 'T', batch_size,
                 state_size, 1.0, ht_1, state_size, tmp + x_size, batch_size);
     } else {
-#pragma omp parallel for simd
+#if defined(_OPENMP)
+#pragma OMP_FOR_SIMD
+#endif
         for (size_t ii = 0; ii < h_size; ++ii)
             tmp[ii + x_size] = ht_1[ii];
     }
@@ -657,12 +695,16 @@ inline void rnn_bwd_ele_wise(const data_t *Gates, data_t *dGates,
 {
 #ifdef USE_MKL
     if (alg_kind == rnn_relu) {
-#pragma omp parallel for simd
+#if defined(_OPENMP)
+#pragma OMP_FOR_SIMD
+#endif
         for (size_t i = 0; i < Length; i++) {
             dGates[i] = (Gates[i] > 0.0) ? dHt[i] : 0.0;
         }
     } else if (alg_kind == rnn_tanh) {
-#pragma omp parallel for simd
+#if defined(_OPENMP)
+#pragma OMP_FOR_SIMD
+#endif
         for (size_t i = 0; i < Length; i++) {
             dGates[i] = (1.0 - Pow<data_traits<data_t>::data_type>(Gates[i], 2))
                     * dHt[i];
@@ -690,7 +732,9 @@ inline void rnn_bwd_prop_single(const size_t input_size,
         omatcopy<data_traits<data_t>::data_type>('R', 'T', batch_size,
                 input_size, 1.0, x, input_size, tmp, batch_size);
     } else {
-#pragma omp parallel for simd
+#if defined(_OPENMP)
+#pragma OMP_FOR_SIMD
+#endif
         for (size_t ii = 0; ii < x_size; ++ii)
             tmp[ii] = x[ii];
     }
@@ -698,7 +742,9 @@ inline void rnn_bwd_prop_single(const size_t input_size,
         omatcopy<data_traits<data_t>::data_type>('R', 'T', batch_size,
                 state_size, 1.0, ht_1, state_size, tmp + x_size, batch_size);
     } else {
-#pragma omp parallel for simd
+#if defined(_OPENMP)
+#pragma OMP_FOR_SIMD
+#endif
         for (size_t ii = 0; ii < h_size; ++ii)
             tmp[ii + x_size] = ht_1[ii];
     }

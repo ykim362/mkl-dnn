@@ -72,6 +72,7 @@ struct pgemm_rnn_fwd_t : public cpu_primitive_t {
             const output_vector &outputs)
         : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd), ts_(nullptr)
     {
+#ifdef USE_MKL
         auto insize = conf_.input_size() > conf_.hidden_size()
             ? conf_.input_size() : conf_.hidden_size();
         auto tmp = insize + conf_.hidden_size() + 2;
@@ -92,10 +93,12 @@ struct pgemm_rnn_fwd_t : public cpu_primitive_t {
                     = cpu_blas::cblas_gemm_alloc<data_type>(CblasAMatrix,
                             m, conf_.batch(), (in_size + conf_.hidden_size() + 2));
         }
+#endif // USE_MKL
     }
 
     ~pgemm_rnn_fwd_t()
     {
+#ifdef USE_MKL
         if (weights_pack_)
         {
             size_t total_layers = conf_.layers() * conf_.direction();
@@ -105,18 +108,21 @@ struct pgemm_rnn_fwd_t : public cpu_primitive_t {
             delete[] weights_pack_;
         }
         if (ts_) free(ts_);
+#endif // USE_MKL
     }
 
     typedef typename prec_traits<data_type>::type data_t;
 
     virtual void execute(event_t *e)
     {
+#ifdef USE_MKL
         switch (conf_.desc()->prop_kind) {
         case prop_kind::forward_training:
         case prop_kind::forward_inference: execute_forward(); break;
         default: assert(!"invalid prop_kind");
         }
         e->set_state(event_t::ready);
+#endif // USE_MKL
     }
 
 private:
@@ -180,6 +186,7 @@ struct pgemm_rnn_bwd_t : public cpu_primitive_t {
             const output_vector &outputs)
         : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd), ts_(nullptr)
     {
+#ifdef USE_MKL
         auto bsize = conf_.input_size() > conf_.hidden_size()
             ? conf_.input_size() : conf_.hidden_size();
         auto tmp1 = bsize + conf_.hidden_size() + 2;
@@ -201,10 +208,12 @@ struct pgemm_rnn_bwd_t : public cpu_primitive_t {
                     = cpu_blas::cblas_gemm_alloc<data_type>(CblasAMatrix,
                             m, conf_.batch(), (in_size + conf_.hidden_size() + 2));
         }
+#endif // USE_MKL
     }
 
     ~pgemm_rnn_bwd_t()
     {
+#ifdef USE_MKL
         if (weights_pack_)
         {
             size_t total_layers = conf_.layers() * conf_.direction();
@@ -214,17 +223,20 @@ struct pgemm_rnn_bwd_t : public cpu_primitive_t {
             delete[] weights_pack_;
         }
         if (ts_) free(ts_);
+#endif // USE_MKL
     }
 
     typedef typename prec_traits<data_type>::type data_t;
 
     virtual void execute(event_t *e)
     {
+#ifdef USE_MKL
         switch (conf_.desc()->prop_kind) {
         case prop_kind::backward: execute_backward(); break;
         default: assert(!"invalid prop_kind");
         }
         e->set_state(event_t::ready);
+#endif // USE_MKL
     }
 
 private:
