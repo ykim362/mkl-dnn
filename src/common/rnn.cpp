@@ -33,8 +33,8 @@ using namespace mkldnn::impl::types;
 namespace {
 status_t rnn_desc_init(rnn_desc_t *rnn_desc, prop_kind_t prop_kind,
         alg_kind_t alg_kind, rnn_direction_t direction,
-        rnn_input_mode_t input_mode, size_t num_states, size_t num_layers,
-        size_t num_seqs, int state_outputs, const memory_desc_t *x_desc,
+        rnn_input_mode_t input_mode, int num_states, int num_layers,
+        int num_seqs, int state_outputs, const memory_desc_t *x_desc,
         const memory_desc_t *hx_desc, const memory_desc_t *y_desc,
         const memory_desc_t *weights_desc)
 {
@@ -53,10 +53,10 @@ status_t rnn_desc_init(rnn_desc_t *rnn_desc, prop_kind_t prop_kind,
             && y_desc->ndims == 3 && x_desc->dims[0] == y_desc->dims[0]
             && x_desc->dims[1] == y_desc->dims[1]
             && hx_desc->dims[1] == y_desc->dims[1]
-            && y_desc->dims[2] == dir * static_cast<int>(num_states)
-            && x_desc->dims[0] == static_cast<int>(num_seqs)
-            && hx_desc->dims[0] == static_cast<int>(num_layers)
-            && hx_desc->dims[2] == static_cast<int>(num_states);
+            && y_desc->dims[2] == dir * num_states
+            && x_desc->dims[0] == num_seqs
+            && hx_desc->dims[0] == num_layers
+            && hx_desc->dims[2] == num_states;
     if (!consistency)
         return invalid_arguments;
 
@@ -83,8 +83,8 @@ status_t rnn_desc_init(rnn_desc_t *rnn_desc, prop_kind_t prop_kind,
 
 status_t mkldnn_rnn_forward_desc_init(rnn_desc_t *rnn_desc,
         prop_kind_t prop_kind, alg_kind_t alg_kind, rnn_direction_t direction,
-        rnn_input_mode_t input_mode, size_t num_states, size_t num_layers,
-        size_t num_seqs, int state_outputs, const memory_desc_t *x_desc,
+        rnn_input_mode_t input_mode, int num_states, int num_layers,
+        int num_seqs, int state_outputs, const memory_desc_t *x_desc,
         const memory_desc_t *hx_desc, const memory_desc_t *y_desc,
         const memory_desc_t *weights_desc)
 {
@@ -95,8 +95,8 @@ status_t mkldnn_rnn_forward_desc_init(rnn_desc_t *rnn_desc,
 
 status_t mkldnn_rnn_backward_desc_init(rnn_desc_t *rnn_desc,
         prop_kind_t prop_kind, alg_kind_t alg_kind, rnn_direction_t direction,
-        rnn_input_mode_t input_mode, size_t num_states, size_t num_layers,
-        size_t num_seqs, int state_outputs, const memory_desc_t *x_desc,
+        rnn_input_mode_t input_mode, int num_states, int num_layers,
+        int num_seqs, int state_outputs, const memory_desc_t *x_desc,
         const memory_desc_t *hx_desc, const memory_desc_t *y_desc,
         const memory_desc_t *weights_desc)
 {

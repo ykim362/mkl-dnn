@@ -676,11 +676,11 @@ typedef struct {
      * #mkldnn_rnn_linear_input, #mkldnn_rnn_skip_input.*/
     mkldnn_rnn_input_mode_t input_mode;
     /** The number of hidden states in one cell */
-    size_t num_states;
+    int num_states;
     /** The number of layers in entire RNN network */
-    size_t num_layers;
+    int num_layers;
     /** The length of sequences in entire RNN network */
-    size_t num_seqs;
+    int num_seqs;
     /** state and cell output in entire RNN network */
     int state_outputs;
     /** Input(x) memory descriptor. [seq, batch, input_size] */

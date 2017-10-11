@@ -692,8 +692,8 @@ mkldnn_status_t MKLDNN_API mkldnn_convolution_relu_desc_init(
 mkldnn_status_t MKLDNN_API mkldnn_rnn_forward_desc_init(
         mkldnn_rnn_desc_t *rnn_desc, mkldnn_prop_kind_t prop_kind,
         mkldnn_alg_kind_t alg_kind, mkldnn_rnn_direction_t direction,
-        mkldnn_rnn_input_mode_t input_mode, size_t num_states,
-        size_t num_layers, size_t num_seqs, int state_outputs,
+        mkldnn_rnn_input_mode_t input_mode, int num_states,
+        int num_layers, int num_seqs, int state_outputs,
         const mkldnn_memory_desc_t *x_desc,
         const mkldnn_memory_desc_t *hx_desc,
         const mkldnn_memory_desc_t *y_desc,
@@ -710,8 +710,8 @@ mkldnn_status_t MKLDNN_API mkldnn_rnn_forward_desc_init(
 mkldnn_status_t MKLDNN_API mkldnn_rnn_backward_desc_init(
         mkldnn_rnn_desc_t *rnn_desc, mkldnn_prop_kind_t prop_kind,
         mkldnn_alg_kind_t alg_kind, mkldnn_rnn_direction_t direction,
-        mkldnn_rnn_input_mode_t input_mode, size_t num_states,
-        size_t num_layers, size_t num_seqs, int state_outputs,
+        mkldnn_rnn_input_mode_t input_mode, int num_states,
+        int num_layers, int num_seqs, int state_outputs,
         const mkldnn_memory_desc_t *x_desc,
         const mkldnn_memory_desc_t *hx_desc,
         const mkldnn_memory_desc_t *y_desc,
