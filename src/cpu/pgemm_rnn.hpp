@@ -44,10 +44,11 @@ struct pgemm_rnn_fwd_t : public cpu_primitive_t {
             assert(engine()->kind() == engine_kind::cpu);
             bool ok = true
                 && this->set_default_params() == status::success
-                && utils::one_of(desc()->prop_kind, prop_kind::forward_training,
+                && utils::one_of(desc()->prop_kind,
+                        prop_kind::forward_training,
                         prop_kind::forward_inference)
-                && utils::one_of(desc()->alg_kind, alg_kind::rnn_relu, alg_kind::rnn_tanh,
-                        alg_kind::rnn_lstm)
+                && utils::one_of(desc()->alg_kind, alg_kind::rnn_relu,
+                        alg_kind::rnn_tanh, alg_kind::rnn_lstm)
                 && utils::everyone_is(data_type, desc()->x_desc.data_type,
                         desc()->hx_desc.data_type, desc()->y_desc.data_type,
                         desc()->weights_desc.data_type);
@@ -91,7 +92,8 @@ struct pgemm_rnn_fwd_t : public cpu_primitive_t {
             if (conf_.desc()->alg_kind == alg_kind::rnn_lstm) m *= 4;
             weights_pack_[ii]
                     = cpu_blas::cblas_gemm_alloc<data_type>(CblasAMatrix,
-                            m, conf_.batch(), (in_size + conf_.hidden_size() + 2));
+                            m, conf_.batch(),
+                            (in_size + conf_.hidden_size() + 2));
         }
 #endif // USE_MKL
     }
@@ -147,8 +149,8 @@ struct pgemm_rnn_bwd_t : public cpu_primitive_t {
             bool ok = true
                 && this->set_default_params() == status::success
                 && utils::one_of(desc()->prop_kind, prop_kind::backward)
-                && utils::one_of(desc()->alg_kind, alg_kind::rnn_relu, alg_kind::rnn_tanh,
-                        alg_kind::rnn_lstm)
+                && utils::one_of(desc()->alg_kind, alg_kind::rnn_relu,
+                        alg_kind::rnn_tanh, alg_kind::rnn_lstm)
                 && utils::everyone_is(data_type, desc()->x_desc.data_type,
                         desc()->hx_desc.data_type, desc()->y_desc.data_type,
                         desc()->weights_desc.data_type);
@@ -206,7 +208,8 @@ struct pgemm_rnn_bwd_t : public cpu_primitive_t {
             if (conf_.desc()->alg_kind == alg_kind::rnn_lstm) m *= 4;
             weights_pack_[ii]
                     = cpu_blas::cblas_gemm_alloc<data_type>(CblasAMatrix,
-                            m, conf_.batch(), (in_size + conf_.hidden_size() + 2));
+                            m, conf_.batch(),
+                            (in_size + conf_.hidden_size() + 2));
         }
 #endif // USE_MKL
     }
