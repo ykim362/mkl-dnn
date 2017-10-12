@@ -45,12 +45,12 @@ The usage:
 
 where *harness-knobs* are:
 
- - `--cfg={f32, u8s8s32u8, ...}` configuration (see below), default `f32`
+ - `--cfg={f32, u8s8u8s32, ...}` configuration (see below), default `f32`
  - `--dir={FWD_D (forward data), FWD_B (forward data + bias), BWD_D (backward data), BWD_W (backward weights), BWD_WB (backward weights + bias)}` direction, default `FWD_B`
  - `--alg={DIRECT, WINO}` convolution algorithm, default DIRECT
  - `--merge={NONE, RELU}` merged primitive, default NONE (nothing merged)
  - `--mb=N` override minibatch that is specified in convolution description, default `0` (use mb specified in conv desc)
- - `--match=regex` check only convolutions that match with regex, default is `".*"`
+ - `--match=regex` check only convolutions that match with regex, default is `".*"`. Notice: Windows may only interpret string arguments surrounded by double quotation marks.
  - `--skip-impl="str1[:str2]...` skip implementation (see mkldnn_query_impl_info_str), default `""`
  - `--allow-unimpl=true|false` do not treat unimplemented configuration as an error, default `false`
  - `--perf-template=template-str` set template for performance report (see section *Performance measurements*)
@@ -83,13 +83,15 @@ want keep it 0 and it seems to work for now).
 The table below shows cases supported by Intel MKL-DNN and corresponding
 configurations for **benchdnn**:
 
-|src type | wei type | acc type | dst type | cfg        | notes
-|:---     |:---      |:---      |:---      |:---        |:---
-| f32     | f32      | f32      | f32      | f32        | inference optimized for sse4.2+, training avx2+
-| s16     | s16      | s32      | s32      | s16s32     | optimized for processors with support of 4vnni
-| u8      | s8       | s32      | s32      | u8s8s32s32 | optimized for processors with support of avx512vl
-| u8      | s8       | s32      | s8       | u8s8s32s8  | same as u8s8s32s32
-| u8      | s8       | s32      | u8       | u8s8s32u8  | same as u8s8s32s32
+|src type | wei type | dst type | acc type | cfg          | notes
+|:---     |:---      |:---      |:---      |:---          |:---
+| f32     | f32      | f32      | f32      | f32          | inference optimized for sse4.2+, training avx2+
+| s16     | s16      | s32      | s32      | s16s16s32s32 | optimized for processors with support of 4vnni, forward pass only (aka FWD_D, FWD_B)
+| s32     | s16      | s16      | s32      | s32s16s16s32 | optimized for processors with support of 4vnni, backward wrt data only (aka BWD_D)
+| s16     | s32      | s16      | s32      | s16s32s16s32 | optimized for processors with support of 4vnni, backward wrt weights (aka BWD_W, BWD_WB)
+| u8      | s8       | s32      | s32      | u8s8s32s32   | optimized for processors with support of avx512vl, forward pass only (aka FWD_D, FWD_B)
+| u8      | s8       | s8       | s32      | u8s8s8s32    | same notes as for u8s8s32s32
+| u8      | s8       | u8       | s32      | u8s8u8s32    | same notes as for u8s8s32s32
 
 
 ## Performance measurements
@@ -106,11 +108,11 @@ table of modifiers below.
 | abbreviation  | description
 |:------------  |:-----------
 | %d            | problem descriptor
+| %D            | expanded problem descriptor (conv parameters in csv format)
 | %n            | problem name
-| %@F           | effective cpu frequency computed as clocks[@] / time[@]
+| %z            | direction
 | %O            | number of ops required (padding is not taken into account)
 | %@t           | time in ms
-| %@c           | time in clocks
 | %@p           | ops per second
 
 | modifier  | description
@@ -124,15 +126,17 @@ table of modifiers below.
 | M         | Mega (1e6)
 | G         | Giga (1e9)
 
+The definition of expanded problem descriptor is:
+`g,mb,ic,ih,iw,oc,oh,ow,kh,kw,sh,sw,ph,pw`.
+
 The default template can be found in conv/bench_conv.cpp that is defined as
-`perf,%n,%d,%GO,%GF,%-t,%-Gp,%0t,%0Gp`. That will produce the following output
+`perf,%n,%d,%GO,%-t,%-Gp,%0t,%0Gp`. That will produce the following output
 in CSV format:
 ```
 string: perf
 convolution name
 full conv-desc
 number of giga ops calculated
-effective cpu frequency in GHz (amb clocks[min] / time[min])
 minimum time spent in ms
 best gigaops (since it corresponds to mimimum time)
 average time spent in ms
@@ -168,21 +172,21 @@ verbose level set to 2:
         --cfg=f32 --dir=BWD_W --match='.*kh3[^0-9].*'
 ```
 
-Run the default set of u8s8s32u8 backward convolutions wrt data but skip all
+Run the default set of u8s8u8s32 backward convolutions wrt data but skip all
 the convolutions that will use reference or gemm-based implementation:
 ```
     $ ./benchdnn --conv \
-        --cfg=u8s8s32u8 --dir=BWD_B --skip-impl='ref:gemm'
+        --cfg=u8s8u8s32 --dir=BWD_B --skip-impl='ref:gemm'
 ```
 
 Run explicitly specified 1st forward convolution (including bias) from Alexnet
 with the minibatch set to 4, verbose level set to 1 for two given
-configurations (`u8s8s32u8` and `f32`):
+configurations (`u8s8u8s32` and `f32`):
 ```
     $ ./benchdnn --conv -v1 \
         --mb=4 --dir=FWD_B \
-        --prec=u8s8s32u8 ic3ih227iw227_oc96oh55ow55_kh11kw11_sh4sw4ph0pw0_n"alexnet:conv1" \
-        --prec=f32 ic3ih227iw227_oc96oh55ow55_kh11kw11_sh4sw4ph0pw0_n"alexnet:conv1"
+        --cfg=u8s8u8s32 ic3ih227iw227_oc96oh55ow55_kh11kw11_sh4sw4ph0pw0_n"alexnet:conv1" \
+        --cfg=f32 ic3ih227iw227_oc96oh55ow55_kh11kw11_sh4sw4ph0pw0_n"alexnet:conv1"
 ```
 
 Run batch file for different algorithms (assuming the file only specifies

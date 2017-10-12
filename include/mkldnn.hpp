@@ -24,6 +24,8 @@
 #include <vector>
 #include <algorithm>
 #include <iterator>
+
+#include "mkldnn.h"
 #endif
 
 namespace mkldnn {
@@ -85,10 +87,6 @@ public:
     bool operator==(const handle &other) const { return other._data.get() == _data.get(); }
     bool operator!=(const handle &other) const { return !(*this == other); }
 };
-
-#ifndef DOXYGEN_SHOULD_SKIP_THIS
-#include "mkldnn.h"
-#endif
 
 template <> struct handle_traits<mkldnn_primitive_t> {
     static constexpr auto destructor = &mkldnn_primitive_destroy;
@@ -349,6 +347,7 @@ struct memory: public primitive  {
         io = mkldnn_io,
         oihw = mkldnn_oihw,
         ihwo = mkldnn_ihwo,
+        hwio = mkldnn_hwio,
         oIhw8i = mkldnn_oIhw8i,
         oIhw16i = mkldnn_oIhw16i,
         OIhw8i8o = mkldnn_OIhw8i8o,
@@ -357,6 +356,8 @@ struct memory: public primitive  {
         OIhw16o16i = mkldnn_OIhw16o16i,
         OIhw8i16o2i = mkldnn_OIhw8i16o2i,
         OIhw8o16i2o = mkldnn_OIhw8o16i2o,
+        Oihw8o = mkldnn_Oihw8o,
+        Oihw16o = mkldnn_Oihw16o,
         Ohwi8o = mkldnn_Ohwi8o,
         Ohwi16o = mkldnn_Ohwi16o,
         OhIw16o4i = mkldnn_OhIw16o4i,
@@ -365,6 +366,8 @@ struct memory: public primitive  {
         gOIhw16i16o = mkldnn_gOIhw16i16o,
         gOIhw8i16o2i = mkldnn_gOIhw8i16o2i,
         gOIhw8o16i2o = mkldnn_gOIhw8o16i2o,
+        gOihw8o = mkldnn_gOihw8o,
+        gOihw16o = mkldnn_gOihw16o,
         gOhwi8o = mkldnn_gOhwi8o,
         gOhwi16o = mkldnn_gOhwi16o,
         gOIhw8o8i = mkldnn_gOIhw8o8i,
@@ -387,9 +390,9 @@ struct memory: public primitive  {
                 format aformat) {
             validate_dims(adims);
             error::wrap_c_api(
-                    mkldnn_memory_desc_init(&data, adims.size(),
+                    mkldnn_memory_desc_init(&data, (int)adims.size(),
                         adims.size() == 0 ? nullptr : &adims[0],
-                         convert_to_c(adata_type), convert_to_c(aformat)),
+                        convert_to_c(adata_type), convert_to_c(aformat)),
                     "could not initialize a memory descriptor");
         }
 
@@ -421,8 +424,6 @@ struct memory: public primitive  {
             auto memory_d = mkldnn_primitive_desc_query_memory_d(get());
             return memory::desc(*memory_d); }
 
-        /// Returns the number of data elements in the memory described.
-        ///
         /// Returns the number of bytes required to allocate the memory described
         /// including the padding area.
         size_t get_size() const {
@@ -572,6 +573,13 @@ enum algorithm {
     eltwise_relu = mkldnn_eltwise_relu,
     eltwise_tanh = mkldnn_eltwise_tanh,
     eltwise_elu = mkldnn_eltwise_elu,
+    eltwise_square = mkldnn_eltwise_square,
+    eltwise_abs = mkldnn_eltwise_abs,
+    eltwise_sqrt = mkldnn_eltwise_sqrt,
+    eltwise_linear = mkldnn_eltwise_linear,
+    eltwise_bounded_relu = mkldnn_eltwise_bounded_relu,
+    eltwise_soft_relu = mkldnn_eltwise_soft_relu,
+    eltwise_logistic = mkldnn_eltwise_logistic,
     lrn_across_channels = mkldnn_lrn_across_channels,
     lrn_within_channel  = mkldnn_lrn_within_channel,
     rnn_relu = mkldnn_rnn_relu,
@@ -719,7 +727,7 @@ struct concat : public primitive {
             auto c_api_inputs = cpp_to_c(inputs);
 
             error::wrap_c_api(mkldnn_concat_primitive_desc_create(
-                    &result, &output.data, c_api_inputs.size(),
+                    &result, &output.data, (int)c_api_inputs.size(),
                     concat_dimension, &c_api_inputs[0]),
                 "could not create a concat primitive descriptor");
             reset(result);
@@ -732,8 +740,8 @@ struct concat : public primitive {
             auto c_api_inputs = cpp_to_c(inputs);
 
             error::wrap_c_api(mkldnn_concat_primitive_desc_create(
-                    &result, nullptr, c_api_inputs.size(), concat_dimension,
-                    &c_api_inputs[0]),
+                    &result, nullptr, (int)c_api_inputs.size(),
+                    concat_dimension, &c_api_inputs[0]),
                 "could not create a concat primitive descriptor");
             reset(result);
         }
@@ -788,7 +796,7 @@ struct sum : public primitive {
             auto c_api_inputs = cpp_to_c(inputs);
 
             error::wrap_c_api(mkldnn_sum_primitive_desc_create(
-                    &result, &output.data, c_api_inputs.size(),
+                    &result, &output.data, (int)c_api_inputs.size(),
                     &scale[0], &c_api_inputs[0]),
                 "could not create a sum primitive descriptor");
             reset(result);
@@ -801,7 +809,7 @@ struct sum : public primitive {
             auto c_api_inputs = cpp_to_c(inputs);
 
             error::wrap_c_api(mkldnn_sum_primitive_desc_create(
-                    &result, nullptr, c_api_inputs.size(), &scale[0],
+                    &result, nullptr, (int)c_api_inputs.size(), &scale[0],
                     &c_api_inputs[0]),
                 "could not create a sum primitive descriptor");
             reset(result);
@@ -1107,6 +1115,27 @@ struct convolution_backward_data : public primitive {
                         mkldnn::convert_to_c(apadding_kind)),
                     "could not create a convolution backward data descriptor");
         }
+        desc(algorithm aalgorithm,
+                const memory::desc &diff_src_desc,
+                const memory::desc &weights_desc,
+                const memory::desc &diff_dst_desc,
+                const memory::dims strides,
+                const memory::dims dilates,
+                const memory::dims padding_l,
+                const memory::dims padding_r,
+                const padding_kind apadding_kind) {
+            memory::validate_dims(strides);
+            memory::validate_dims(dilates);
+            memory::validate_dims(padding_l);
+            memory::validate_dims(padding_r);
+            error::wrap_c_api(
+                mkldnn_dilated_convolution_backward_data_desc_init(
+                    &data, convert_to_c(aalgorithm), &diff_src_desc.data,
+                    &weights_desc.data, &diff_dst_desc.data,
+                    &strides[0], &dilates[0], &padding_l[0], &padding_r[0],
+                    mkldnn::convert_to_c(apadding_kind)),
+                    "could not create a convolution backward data descriptor");
+        }
     };
     struct primitive_desc : public handle<mkldnn_primitive_desc_t> {
         primitive_desc(const desc &adesc, const engine &aengine,
@@ -1212,6 +1241,49 @@ struct convolution_backward_weights : public primitive {
                         mkldnn::convert_to_c(apadding_kind)),
                     "could not create a convolution backward weights descriptor");
         }
+        desc(algorithm aalgorithm,
+                const memory::desc &src_desc,
+                const memory::desc &diff_weights_desc,
+                const memory::desc &diff_bias_desc,
+                const memory::desc &diff_dst_desc,
+                const memory::dims strides,
+                const memory::dims dilates,
+                const memory::dims padding_l,
+                const memory::dims padding_r,
+                const padding_kind apadding_kind) {
+            memory::validate_dims(strides);
+            memory::validate_dims(dilates);
+            memory::validate_dims(padding_l);
+            memory::validate_dims(padding_r);
+            error::wrap_c_api(mkldnn_dilated_convolution_backward_weights_desc_init(
+                        &data, convert_to_c(aalgorithm), &src_desc.data,
+                        &diff_weights_desc.data, &diff_bias_desc.data,
+                        &diff_dst_desc.data,
+                        &strides[0], &dilates[0], &padding_l[0], &padding_r[0],
+                        mkldnn::convert_to_c(apadding_kind)),
+                    "could not create a convolution backward weights descriptor");
+        }
+        desc(algorithm aalgorithm,
+                const memory::desc &src_desc,
+                const memory::desc &diff_weights_desc,
+                const memory::desc &diff_dst_desc,
+                const memory::dims strides,
+                const memory::dims dilates,
+                const memory::dims padding_l,
+                const memory::dims padding_r,
+                const padding_kind apadding_kind) {
+            memory::validate_dims(strides);
+            memory::validate_dims(dilates);
+            memory::validate_dims(padding_l);
+            memory::validate_dims(padding_r);
+            error::wrap_c_api(mkldnn_dilated_convolution_backward_weights_desc_init(
+                        &data, convert_to_c(aalgorithm), &src_desc.data,
+                        &diff_weights_desc.data, nullptr, &diff_dst_desc.data,
+                        &strides[0], &dilates[0],  &padding_l[0], &padding_r[0],
+                        mkldnn::convert_to_c(apadding_kind)),
+                    "could not create a convolution backward weights descriptor");
+        }
+
     };
 
     struct primitive_desc : public handle<mkldnn_primitive_desc_t> {

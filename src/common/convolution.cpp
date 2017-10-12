@@ -77,10 +77,8 @@ status_t conv_desc_init(convolution_desc_t *conv_desc,
         utils::array_set(cd.dilates, 0, sp_dims);
 
     cd.padding_kind = padding_kind;
-    cd.accum_data_type = types::default_accum_data_type(
-       (prop_kind == backward_data) ? dst_desc->data_type:src_desc->data_type,
-        weights_desc->data_type,
-       (prop_kind == backward_data) ? src_desc->data_type:dst_desc->data_type);
+    cd.accum_data_type = types::default_accum_data_type(src_desc->data_type,
+            weights_desc->data_type, dst_desc->data_type, prop_kind);
 
     const int g = with_groups ? weights_desc->dims[0] : 1;
 
@@ -150,6 +148,17 @@ status_t mkldnn_convolution_backward_data_desc_init(
             padding_l, padding_r, padding_kind);
 }
 
+status_t mkldnn_dilated_convolution_backward_data_desc_init(
+        convolution_desc_t *conv_desc, alg_kind_t alg_kind,
+        const memory_desc_t *diff_src_desc, const memory_desc_t *weights_desc,
+        const memory_desc_t *diff_dst_desc, const dims_t strides,
+        const dims_t dilates, const dims_t padding_l, const dims_t padding_r,
+        padding_kind_t padding_kind) {
+    return conv_desc_init(conv_desc, backward_data, alg_kind, diff_src_desc,
+            weights_desc, nullptr, diff_dst_desc, strides, dilates,
+            padding_l, padding_r, padding_kind);
+}
+
 status_t mkldnn_convolution_backward_weights_desc_init(
         convolution_desc_t *conv_desc, alg_kind_t alg_kind,
         const memory_desc_t *src_desc, const memory_desc_t *diff_weights_desc,
@@ -160,6 +169,18 @@ status_t mkldnn_convolution_backward_weights_desc_init(
     return conv_desc_init(conv_desc, backward_weights, alg_kind, src_desc,
             diff_weights_desc, diff_bias_desc, diff_dst_desc, strides,
             nullptr, padding_l, padding_r, padding_kind);
+}
+
+status_t mkldnn_dilated_convolution_backward_weights_desc_init(
+        convolution_desc_t *conv_desc, alg_kind_t alg_kind,
+        const memory_desc_t *src_desc, const memory_desc_t *diff_weights_desc,
+        const memory_desc_t *diff_bias_desc,
+        const memory_desc_t *diff_dst_desc, const dims_t strides,
+        const dims_t dilates, const dims_t padding_l, const dims_t padding_r,
+        padding_kind_t padding_kind) {
+    return conv_desc_init(conv_desc, backward_weights, alg_kind, src_desc,
+            diff_weights_desc, diff_bias_desc, diff_dst_desc, strides,
+            dilates, padding_l, padding_r, padding_kind);
 }
 
 // vim: et ts=4 sw=4 cindent cino^=l0,\:0,N-s

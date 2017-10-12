@@ -29,6 +29,20 @@ namespace mkldnn {
 namespace impl {
 namespace cpu {
 
+namespace {
+/** Can be more complicated to support other OSes
+ * (e.g. without JIT support, no mayiuse available).
+ * Some compilers (gcc) still insist on one-liner returns here :( */
+template<bool run_jit, cpu_isa_t isa>
+static inline bool constexpr _gemm_convolution_implemented() {
+#if defined(USE_MKL) || defined(USE_CBLAS)
+    return run_jit ? mayiuse(isa) : true;
+#else
+    return run_jit ? mayiuse(isa) : false;
+#endif
+}
+}
+
 template <bool with_relu, bool run_jit, cpu_isa_t isa>
 struct _gemm_convolution_fwd_t: public cpu_primitive_t {
     struct pd_t: public _cpu_convolution_fwd_pd_t<with_relu> {
@@ -46,21 +60,11 @@ struct _gemm_convolution_fwd_t: public cpu_primitive_t {
 
             assert(this->engine()->kind() == engine_kind::cpu);
 
-            if (run_jit) {
-                if (!mayiuse(isa)) return status::unimplemented;
-            } else {
-#ifndef USE_CBLAS
-                return status::unimplemented;
-#endif
-            }
-
             bool ok = true
+                && _gemm_convolution_implemented<run_jit, isa>()
                 && this->set_default_params() == status::success
                 && utils::one_of(this->cdesc_().prop_kind, forward_training,
                         forward_inference)
-                && utils::implication(
-                        this->base_pkind == primitive_kind::convolution_relu,
-                        this->cdesc_().prop_kind == forward_inference)
                 && this->cdesc_().alg_kind == alg_kind::convolution_direct
                 && utils::everyone_is(data_type::f32,
                         this->cdesc_().src_desc.data_type,
@@ -160,15 +164,8 @@ struct _gemm_convolution_bwd_data_t: public cpu_primitive_t {
 
             assert(this->engine()->kind() == engine_kind::cpu);
 
-            if (run_jit) {
-                if (!mayiuse(isa)) return status::unimplemented;
-            } else {
-#ifndef USE_CBLAS
-                return status::unimplemented;
-#endif
-            }
-
             bool ok = true
+                && _gemm_convolution_implemented<run_jit, isa>()
                 && this->set_default_params() == status::success
                 && utils::one_of(this->desc()->prop_kind, backward,
                         backward_data)
@@ -180,7 +177,9 @@ struct _gemm_convolution_bwd_data_t: public cpu_primitive_t {
                 && this->diff_src_pd_.desc()->format == nchw
                 && this->diff_dst_pd_.desc()->format == nchw
                 && this->weights_pd_.desc()->format == (this->with_groups()
-                        ? goihw : oihw);
+                        ? goihw : oihw)
+                && this->desc()->dilates[0] == 0
+                && this->desc()->dilates[1] == 0;
             return ok ? status::success : status::unimplemented;
         }
 
@@ -268,15 +267,8 @@ struct _gemm_convolution_bwd_weights_t: public cpu_primitive_t {
 
             assert(this->engine()->kind() == engine_kind::cpu);
 
-            if (run_jit) {
-                if (!mayiuse(isa)) return status::unimplemented;
-            } else {
-#ifndef USE_CBLAS
-                return status::unimplemented;
-#endif
-            }
-
             bool ok = true
+            && _gemm_convolution_implemented<run_jit, isa>()
             && this->set_default_params() == status::success
             && utils::one_of(this->desc()->prop_kind, backward,
                     backward_weights)
@@ -290,7 +282,9 @@ struct _gemm_convolution_bwd_weights_t: public cpu_primitive_t {
             && this->src_pd_.desc()->format == nchw
             && this->diff_dst_pd_.desc()->format == nchw
             && this->diff_weights_pd_.desc()->format == (this->with_groups()
-                    ? goihw : oihw);
+                    ? goihw : oihw)
+            && this->desc()->dilates[0] == 0
+            && this->desc()->dilates[1] == 0;
             return ok ? status::success : status::unimplemented;
         }
 
@@ -325,7 +319,7 @@ struct _gemm_convolution_bwd_weights_t: public cpu_primitive_t {
         jit_gemm_convolution_utils::init_conf(conf_.jcp_,
             *(conf_.desc()), conf_.src_pd(), conf_.diff_weights_pd(0),
             conf_.diff_dst_pd());
-          const memory_desc_wrapper weights_d(conf_.diff_weights_pd(0));
+        const memory_desc_wrapper weights_d(conf_.diff_weights_pd(0));
         jit_gemm_convolution_utils::prepare_workspace(this->conf_.jcp_,
             &this->ws, true, weights_d.size());
     }

@@ -28,6 +28,12 @@
 #define OK 0
 #define FAIL 1
 
+#ifdef _WIN32
+#define strncasecmp _strnicmp
+#define strcasecmp _stricmp
+#define __PRETTY_FUNCTION__ __FUNCSIG__
+#endif
+
 enum { CRIT = 1, WARN = 2 };
 
 #define SAFE(f, s) do { \
@@ -43,6 +49,8 @@ enum { CRIT = 1, WARN = 2 };
     } \
 } while(0)
 
+#define ABS(a) ((a)>0?(a):(-(a)))
+
 #define MIN2(a,b) ((a)<(b)?(a):(b))
 #define MAX2(a,b) ((a)>(b)?(a):(b))
 
@@ -56,11 +64,22 @@ enum { CRIT = 1, WARN = 2 };
 #define CONCAT2(a,b) CONCAt2(a,b)
 
 inline void *zmalloc(size_t size, int align) {
-    void *p;
-    int rc = ::posix_memalign(&p, align, size);
-    return rc == 0 ? p : 0;
+    void *ptr;
+#ifdef _WIN32
+    ptr = _aligned_malloc(size, align);
+    int rc = ((ptr) ? 0 : errno);
+#else
+    int rc = ::posix_memalign(&ptr, align, size);
+#endif /* _WIN32 */
+    return rc == 0 ? ptr : 0;
 }
-inline void zfree(void *ptr) { return ::free(ptr); }
+inline void zfree(void *ptr) {
+#ifdef _WIN32
+    _aligned_free(ptr);
+#else
+    return ::free(ptr);
+#endif /* _WIN32 */
+}
 
 enum bench_mode_t { MODE_UNDEF = 0x0, CORR = 0x1, PERF = 0x2, };
 const char *bench_mode2str(bench_mode_t mode);
@@ -137,13 +156,9 @@ struct benchdnn_timer_t {
     double ms(mode_t mode = benchdnn_timer_t::min) const
     { return ms_[mode] / (mode == avg ? times_ : 1); }
 
-    long long ticks(mode_t mode = min) const
-    { return ticks_[mode] / (mode == avg ? times_ : 1); }
-
     benchdnn_timer_t &operator=(const benchdnn_timer_t &rhs);
 
     int times_;
-    long long ticks_[n_modes], ticks_start_;
     double ms_[n_modes], ms_start_;
 };
 

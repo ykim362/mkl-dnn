@@ -41,14 +41,20 @@
 void *aligned_malloc(size_t size, size_t alignment) {
 #ifdef WIN32
     return _aligned_malloc(size, alignment);
+#elif defined(_SX)
+    return malloc(size);
 #else
     return memalign(alignment, size);
 #endif
 }
 
 #ifdef WIN32
-void __cdecl free(void *ptr) {
+void _free(void *ptr) {
     _aligned_free(ptr);
+}
+#else
+void _free(void *ptr) {
+    free(ptr);
 }
 #endif
 
@@ -74,6 +80,7 @@ static void init_data_memory(uint32_t dim, const int *dims,
     CHECK(mkldnn_memory_set_data_handle(*memory, data));
     CHECK(mkldnn_memory_get_data_handle(*memory, &req));
     CHECK_TRUE(req == data);
+    CHECK(mkldnn_primitive_desc_destroy(user_pd));
 }
 
 mkldnn_status_t prepare_reorder(
@@ -97,19 +104,20 @@ mkldnn_status_t prepare_reorder(
              * already appeared in in- and out- memory primitive descriptors */
             CHECK(mkldnn_reorder_primitive_desc_create(&reorder_pd,
                         user_memory_pd, *prim_memory_pd));
-            mkldnn_primitive_at_t inputs = { *user_memory };
+            mkldnn_primitive_at_t inputs = { *user_memory, 0 };
             const_mkldnn_primitive_t outputs[] = { *prim_memory };
             CHECK(mkldnn_primitive_create(reorder, reorder_pd, &inputs,
                         outputs));
         } else {
             CHECK(mkldnn_reorder_primitive_desc_create(&reorder_pd,
                         *prim_memory_pd, user_memory_pd));
-            mkldnn_primitive_at_t inputs = { *prim_memory };
+            mkldnn_primitive_at_t inputs = { *prim_memory, 0 };
             const_mkldnn_primitive_t outputs[] = { *user_memory };
             CHECK(mkldnn_primitive_create(reorder, reorder_pd, &inputs,
                         outputs));
         }
         CHECK(mkldnn_memory_set_data_handle(*prim_memory, buffer));
+        CHECK(mkldnn_primitive_desc_destroy(reorder_pd));
     } else {
         *prim_memory = NULL;
         *reorder = NULL;
@@ -263,7 +271,7 @@ mkldnn_status_t simple_net(){
 
     /* finally create a relu primitive */
     mkldnn_primitive_t relu;
-    mkldnn_primitive_at_t relu_srcs = { conv_internal_dst_memory };
+    mkldnn_primitive_at_t relu_srcs = { conv_internal_dst_memory, 0 };
     const_mkldnn_primitive_t relu_dsts[] = { relu_dst_memory };
 
     CHECK(mkldnn_primitive_create(&relu, relu_pd, &relu_srcs, relu_dsts));
@@ -317,7 +325,7 @@ mkldnn_status_t simple_net(){
     CHECK(mkldnn_memory_set_data_handle(lrn_scratch_memory,
             lrn_scratch_buffer));
 
-    mkldnn_primitive_at_t lrn_srcs = { relu_dst_memory };
+    mkldnn_primitive_at_t lrn_srcs = { relu_dst_memory, 0 };
 
     const_mkldnn_primitive_t lrn_dsts[] = { lrn_dst_memory,
             lrn_scratch_memory };
@@ -387,7 +395,7 @@ mkldnn_status_t simple_net(){
     CHECK(prepare_reorder(&pool_user_dst_memory, &pool_dst_pd, 0,
             &pool_internal_dst_memory, &pool_reorder_dst, pool_dst_buffer));
 
-    mkldnn_primitive_at_t pool_srcs = { lrn_dst_memory };
+    mkldnn_primitive_at_t pool_srcs = { lrn_dst_memory, 0 };
 
     pool_dst_memory = pool_internal_dst_memory ? pool_internal_dst_memory
         : pool_user_dst_memory;
@@ -417,10 +425,15 @@ mkldnn_status_t simple_net(){
     CHECK(mkldnn_stream_wait(stream, n, NULL));
 
     /* clean-up */
+    CHECK(mkldnn_primitive_desc_destroy(conv_pd));
+    CHECK(mkldnn_primitive_desc_destroy(relu_pd));
+    CHECK(mkldnn_primitive_desc_destroy(lrn_pd));
+    CHECK(mkldnn_primitive_desc_destroy(pool_pd));
+
     mkldnn_stream_destroy(stream);
 
-    free(net_src);
-    free(net_dst);
+    _free(net_src);
+    _free(net_dst);
 
     mkldnn_primitive_destroy(conv_user_src_memory);
     mkldnn_primitive_destroy(conv_user_weights_memory);
@@ -432,24 +445,24 @@ mkldnn_status_t simple_net(){
     mkldnn_primitive_destroy(conv_reorder_weights);
     mkldnn_primitive_destroy(conv);
 
-    free(conv_weights);
-    free(conv_bias);
+    _free(conv_weights);
+    _free(conv_bias);
 
-    free(conv_src_buffer);
-    free(conv_weights_buffer);
-    free(conv_dst_buffer);
+    _free(conv_src_buffer);
+    _free(conv_weights_buffer);
+    _free(conv_dst_buffer);
 
     mkldnn_primitive_destroy(relu_dst_memory);
     mkldnn_primitive_destroy(relu);
 
-    free(relu_dst_buffer);
+    _free(relu_dst_buffer);
 
     mkldnn_primitive_destroy(lrn_scratch_memory);
     mkldnn_primitive_destroy(lrn_dst_memory);
     mkldnn_primitive_destroy(lrn);
 
-    free(lrn_scratch_buffer);
-    free(lrn_dst_buffer);
+    _free(lrn_scratch_buffer);
+    _free(lrn_dst_buffer);
 
     mkldnn_primitive_destroy(pool_user_dst_memory);
     mkldnn_primitive_destroy(pool_internal_dst_memory);
@@ -457,8 +470,10 @@ mkldnn_status_t simple_net(){
     mkldnn_primitive_destroy(pool_reorder_dst);
     mkldnn_primitive_destroy(pool);
 
-    free(pool_dst_buffer);
-    free(pool_indices_buffer);
+    _free(pool_dst_buffer);
+    _free(pool_indices_buffer);
+
+    mkldnn_engine_destroy(engine);
 
     return mkldnn_success;
 }

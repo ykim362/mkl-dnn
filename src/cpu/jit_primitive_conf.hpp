@@ -23,10 +23,19 @@ namespace mkldnn {
 namespace impl {
 namespace cpu {
 
+/* convolution */
 enum conv_version_t {ver_unused, ver_fma, ver_4fma, ver_4vnni};
 enum conv_loop_order_t {loop_cgn, loop_gnc, loop_ngc};
 enum conv_1x1_loop_order_t {loop_rbl, loop_rlb, loop_lbr, loop_lrb, loop_blr,
                             loop_brl};
+
+enum {
+    FLAG_MB_FIRST = 1 << 0, FLAG_MB_LAST = 1 << 1,
+    FLAG_OC_FIRST = 1 << 2, FLAG_OC_LAST = 1 << 3,
+    FLAG_IC_FIRST = 1 << 4, FLAG_IC_LAST = 1 << 5,
+    FLAG_SP_FIRST = 1 << 6, FLAG_SP_LAST = 1 << 7,
+    FLAG_REDUCE_FIRST = 1<<8, FLAG_REDUCE_LAST = 1<<9,
+};
 
 struct jit_conv_conf_t {
     prop_kind_t prop_kind;
@@ -54,8 +63,11 @@ struct jit_conv_conf_t {
     int ur_w_tail;
     bool is_1stconv;
     /* 4fma */
-    bool transpose_src;
     int tr_iw;
+    int tr_src_num_guard_elems;
+    /* 1st conv: 4fma */
+    int tr_ld;
+    int kh_step;
     /* 4vnni */
     size_t typesize_in;
     size_t typesize_out;
@@ -70,24 +82,38 @@ struct jit_conv_conf_t {
 
 
 struct jit_conv_winograd_conf_t : public jit_conv_conf_t {
-    //Winograd specific attributes
     //alpha determines the tile size
-    int alpha;
-    //number of tiles in x dimension
+    static const int alpha = 6;
     int itiles;
-    //number of tiles in y dimension
     int jtiles;
-    //number of images in a block
-    int bimg;
-
-    int nb_Xc;
-    int dim_kernel;
-    int nb_iter;
+    int ntiles;
+    int ic_simd_block;
+    int tile_4fma_padding;
+    int tile_4fma;
+    int oc_simd_block;
+    int tile_block;
+    int tile_block_ur;
+    int nb_tile_block_ur;
 
     bool double_buffering;
-    bool load_U;
     int zmm_start;
     int nb_reg;
+
+    int dimK;
+    int dimK_4fma;
+    int dimK_reg_block;
+    int dimK_block;
+    int dimK_nb_block;
+
+    int dimM;
+    int dimM_simd_block;
+    int dimM_block;
+    int dimM_nb_block;
+
+    int dimN;
+    int dimN_reg_block;
+    int dimN_block;
+    int dimN_nb_block;
 };
 
 struct jit_conv_call_s {
@@ -105,7 +131,7 @@ struct jit_conv_call_s {
     size_t channel;
     size_t channel_prf;
     size_t oc_blocks;
-    int ic_flag;
+    int flags;
 };
 
 struct jit_1x1_conv_conf_t {
@@ -145,6 +171,11 @@ struct jit_1x1_conv_conf_t {
     /* 4vnni */
     size_t typesize_in;
     size_t typesize_out;
+
+    /* 4fma */
+    bool transpose_src;
+    int tr_is;
+    int nthr_, nthr_mb_, nthr_g_, nthr_oc_b_, nthr_ic_b_;
 };
 
 struct jit_gemm_conv_conf_t {
@@ -181,6 +212,44 @@ struct jit_1x1_conv_call_s {
 
     size_t reduce_pos_flag;
 };
+
+/* pooling */
+struct jit_pool_conf_t {
+    int mb, c;
+    int ih, iw, oh, ow;
+    int stride_h, stride_w;
+    int kh, kw;
+    int t_pad, l_pad;
+    alg_kind_t alg;
+    bool is_training;
+    bool pad_w_is_null;
+    bool is_backward;
+    data_type_t ind_dt;
+
+    int c_block, c_tail, nb_c;
+    int ur_c, ur_c_tail;
+    int ur_w;
+    int ur_w_tail;
+    size_t tail[4];
+    data_type_t src_dt;
+    data_type_t dst_dt;
+};
+
+struct jit_pool_call_s {
+    const float *src;
+    const float *dst;
+    const void *indices;
+    const float *src_prf;
+    const float *dst_prf;
+    const void *indices_prf;
+    size_t oh;
+    size_t kh_padding;
+    size_t kh_padding_shift;
+    size_t kw_padding;
+    const float* init_value;
+    float ker_area_h;
+};
+
 
 }
 }

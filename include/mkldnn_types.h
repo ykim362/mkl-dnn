@@ -131,9 +131,12 @@ typedef enum {
     /** 4D weights tensor in the format (input channels, output channels,
      * width, height). */
     mkldnn_oihw,
-    /** 4D weights tensor in the format (input channels, width, height,
+    /** 4D weights tensor in the format (input channels, height, width,
      * output channels). */
     mkldnn_ihwo,
+    /** 4D weights tensor in the format (height, width, input channels,
+     * output channels). */
+    mkldnn_hwio,
     /** 4D weights tensor in the @c oihw format with both input and output
      * channels data laid out in memory in 8-element blocks. */
     mkldnn_OIhw8i8o,
@@ -154,6 +157,14 @@ typedef enum {
     /** 4D weights tensor in the @c oihw format with both input and output
      * channels data laid out in memory in 16-element blocks. */
     mkldnn_OIhw16o16i,
+    /** 4D weights tensor in the format (output channels, input channels,
+     * height, width) with output channels data laid out in memory in 8-element
+     * blocks. */
+    mkldnn_Oihw8o,
+    /** 4D weights tensor in the format (output channels, input channels,
+     * height, width) with output channels data laid out in memory in
+     * 16-element blocks. */
+    mkldnn_Oihw16o,
     /** 4D weights tensor in the format (output channels, width, height, input
      * channels) with output channels data laid out in memory in 8-element
      * blocks. */
@@ -192,6 +203,12 @@ typedef enum {
      * input and output channels data laid out in memory in 16-element blocks.
      */
     mkldnn_gOIhw16o16i,
+    /** 5D weights tensor in the blocked version of @c goihw format with output
+     * channels data laid out in memory in 8-element blocks. */
+    mkldnn_gOihw8o,
+    /** 5D weights tensor in the blocked version of @c goihw format with output
+     * channels data laid out in memory in 16-element blocks. */
+    mkldnn_gOihw16o,
     /** 5D weights tensor in the blocked version of @c goihw format with output
      * channels data laid out in memory in 8-element blocks. */
     mkldnn_gOhwi8o,
@@ -292,6 +309,20 @@ typedef enum {
     mkldnn_eltwise_tanh = 9,
     /** Eltwise: parametric exponential linear unit (elu) */
     mkldnn_eltwise_elu = 10,
+    /** Eltwise: square */
+    mkldnn_eltwise_square = 11,
+    /** Eltwise: abs */
+    mkldnn_eltwise_abs = 12,
+    /** Eltwise: square root */
+    mkldnn_eltwise_sqrt = 13,
+    /** Eltwise: linear */
+    mkldnn_eltwise_linear = 14,
+    /** Eltwise: bounded_relu */
+    mkldnn_eltwise_bounded_relu = 15,
+    /** Eltwise: soft_relu */
+    mkldnn_eltwise_soft_relu = 16,
+    /** Eltwise: logistic */
+    mkldnn_eltwise_logistic = 17,
     /** Max pooling */
     mkldnn_pooling_max = 34,
     /** Average pooling include padding */

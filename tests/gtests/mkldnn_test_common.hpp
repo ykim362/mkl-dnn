@@ -30,6 +30,12 @@ template <typename data_t> struct data_traits { };
 template <> struct data_traits<float> {
     static const auto data_type = mkldnn::memory::data_type::f32;
 };
+template <> struct data_traits<uint8_t> {
+    static const auto data_type = mkldnn::memory::data_type::u8;
+};
+template <> struct data_traits<int8_t> {
+    static const auto data_type = mkldnn::memory::data_type::s8;
+};
 template <> struct data_traits<int16_t> {
     static const auto data_type = mkldnn::memory::data_type::s16;
 };
@@ -165,8 +171,11 @@ static inline data_t set_value(size_t index, data_t mean, data_t deviation,
         return fill ? static_cast<data_t>(mean + deviation * sinf(float(index % 37)))
             : data_t{0};
     } else if (data_traits<data_t>::data_type == mkldnn::memory::data_type::s32
-        || data_traits<data_t>::data_type == mkldnn::memory::data_type::s16) {
-        return data_t(rand()%11);
+        || data_traits<data_t>::data_type == mkldnn::memory::data_type::s16
+        || data_traits<data_t>::data_type == mkldnn::memory::data_type::s8) {
+        return data_t(rand() % 21 - 10);
+    } else if (data_traits<data_t>::data_type == mkldnn::memory::data_type::u8) {
+        return data_t(rand() % 17);
     } else {
         return data_t(0);
     }
@@ -203,15 +212,33 @@ static void compare_data(mkldnn::memory& ref, mkldnn::memory& dst)
     ASSERT_TRUE(data_traits<data_t>::data_type == data_type::f32 ||
             data_traits<data_t>::data_type == data_type::s32);
 
-    // Only true for dense format
     /* Note: size_t incompatible with MSVC++ */
-    ptrdiff_t num = ref.get_primitive_desc().get_size() / sizeof(data_t);
+    auto ref_desc = ref.get_primitive_desc().desc();
+    auto dst_desc = dst.get_primitive_desc().desc();
+
+    ASSERT_TRUE(ref_desc.data.ndims == dst_desc.data.ndims);
+
+    auto ndims = ref_desc.data.ndims;
+
+    for (auto d = 0; d < ndims; ++d) {
+        ASSERT_TRUE(ref_desc.data.dims[d] == dst_desc.data.dims[d]);
+    }
+
+    auto dims = ref_desc.data.dims;
+
+    ptrdiff_t num = 1;
+    for (auto d = 0; d < ndims; ++d) {
+        num *= dims[d];
+    }
+
     data_t *ref_data = (data_t *)ref.get_data_handle();
     data_t *dst_data = (data_t *)dst.get_data_handle();
+
 #   pragma omp parallel for schedule(static)
     for (ptrdiff_t i = 0; i < num; ++i) {
-        data_t ref = ref_data[i];
-        data_t got = dst_data[i];
+        data_t ref = ref_data[map_index(ref_desc, i)];
+        data_t got = dst_data[map_index(dst_desc, i)];
+
         if (data_traits<data_t>::data_type == data_type::f32) {
             data_t diff = got - ref;
             data_t e = std::abs(ref) > 1e-4 ? diff / ref : diff;
@@ -285,6 +312,7 @@ struct test_convolution_formats_t {
 struct test_convolution_params_t {
     const mkldnn::engine::kind engine_kind;
     mkldnn::algorithm aalgorithm;
+    const double relu_negative_slope;
     test_convolution_formats_t formats;
     test_convolution_sizes_t sizes;
 };

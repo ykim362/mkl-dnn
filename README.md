@@ -1,6 +1,6 @@
 # Intel(R) Math Kernel Library for Deep Neural Networks (Intel(R) MKL-DNN)
 [![Apache License Version 2.0](https://img.shields.io/badge/license-Apache_2.0-green.svg)](LICENSE)
-![v0.9 beta](https://img.shields.io/badge/v0.9-beta-orange.svg)
+![v0.10 beta](https://img.shields.io/badge/v0.10-beta-orange.svg)
 
 Intel(R) Math Kernel Library for Deep Neural Networks (Intel(R) MKL-DNN) is an
 open source performance library for Deep Learning (DL) applications intended
@@ -76,7 +76,12 @@ The software was validated on RedHat\* Enterprise Linux 7 with
 * GNU\* Compiler Collection 6.1
 * Clang\* 3.8.0
 * [Intel(R) C/C++ Compiler](https://software.intel.com/en-us/intel-parallel-studio-xe)
-  16.0 or later
+  17.0
+
+and on Windows Server\* 2012 R2 with
+* Visual Studio\* 2015
+* [Intel(R) C/C++ Compiler](https://software.intel.com/en-us/intel-parallel-studio-xe)
+  17.0
 
 The implementation uses OpenMP\* 4.0 SIMD extensions. We recommend using
 Intel(R) Compiler for the best performance results.
@@ -146,8 +151,8 @@ for standalone Intel MKL-DNN build.
 |:---                   |:---
 |lib/libmkldnn.so       | Intel MKL-DNN dynamic library
 |lib/libiomp5.so        | Intel OpenMP* runtime library
-|lib/libmkl_gnu.so      | Intel MKL small library for GNU* OpenMP runtime
-|lib/libmkl_intel.so    | Intel MKL small library for Intel(R) OpenMP runtime
+|lib/libmklml_gnu.so    | Intel MKL small library for GNU* OpenMP runtime
+|lib/libmklml_intel.so  | Intel MKL small library for Intel(R) OpenMP runtime
 |include/mkldnn.h       | C header
 |include/mkldnn.hpp     | C++ header
 |include/mkldnn_types.h | auxillary C header

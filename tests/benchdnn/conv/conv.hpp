@@ -83,10 +83,12 @@ typedef struct dt_conf_t {
 extern const _dt_conf_t conf_f32;
 extern const _dt_conf_t conf_f32_full;
 extern const _dt_conf_t conf_f32_wino;
-extern const _dt_conf_t conf_s16s32;
+extern const _dt_conf_t conf_s16s16s32s32;
+extern const _dt_conf_t conf_s32s16s16s32;
+extern const _dt_conf_t conf_s16s32s16s32;
 extern const _dt_conf_t conf_u8s8s32s32;
-extern const _dt_conf_t conf_u8s8s32s8;
-extern const _dt_conf_t conf_u8s8s32u8;
+extern const _dt_conf_t conf_u8s8s8s32;
+extern const _dt_conf_t conf_u8s8u8s32;
 
 const dt_conf_t *str2cfg(const char *str);
 const char *cfg2str(const dt_conf_t *cfg);
@@ -118,7 +120,8 @@ extern const char *perf_template; /* performance output template */
 
 inline size_t src_off_f(const prb_t *p, int mb, int g, int ic, int ih, int iw)
 {
-    return ((mb * p->ic + g * p->ic/p->g + ic) * p->ih + ih) * p->iw + iw;
+    return (((size_t)mb * p->ic + g * p->ic/p->g + ic) * p->ih + ih) * p->iw
+        + iw;
 }
 
 inline void inv_src_off_f(const prb_t *p, int off, int &mb, int &g, int &ic,
@@ -133,8 +136,8 @@ inline void inv_src_off_f(const prb_t *p, int off, int &mb, int &g, int &ic,
 
 inline size_t wei_off_f(const prb_t *p, int g, int oc, int ic, int kh, int kw)
 {
-    return (((g * p->oc / p->g + oc) * p->ic / p->g + ic) * p->kh + kh) * p->kw
-        + kw;
+    return ((((size_t)g * p->oc / p->g + oc) * p->ic / p->g + ic) * p->kh + kh)
+        * p->kw + kw;
 }
 
 inline void inv_wei_off_f(const prb_t *p, int off, int &g, int &oc, int &ic,
@@ -148,7 +151,7 @@ inline void inv_wei_off_f(const prb_t *p, int off, int &g, int &oc, int &ic,
 }
 
 inline size_t bia_off_f(const prb_t *p, int g, int oc) {
-    return g * p->oc / p->g + oc;
+    return (size_t)g * p->oc / p->g + oc;
 }
 
 inline void inv_bia_off_f(const prb_t *p, int off, int &g, int &oc) {
@@ -159,7 +162,8 @@ inline void inv_bia_off_f(const prb_t *p, int off, int &g, int &oc) {
 
 inline size_t dst_off_f(const prb_t *p, int mb, int g, int oc, int oh, int ow)
 {
-    return ((mb * p->oc + g * p->oc/p->g + oc) * p->oh + oh) * p->ow + ow;
+    return (((size_t)mb * p->oc + g * p->oc/p->g + oc) * p->oh + oh) * p->ow
+        + ow;
 }
 
 inline void inv_dst_off_f(const prb_t *p, int off, int &mb, int &g, int &oc,
@@ -183,7 +187,7 @@ void perf_report(const prb_t *p, const res_t *r, const char *pstr);
 
 bool maybe_skip(const char *impl_str);
 int doit(const prb_t *p, res_t *res);
-int bench(int argc, char **argv);
+int bench(int argc, char **argv, bool main_bench = true);
 
 }
 

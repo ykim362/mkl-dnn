@@ -40,11 +40,11 @@ table of modifiers below.
 | abbreviation  | description
 |:------------  |:-----------
 | %d            | problem descriptor
+| %D            | expanded problem descriptor (conv parameters in csv format)
 | %n            | problem name
-| %@F           | effective cpu frequency computed as clocks[@] / time[@]
+| %z            | direction
 | %O            | number of ops required (padding is not taken into account)
 | %@t           | time in ms
-| %@c           | time in clocks
 | %@p           | ops per second
 
 | modifier  | description
@@ -57,6 +57,9 @@ table of modifiers below.
 | K         | Kilo (1e3)
 | M         | Mega (1e6)
 | G         | Giga (1e9)
+
+The definition of expanded problem descriptor is:
+`g,mb,ic,ih,iw,oc,oh,ow,kh,kw,sh,sw,ph,pw`.
 #endif
 
 void perf_report(const prb_t *p, const res_t *r, const char *pstr) {
@@ -106,16 +109,18 @@ void perf_report(const prb_t *p, const res_t *r, const char *pstr) {
         }
 
         if (c == 'd') DPRINT("%s", pstr);
+        else if (c == 'D')
+            DPRINT("%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d", p->g, p->mb,
+                    p->ic, p->ih, p->iw, p->oc, p->oh, p->ow, p->kh, p->kw,
+                    p->sh, p->sw, p->ph, p->pw);
         else if (c == 'n')
             DPRINT("%s", p->name);
+        else if (c == 'z')
+            DPRINT("%s", dir2str(p->dir));
         else if (c == 'O')
             DPRINT("%g", p->ops / unit);
-        else if (c == 'F')
-            DPRINT("%g", t.ticks(mode) / t.ms(mode) / unit * 1e3);
         else if (c == 't')
             DPRINT("%g", t.ms(mode) / unit);
-        else if (c == 'c')
-            DPRINT("%g", t.ticks(mode) / unit);
         else if (c == 'p')
             DPRINT("%g", p->ops / t.ms(mode) / unit * 1e3);
         else
