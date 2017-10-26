@@ -511,14 +511,17 @@ typedef struct {
 /** A descriptor of a element-wise operation. */
 typedef struct {
     /** The kind of primitive. Used for self identifying the primitive
-     * descriptor. Must be #mkldnn_relu. */
+     * descriptor. Must be #mkldnn_eltwise. */
     mkldnn_primitive_kind_t primitive_kind;
     /** The kind of propagation. Possible values: #mkldnn_forward_training,
      * #mkldnn_forward_inference, #mkldnn_backward, and #mkldnn_backward_data.
      */
     mkldnn_prop_kind_t prop_kind;
     /** The kind of eltwise algorithm. Possible values: #mkldnn_eltwise_relu,
-     * #mkldnn_eltwise_tanh, #mkldnn_eltwise_elu */
+     * #mkldnn_eltwise_tanh, #mkldnn_eltwise_elu, #mkldnn_eltwise_square,
+     * #mkldnn_eltwise_abs, #mkldnn_eltwise_sqrt, #mkldnn_eltwise_linear,
+     * #mkldnn_eltwise_bounded_relu, #mkldnn_eltwise_soft_relu,
+     * #mkldnn_eltwise_logistic. */
     mkldnn_alg_kind_t alg_kind;
     /** Source and destination memory descriptor. */
     mkldnn_memory_desc_t data_desc;
@@ -529,16 +532,22 @@ typedef struct {
      *  - #mkldnn_eltwise_relu: @p alpha -- negative slope, @p beta ignored
      *  - #mkldnn_eltwise_tanh: @p alpha and @p beta ignored
      *  - #mkldnn_eltwise_elu: @p alpha -- negative slope, @p beta ignored
+     *  - #mkldnn_eltwise_square: @p alpha and @p beta ignored
+     *  - #mkldnn_eltwise_abs: @p alpha and @p beta ignored
+     *  - #mkldnn_eltwise_sqrt: @p alpha and @p beta ignored
+     *  - #mkldnn_eltwise_linear: @p alpha -- scale, @p beta -- shift
+     *  - #mkldnn_eltwise_bounded_relu: @p alpha -- upper bound, @p beta ignored
+     *  - #mkldnn_eltwise_soft_relu: @p alpha and @p beta ignored
+     *  - #mkldnn_eltwise_logistic: @p alpha and @p beta ignored
      */
-    double alpha, beta;
-    /** Scaling factor for negative values. Stored as double-precision, but
-     * interpreted in a way specific to the data type in each implementation.
-     * @deprecated: for ReLU use alpha instead
+    float alpha, beta;
+    /** ReLU scaling factor for negative values.
+     * @deprecated: use alpha instead
      * @warning: read-only value */
-    double negative_slope;
+    float negative_slope;
 } mkldnn_eltwise_desc_t;
 
-/* @depracated: use mkldnn_eltwise_desc_t */
+/* @deprecated: use mkldnn_eltwise_desc_t */
 typedef mkldnn_eltwise_desc_t mkldnn_relu_desc_t;
 
 /** A descriptor of a Softmax operation. */
@@ -609,11 +618,11 @@ typedef struct {
      * length of the square region to sum over (for within-channel LRN). */
     int local_size;
     /** LRN alpha parameter. */
-    double lrn_alpha;
+    float lrn_alpha;
     /** LRN beta parameter. */
-    double lrn_beta;
+    float lrn_beta;
     /** LRN k parameter. */
-    double lrn_k;
+    float lrn_k;
 } mkldnn_lrn_desc_t;
 
 /** A descriptor of a Batch Normalization operation. */
@@ -643,7 +652,7 @@ typedef struct {
     mkldnn_memory_desc_t mean_desc;
     mkldnn_memory_desc_t variance_desc;
     /** Batch normalization epsilon parameter. */
-    double batch_norm_epsilon;
+    float batch_norm_epsilon;
     unsigned flags;
 } mkldnn_batch_normalization_desc_t;
 
@@ -683,9 +692,9 @@ typedef struct {
     mkldnn_primitive_kind_t primitive_kind;
     /** A descriptor of a convolution operation. */
     mkldnn_convolution_desc_t convolution_desc;
-    /** Scaling factor for negative values, stored as double-precision but
+    /** Scaling factor for negative values, stored as float-precision but
      * interpreted in a way specific to the data type in each implementation */
-    double negative_slope;
+    float negative_slope;
 } mkldnn_convolution_relu_desc_t;
 
 /** A descriptor of an RNN operation. */

@@ -52,13 +52,15 @@ struct jit_conv_conf_t {
     int dilate_h, dilate_w;
     memory_format_t src_fmt;
     bool with_bias, with_relu;
-    double relu_negative_slope;
+    float relu_negative_slope;
 
     int ihp, iwp, ohp, owp;
     int nb_ic, ic_block;
     int nb_oc, oc_block;
     int nb_ic_blocking, nb_oc_blocking; // blocking of nb_ic and nb_ic
     int nb_ic_blocking_max;
+    int nb_ic_L2;
+    int nb_oc_L2;
     int ur_h, ur_w;
     int ur_w_tail;
     bool is_1stconv;
@@ -146,7 +148,7 @@ struct jit_1x1_conv_conf_t {
     int stride_h, stride_w;
     memory_format_t src_fmt;
     bool with_bias, with_relu;
-    double relu_negative_slope;
+    float relu_negative_slope;
 
     int is, os;
     int ic_block, oc_block;
@@ -190,7 +192,7 @@ struct jit_gemm_conv_conf_t {
     int dilate_h, dilate_w;
     memory_format_t src_fmt;
     bool with_bias, with_relu;
-    double relu_negative_slope;
+    float relu_negative_slope;
 
     int is, os, ks;
     int ic_block, oc_block;
