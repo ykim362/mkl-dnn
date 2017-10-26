@@ -31,38 +31,38 @@ void compute_ref_rnn_fwd(const test_rnn_desc_t &rd, const memory::desc &x_d,
     data_t *y_ptr = (data_t *)y.get_data_handle();
     data_t *hy_ptr = (data_t *)hy.get_data_handle();
 
-    const size_t state_size = rd.state_size;
-    const size_t input_size = rd.input_size;
-    const size_t seq_length = rd.seq_length;
-    const size_t num_layers = rd.num_layers;
-    const size_t batch_size = rd.batch_size;
-    const size_t direction = rd.direction;
-    const size_t alg_kind = rd.alg_kind;
-    const size_t total_layers = num_layers * direction;
-    const size_t w1_size = state_size * (state_size + input_size + 2);
-    const size_t wx_size = state_size * (state_size + state_size + 2);
-    const size_t h_size = batch_size * state_size;
-    const size_t x_size = batch_size * input_size;
-    const size_t h_nlayer_size = h_size * num_layers;
-    const size_t gates_size = h_size;
-    const size_t gates_nlayer_size = gates_size * num_layers;
-    const size_t gates_space_size = gates_nlayer_size * seq_length * direction;
-    const size_t hout_space_size = h_nlayer_size * seq_length * direction;
+    const int state_size = rd.state_size;
+    const int input_size = rd.input_size;
+    const int seq_length = rd.seq_length;
+    const int num_layers = rd.num_layers;
+    const int batch_size = rd.batch_size;
+    const int direction = rd.direction;
+    const int alg_kind = rd.alg_kind;
+    const int total_layers = num_layers * direction;
+    const int w1_size = state_size * (state_size + input_size + 2);
+    const int wx_size = state_size * (state_size + state_size + 2);
+    const int h_size = batch_size * state_size;
+    const int x_size = batch_size * input_size;
+    const int h_nlayer_size = h_size * num_layers;
+    const int gates_size = h_size;
+    const int gates_nlayer_size = gates_size * num_layers;
+    const int gates_space_size = gates_nlayer_size * seq_length * direction;
+    const int hout_space_size = h_nlayer_size * seq_length * direction;
 
-    const size_t ws_size = gates_space_size + hout_space_size;
+    const int ws_size = gates_space_size + hout_space_size;
     data_t *ws_ptr = new data_t[ws_size];
 
-    size_t bsize = (input_size > state_size) ? input_size : state_size;
-    size_t tmp = bsize + state_size + 2;
-    size_t temp_size = tmp * batch_size;
+    int bsize = (input_size > state_size) ? input_size : state_size;
+    int tmp = bsize + state_size + 2;
+    int temp_size = tmp * batch_size;
     data_t *ts_ = new data_t[temp_size];
 
-    const size_t gates_space_off = 0;
-    const size_t hout_space_off = gates_space_size;
-    size_t w_off = 0;
-    size_t in_size = 0;
-    size_t wa = w1_size + (num_layers - 1) * wx_size;
-    size_t dl, rl, roff, rt;
+    const int gates_space_off = 0;
+    const int hout_space_off = gates_space_size;
+    int w_off = 0;
+    int in_size = 0;
+    int wa = w1_size + (num_layers - 1) * wx_size;
+    int dl, rl, roff, rt;
 
     for (int l = 0; l < total_layers; l++) {
         dl = l / num_layers;
@@ -241,12 +241,12 @@ protected:
         ASSERT_EQ(data_type, mkldnn::memory::data_type::f32);
         test_rnn_desc_t rd = p.test_rd;
         with_workspace = p.aprop_kind == prop_kind::forward_training;
-        size_t dir = (p.adirection == direction::rnn_unidirectional) ? 1 : 2;
-        const size_t w1_size
+        int dir = (p.adirection == direction::rnn_unidirectional) ? 1 : 2;
+        const int w1_size
                 = rd.state_size * (rd.state_size + rd.input_size + 2);
-        const size_t wx_size
+        const int wx_size
                 = rd.state_size * (rd.state_size + rd.state_size + 2);
-        const size_t total_w = rd.num_layers == 1 ? dir * w1_size : dir
+        const int total_w = rd.num_layers == 1 ? dir * w1_size : dir
                         * (w1_size + (rd.num_layers - 1) * wx_size);
         x_desc.reset(new memory::desc({ static_cast<int>(rd.seq_length),
                                               static_cast<int>(rd.batch_size),
@@ -303,11 +303,19 @@ protected:
             workspace.reset(new memory(workspace_primitive_desc));
         }
 
-        auto l = rnn_forward(*rnn_fwd_prim_desc, x.get(), hx.get(), nullptr,
-                weights.get(), y.get(), hy.get(), nullptr, workspace.get());
+        if (p.test_rd.state_outputs) {
+            auto l = rnn_forward(*rnn_fwd_prim_desc, *x, *hx, *weights, *y,
+                *hy, *workspace);
 
-        pipeline.push_back(l);
-        s.submit(pipeline).wait();
+            pipeline.push_back(l);
+            s.submit(pipeline).wait();
+        } else {
+            auto l = rnn_forward(*rnn_fwd_prim_desc, *x, *hx, *weights, *y,
+                *workspace);
+
+            pipeline.push_back(l);
+            s.submit(pipeline).wait();
+        }
 
         compute_ref_rnn_fwd<data_t>(p.test_rd, *x_desc, *hx_desc, *y_desc,
                 *weights_desc, *x, *hx, *weights, *ref_y, *ref_hy);

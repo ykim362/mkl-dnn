@@ -81,10 +81,10 @@ struct pgemm_rnn_fwd_t : public cpu_primitive_t {
         if (conf_.desc()->prop_kind != prop_kind::forward_training)
             ts_size_ += conf_.workspace_size();
         ts_ = (data_t *)malloc(ts_size_ * sizeof(data_t), 64);
-        size_t total_layers = conf_.layers() * conf_.direction();
+        int total_layers = conf_.layers() * conf_.direction();
         weights_pack_ = new data_t *[total_layers];
-        size_t rl, in_size, m;
-        for (size_t ii = 0; ii < total_layers; ++ii)
+        int rl, in_size, m;
+        for (int ii = 0; ii < total_layers; ++ii)
         {
             rl = ii % conf_.layers();
             in_size = (rl == 0) ? conf_.input_size() : conf_.hidden_size();
@@ -103,8 +103,8 @@ struct pgemm_rnn_fwd_t : public cpu_primitive_t {
 #ifdef USE_MKL
         if (weights_pack_)
         {
-            size_t total_layers = conf_.layers() * conf_.direction();
-            for (size_t ii = 0; ii < total_layers; ++ii)
+            int total_layers = conf_.layers() * conf_.direction();
+            for (int ii = 0; ii < total_layers; ++ii)
                 cpu_blas::cblas_gemm_free<data_type>(weights_pack_[ii]);
 
             delete[] weights_pack_;
@@ -197,10 +197,10 @@ struct pgemm_rnn_bwd_t : public cpu_primitive_t {
         auto ts_size_ = tmp * conf_.batch() + conf_.gates_space_size()
                 + 2 * conf_.h_space_size();
         ts_ = (data_t *)malloc(ts_size_ * sizeof(data_t), 64);
-        size_t total_layers = conf_.layers() * conf_.direction();
+        int total_layers = conf_.layers() * conf_.direction();
         weights_pack_ = new data_t *[total_layers];
-        size_t rl, in_size, m;
-        for (size_t ii = 0; ii < total_layers; ++ii)
+        int rl, in_size, m;
+        for (int ii = 0; ii < total_layers; ++ii)
         {
             rl = ii % conf_.layers();
             in_size = (rl == 0) ? conf_.input_size() : conf_.hidden_size();
@@ -219,8 +219,8 @@ struct pgemm_rnn_bwd_t : public cpu_primitive_t {
 #ifdef USE_MKL
         if (weights_pack_)
         {
-            size_t total_layers = conf_.layers() * conf_.direction();
-            for (size_t ii = 0; ii < total_layers; ++ii)
+            int total_layers = conf_.layers() * conf_.direction();
+            for (int ii = 0; ii < total_layers; ++ii)
                 cpu_blas::cblas_gemm_free<data_type>(weights_pack_[ii]);
 
             delete[] weights_pack_;

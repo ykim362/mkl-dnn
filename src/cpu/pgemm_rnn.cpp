@@ -53,12 +53,12 @@ template <typename data_t>
 #pragma OMP_SIMD
 #endif
 inline void lstm_fwd_ele_wise(data_t *Gates, const data_t *Ct_1, data_t *Ct,
-        data_t *Ht, size_t Length)
+        data_t *Ht, int Length)
 {
 #if defined(_OPENMP)
 #pragma OMP_FOR_SIMD
 #endif
-    for (size_t i = 0; i < Length; i++) {
+    for (int i = 0; i < Length; i++) {
         Gates[i] = Sigmoid<data_traits<data_t>::data_type>(Gates[i]);
         Gates[Length + i]
                 = Sigmoid<data_traits<data_t>::data_type>(Gates[Length + i]);
@@ -78,12 +78,12 @@ template <typename data_t>
 #endif
 inline void lstm_bwd_ele_wise(const data_t *Gates, data_t *dGates,
         const data_t *Ct_1, data_t *dCt_1, const data_t *Ct, data_t *dCt,
-        const data_t *dHt, size_t Length)
+        const data_t *dHt, int Length)
 {
 #if defined(_OPENMP)
 #pragma OMP_FOR_SIMD
 #endif
-    for (size_t i = 0; i < Length; i++) {
+    for (int i = 0; i < Length; i++) {
         dCt[i] += (1 - Pow<data_traits<data_t>::data_type>(
                                Tanh<data_traits<data_t>::data_type>(Ct[i]), 2))
                 * dHt[i] * Gates[2 * Length + i];
@@ -103,8 +103,8 @@ template <typename data_t>
 #if defined(_OPENMP)
 #pragma OMP_SIMD
 #endif
-inline void lstm_fwd_prop_single(const size_t input_size,
-        const size_t state_size, const size_t batch_size, const data_t *x,
+inline void lstm_fwd_prop_single(const int input_size,
+        const int state_size, const int batch_size, const data_t *x,
         int tranx, const data_t *ht_1, int tranht_1, const data_t *ct_1,
         int tranct_1, const data_t *w, data_t *ht, data_t *ct, data_t *gates,
         data_t *tmp)
@@ -119,7 +119,7 @@ inline void lstm_fwd_prop_single(const size_t input_size,
 #if defined(_OPENMP)
 #pragma OMP_FOR_SIMD
 #endif
-        for (size_t ii = 0; ii < x_size; ++ii)
+        for (int ii = 0; ii < x_size; ++ii)
             tmp[ii] = x[ii];
     }
     if (tranht_1 == TRANS) {
@@ -129,7 +129,7 @@ inline void lstm_fwd_prop_single(const size_t input_size,
 #if defined(_OPENMP)
 #pragma OMP_FOR_SIMD
 #endif
-        for (size_t ii = 0; ii < h_size; ++ii)
+        for (int ii = 0; ii < h_size; ++ii)
             tmp[ii + x_size] = ht_1[ii];
     }
     array_set(tmp + x_size + h_size, 1.0, 2 * batch_size);
@@ -148,8 +148,8 @@ inline void lstm_fwd_prop_single(const size_t input_size,
 }
 
 template <typename data_t>
-inline void lstm_bwd_prop_single(const size_t input_size,
-        const size_t state_size, const size_t batch_size, const data_t *x,
+inline void lstm_bwd_prop_single(const int input_size,
+        const int state_size, const int batch_size, const data_t *x,
         int tranx, const data_t *ht_1, int tranht_1, const data_t *ct_1,
         int tranct_1, const data_t *ct, const data_t *w, const data_t *gates,
         data_t *dht, data_t *dct, data_t *dw, data_t *dx, data_t *dht_1,
@@ -176,7 +176,7 @@ inline void lstm_bwd_prop_single(const size_t input_size,
 #if defined(_OPENMP)
 #pragma OMP_FOR_SIMD
 #endif
-        for (size_t ii = 0; ii < x_size; ++ii)
+        for (int ii = 0; ii < x_size; ++ii)
             tmp[ii] = x[ii];
     }
     if (tranht_1 == TRANS) {
@@ -186,7 +186,7 @@ inline void lstm_bwd_prop_single(const size_t input_size,
 #if defined(_OPENMP)
 #pragma OMP_FOR_SIMD
 #endif
-        for (size_t ii = 0; ii < h_size; ++ii)
+        for (int ii = 0; ii < h_size; ++ii)
             tmp[ii + x_size] = ht_1[ii];
     }
     array_set(tmp + x_size + h_size, 1.0, 2 * batch_size);
@@ -215,26 +215,26 @@ inline void lstm_bwd_prop_single(const size_t input_size,
 }
 
 template <typename data_t>
-inline void lstm_fwd_prop(const size_t seq_length, const size_t num_layers,
-        const size_t batch_size, const size_t input_size,
-        const size_t state_size, const size_t direction, const size_t w1_size,
-        const size_t wx_size, const size_t h_size, const size_t x_size,
-        const size_t h_nlayer_size, const size_t gates_size,
-        const size_t gates_nlayer_size, const size_t gates_space_size,
-        const size_t h_space_size, const data_t *x, const data_t *hx,
+inline void lstm_fwd_prop(const int seq_length, const int num_layers,
+        const int batch_size, const int input_size,
+        const int state_size, const int direction, const int w1_size,
+        const int wx_size, const int h_size, const int x_size,
+        const int h_nlayer_size, const int gates_size,
+        const int gates_nlayer_size, const int gates_space_size,
+        const int h_space_size, const data_t *x, const data_t *hx,
         const data_t *cx, const data_t *w, data_t *y, data_t *hy, data_t *cy,
         data_t *ws, data_t *ts_, data_t **weights_pack)
 {
 #ifdef USE_MKL
-    const size_t total_layers = num_layers * direction;
-    const size_t gates_space_off = 0;
-    const size_t h_space_off = gates_space_off + gates_space_size;
-    const size_t c_space_off = h_space_off + h_space_size;
-    size_t tmp_space_off = 0;
-    size_t w_off = 0;
-    size_t in_size = 0;
-    size_t wa = w1_size + (num_layers - 1) * wx_size;
-    size_t dl, rl, roff, rt;
+    const int total_layers = num_layers * direction;
+    const int gates_space_off = 0;
+    const int h_space_off = gates_space_off + gates_space_size;
+    const int c_space_off = h_space_off + h_space_size;
+    int tmp_space_off = 0;
+    int w_off = 0;
+    int in_size = 0;
+    int wa = w1_size + (num_layers - 1) * wx_size;
+    int dl, rl, roff, rt;
     data_t *ws_ptr;
     if (ws) {
         ws_ptr = ws;
@@ -396,42 +396,42 @@ inline void lstm_fwd_prop(const size_t seq_length, const size_t num_layers,
 }
 
 template <typename data_t>
-inline void lstm_bwd_prop(const size_t seq_length, const size_t num_layers,
-        const size_t batch_size, const size_t input_size,
-        const size_t state_size, const size_t direction, const size_t w1_size,
-        const size_t wx_size, const size_t h_size, const size_t x_size,
-        const size_t h_nlayer_size, const size_t gates_size,
-        const size_t gates_nlayer_size, const size_t gates_space_size,
-        const size_t h_space_size, const int state_outputs, const data_t *x,
+inline void lstm_bwd_prop(const int seq_length, const int num_layers,
+        const int batch_size, const int input_size,
+        const int state_size, const int direction, const int w1_size,
+        const int wx_size, const int h_size, const int x_size,
+        const int h_nlayer_size, const int gates_size,
+        const int gates_nlayer_size, const int gates_space_size,
+        const int h_space_size, const int state_outputs, const data_t *x,
         const data_t *hx, const data_t *cx, const data_t *dy, const data_t *dhy,
         const data_t *dcy, const data_t *w, const data_t *ws, data_t *dx,
         data_t *dhx, data_t *dcx, data_t *dw, data_t *ts_,
         data_t **weights_pack)
 {
 #ifdef USE_MKL
-    const size_t total_layers = num_layers * direction;
-    const size_t gates_space_off = 0;
-    const size_t h_space_off = gates_space_size;
-    const size_t c_space_off = h_space_off + h_space_size;
+    const int total_layers = num_layers * direction;
+    const int gates_space_off = 0;
+    const int h_space_off = gates_space_size;
+    const int c_space_off = h_space_off + h_space_size;
 
-    const size_t dgates_space_off = 0;
-    const size_t dh_space_off = dgates_space_off + gates_space_size;
-    const size_t dc_space_off = dh_space_off + h_space_size;
-    const size_t tmp_space_off = dc_space_off + h_space_size;
+    const int dgates_space_off = 0;
+    const int dh_space_off = dgates_space_off + gates_space_size;
+    const int dc_space_off = dh_space_off + h_space_size;
+    const int tmp_space_off = dc_space_off + h_space_size;
 
 #if defined(_OPENMP)
 #pragma OMP_FOR_SIMD
 #endif
-    for (size_t i = 0; i < 2 * h_space_size; i++)
+    for (int i = 0; i < 2 * h_space_size; i++)
         ts_[dh_space_off + i] = 0;
-    size_t w_off = 0;
-    size_t in_size = 0;
-    size_t wa = w1_size + (num_layers - 1) * wx_size;
-    size_t dl, rl, roff, rt;
+    int w_off = 0;
+    int in_size = 0;
+    int wa = w1_size + (num_layers - 1) * wx_size;
+    int dl, rl, roff, rt;
 
 #pragma omp parallel for
     // put top dy into dhout space
-    for (size_t seq = 0; seq < seq_length; seq++) {
+    for (int seq = 0; seq < seq_length; seq++) {
         omatcopy<data_traits<data_t>::data_type>('R', 'T', batch_size,
                 state_size, 1.0, dy + seq * h_size * direction, state_size,
                 ts_ + dh_space_off + (h_nlayer_size - h_size)
@@ -448,7 +448,7 @@ inline void lstm_bwd_prop(const size_t seq_length, const size_t num_layers,
     if (state_outputs) {
 // put dhy into dhout space
 #pragma omp parallel for
-        for (size_t ly = 0; ly < num_layers; ly++) {
+        for (int ly = 0; ly < num_layers; ly++) {
             omatcopy<data_traits<data_t>::data_type>('R', 'T', batch_size,
                     state_size, 1.0, dhy + ly * h_size, state_size,
                     ts_ + tmp_space_off + ly * h_size, batch_size);
@@ -459,7 +459,7 @@ inline void lstm_bwd_prop(const size_t seq_length, const size_t num_layers,
                     1);
         }
 #pragma omp parallel for
-        for (size_t ly = 0; ly < num_layers; ly++) {
+        for (int ly = 0; ly < num_layers; ly++) {
             omatcopy<data_traits<data_t>::data_type>('R', 'T', batch_size,
                     state_size, 1.0, dcy + ly * h_size, state_size,
                     ts_ + dc_space_off
@@ -627,21 +627,21 @@ inline void lstm_bwd_prop(const size_t seq_length, const size_t num_layers,
 
 template <typename data_t>
 inline void rnn_fwd_ele_wise(const data_t *Gates, data_t *Ht,
-        const size_t Length, const size_t alg_kind)
+        const int Length, const int alg_kind)
 {
 #ifdef USE_MKL
     if (alg_kind == rnn_relu) {
 #if defined(_OPENMP)
 #pragma OMP_FOR_SIMD
 #endif
-        for (size_t i = 0; i < Length; i++) {
+        for (int i = 0; i < Length; i++) {
             Ht[i] = (Gates[i] > 0.0) ? Gates[i] : 0.0;
         }
     } else if (alg_kind == rnn_tanh) {
 #if defined(_OPENMP)
 #pragma OMP_FOR_SIMD
 #endif
-        for (size_t i = 0; i < Length; i++) {
+        for (int i = 0; i < Length; i++) {
             Ht[i] = Tanh<data_traits<data_t>::data_type>(Gates[i]);
         }
     }
@@ -649,8 +649,8 @@ inline void rnn_fwd_ele_wise(const data_t *Gates, data_t *Ht,
 }
 
 template <typename data_t>
-inline void rnn_fwd_prop_single(const size_t input_size,
-        const size_t state_size, const size_t batch_size, const size_t alg_kind,
+inline void rnn_fwd_prop_single(const int input_size,
+        const int state_size, const int batch_size, const int alg_kind,
         const data_t *x, int tranx, const data_t *ht_1, int tranht_1,
         const data_t *w, data_t *ht, data_t *gates, data_t *tmp)
 {
@@ -664,7 +664,7 @@ inline void rnn_fwd_prop_single(const size_t input_size,
 #if defined(_OPENMP)
 #pragma OMP_FOR_SIMD
 #endif
-        for (size_t ii = 0; ii < x_size; ++ii)
+        for (int ii = 0; ii < x_size; ++ii)
             tmp[ii] = x[ii];
     }
     if (tranht_1 == TRANS) {
@@ -674,7 +674,7 @@ inline void rnn_fwd_prop_single(const size_t input_size,
 #if defined(_OPENMP)
 #pragma OMP_FOR_SIMD
 #endif
-        for (size_t ii = 0; ii < h_size; ++ii)
+        for (int ii = 0; ii < h_size; ++ii)
             tmp[ii + x_size] = ht_1[ii];
     }
     array_set(tmp + x_size + h_size, 1.0, 2 * batch_size);
@@ -691,21 +691,21 @@ inline void rnn_fwd_prop_single(const size_t input_size,
 
 template <typename data_t>
 inline void rnn_bwd_ele_wise(const data_t *Gates, data_t *dGates,
-        const data_t *dHt, size_t Length, const size_t alg_kind)
+        const data_t *dHt, int Length, const int alg_kind)
 {
 #ifdef USE_MKL
     if (alg_kind == rnn_relu) {
 #if defined(_OPENMP)
 #pragma OMP_FOR_SIMD
 #endif
-        for (size_t i = 0; i < Length; i++) {
+        for (int i = 0; i < Length; i++) {
             dGates[i] = (Gates[i] > 0.0) ? dHt[i] : 0.0;
         }
     } else if (alg_kind == rnn_tanh) {
 #if defined(_OPENMP)
 #pragma OMP_FOR_SIMD
 #endif
-        for (size_t i = 0; i < Length; i++) {
+        for (int i = 0; i < Length; i++) {
             dGates[i] = (1.0 - Pow<data_traits<data_t>::data_type>(Gates[i], 2))
                     * dHt[i];
         }
@@ -714,8 +714,8 @@ inline void rnn_bwd_ele_wise(const data_t *Gates, data_t *dGates,
 }
 
 template <typename data_t>
-inline void rnn_bwd_prop_single(const size_t input_size,
-        const size_t state_size, const size_t batch_size, const size_t alg_kind,
+inline void rnn_bwd_prop_single(const int input_size,
+        const int state_size, const int batch_size, const int alg_kind,
         const data_t *x, int tranx, const data_t *ht_1, int tranht_1,
         const data_t *w, const data_t *gates, data_t *dht, data_t *dw,
         data_t *dx, data_t *dht_1, data_t *dgates, data_t *tmp)
@@ -735,7 +735,7 @@ inline void rnn_bwd_prop_single(const size_t input_size,
 #if defined(_OPENMP)
 #pragma OMP_FOR_SIMD
 #endif
-        for (size_t ii = 0; ii < x_size; ++ii)
+        for (int ii = 0; ii < x_size; ++ii)
             tmp[ii] = x[ii];
     }
     if (tranht_1 == TRANS) {
@@ -745,7 +745,7 @@ inline void rnn_bwd_prop_single(const size_t input_size,
 #if defined(_OPENMP)
 #pragma OMP_FOR_SIMD
 #endif
-        for (size_t ii = 0; ii < h_size; ++ii)
+        for (int ii = 0; ii < h_size; ++ii)
             tmp[ii + x_size] = ht_1[ii];
     }
     array_set(tmp + x_size + h_size, 1.0, 2 * batch_size);
@@ -773,26 +773,26 @@ inline void rnn_bwd_prop_single(const size_t input_size,
 }
 
 template <typename data_t>
-inline void rnn_fwd_prop(const size_t seq_length, const size_t num_layers,
-        const size_t batch_size, const size_t input_size,
-        const size_t state_size, const size_t direction, const size_t alg_kind,
-        const size_t w1_size, const size_t wx_size, const size_t h_size,
-        const size_t x_size, const size_t h_nlayer_size,
-        const size_t gates_size, const size_t gates_nlayer_size,
-        const size_t gates_space_size, const size_t hout_space_size,
+inline void rnn_fwd_prop(const int seq_length, const int num_layers,
+        const int batch_size, const int input_size,
+        const int state_size, const int direction, const int alg_kind,
+        const int w1_size, const int wx_size, const int h_size,
+        const int x_size, const int h_nlayer_size,
+        const int gates_size, const int gates_nlayer_size,
+        const int gates_space_size, const int hout_space_size,
         const data_t *x, const data_t *hx, const data_t *cx, const data_t *w,
         data_t *y, data_t *hy, data_t *cy, data_t *ws, data_t *ts_,
         data_t **weights_pack)
 {
 #ifdef USE_MKL
-    const size_t total_layers = num_layers * direction;
-    const size_t gates_space_off = 0;
-    const size_t hout_space_off = gates_space_off + gates_space_size;
-    size_t tmp_space_off = 0;
-    size_t w_off = 0;
-    size_t in_size = 0;
-    size_t wa = w1_size + (num_layers - 1) * wx_size;
-    size_t dl, rl, roff, rt;
+    const int total_layers = num_layers * direction;
+    const int gates_space_off = 0;
+    const int hout_space_off = gates_space_off + gates_space_size;
+    int tmp_space_off = 0;
+    int w_off = 0;
+    int in_size = 0;
+    int wa = w1_size + (num_layers - 1) * wx_size;
+    int dl, rl, roff, rt;
     data_t *ws_ptr;
     if (ws) {
         ws_ptr = ws;
@@ -922,13 +922,13 @@ inline void rnn_fwd_prop(const size_t seq_length, const size_t num_layers,
 }
 
 template <typename data_t>
-inline void rnn_bwd_prop(const size_t seq_length, const size_t num_layers,
-        const size_t batch_size, const size_t input_size,
-        const size_t state_size, const size_t direction, const size_t alg_kind,
-        const size_t w1_size, const size_t wx_size, const size_t h_size,
-        const size_t x_size, const size_t h_nlayer_size,
-        const size_t gates_size, const size_t gates_nlayer_size,
-        const size_t gates_space_size, const size_t h_space_size,
+inline void rnn_bwd_prop(const int seq_length, const int num_layers,
+        const int batch_size, const int input_size,
+        const int state_size, const int direction, const int alg_kind,
+        const int w1_size, const int wx_size, const int h_size,
+        const int x_size, const int h_nlayer_size,
+        const int gates_size, const int gates_nlayer_size,
+        const int gates_space_size, const int h_space_size,
         const int state_outputs, const data_t *x, const data_t *hx,
         const data_t *cx, const data_t *dy, const data_t *dhy,
         const data_t *dcy, const data_t *w, const data_t *ws, data_t *dx,
@@ -936,25 +936,25 @@ inline void rnn_bwd_prop(const size_t seq_length, const size_t num_layers,
         data_t **weights_pack)
 {
 #ifdef USE_MKL
-    const size_t total_layers = num_layers * direction;
-    const size_t gates_space_off = 0;
-    const size_t h_space_off = gates_space_size;
+    const int total_layers = num_layers * direction;
+    const int gates_space_off = 0;
+    const int h_space_off = gates_space_size;
 
-    const size_t dgates_space_off = 0;
-    const size_t dh_space_off = dgates_space_off + gates_space_size;
-    const size_t tmp_space_off = dh_space_off + h_space_size;
+    const int dgates_space_off = 0;
+    const int dh_space_off = dgates_space_off + gates_space_size;
+    const int tmp_space_off = dh_space_off + h_space_size;
 
 #pragma omp parallel for
-    for (size_t i = 0; i < h_space_size; i++)
+    for (int i = 0; i < h_space_size; i++)
         ts_[dh_space_off + i] = 0;
-    size_t w_off = 0;
-    size_t in_size = 0;
-    size_t wa = w1_size + (num_layers - 1) * wx_size;
-    size_t dl, rl, roff, rt;
+    int w_off = 0;
+    int in_size = 0;
+    int wa = w1_size + (num_layers - 1) * wx_size;
+    int dl, rl, roff, rt;
 
 #pragma omp parallel for
     // put top dy into dhout space
-    for (size_t seq = 0; seq < seq_length; seq++) {
+    for (int seq = 0; seq < seq_length; seq++) {
         omatcopy<data_traits<data_t>::data_type>('R', 'T', batch_size,
                 state_size, 1.0, dy + seq * h_size * direction, state_size,
                 ts_ + dh_space_off + (h_nlayer_size - h_size)
@@ -971,7 +971,7 @@ inline void rnn_bwd_prop(const size_t seq_length, const size_t num_layers,
     if (state_outputs) {
 // put dhy into dhout space
 #pragma omp parallel for
-        for (size_t ly = 0; ly < num_layers; ly++) {
+        for (int ly = 0; ly < num_layers; ly++) {
             omatcopy<data_traits<data_t>::data_type>('R', 'T', batch_size,
                     state_size, 1.0, dhy + ly * h_size, state_size,
                     ts_ + tmp_space_off + ly * h_size, batch_size);
@@ -1128,22 +1128,22 @@ void pgemm_rnn_fwd_t<data_type>::execute_forward()
         y = reinterpret_cast<data_t *>(this->memory(0));
         ws = reinterpret_cast<data_t *>(this->memory(1));
     }
-    const size_t seq_length = conf_.tau();
-    const size_t num_layers = conf_.layers();
-    const size_t batch_size = conf_.batch();
-    const size_t input_size = conf_.input_size();
-    const size_t state_size = conf_.hidden_size();
-    const size_t direction = conf_.direction();
-    const size_t w1_size = conf_.w1_size();
-    const size_t wx_size = conf_.wx_size();
-    const size_t h_size = conf_.h_size();
-    const size_t x_size = conf_.x_size();
-    const size_t h_nlayer_size = conf_.h_nlayer_size();
-    const size_t gates_size = conf_.gates_size();
-    const size_t gates_nlayer_size = conf_.gates_nlayer_size();
-    const size_t gates_space_size = conf_.gates_space_size();
-    const size_t h_space_size = conf_.h_space_size();
-    const size_t alg_kind = conf_.desc()->alg_kind;
+    const int seq_length = conf_.tau();
+    const int num_layers = conf_.layers();
+    const int batch_size = conf_.batch();
+    const int input_size = conf_.input_size();
+    const int state_size = conf_.hidden_size();
+    const int direction = conf_.direction();
+    const int w1_size = conf_.w1_size();
+    const int wx_size = conf_.wx_size();
+    const int h_size = conf_.h_size();
+    const int x_size = conf_.x_size();
+    const int h_nlayer_size = conf_.h_nlayer_size();
+    const int gates_size = conf_.gates_size();
+    const int gates_nlayer_size = conf_.gates_nlayer_size();
+    const int gates_space_size = conf_.gates_space_size();
+    const int h_space_size = conf_.h_space_size();
+    const int alg_kind = conf_.desc()->alg_kind;
 
     if (alg_kind == rnn_relu || alg_kind == rnn_tanh) {
         data_t *cx = nullptr;
@@ -1223,22 +1223,22 @@ void pgemm_rnn_bwd_t<data_type>::execute_backward()
         dw = reinterpret_cast<data_t *>(this->memory(2));
     }
 
-    const size_t seq_length = conf_.tau();
-    const size_t num_layers = conf_.layers();
-    const size_t batch_size = conf_.batch();
-    const size_t input_size = conf_.input_size();
-    const size_t state_size = conf_.hidden_size();
-    const size_t direction = conf_.direction();
-    const size_t w1_size = conf_.w1_size();
-    const size_t wx_size = conf_.wx_size();
-    const size_t h_size = conf_.h_size();
-    const size_t x_size = conf_.x_size();
-    const size_t h_nlayer_size = conf_.h_nlayer_size();
-    const size_t gates_size = conf_.gates_size();
-    const size_t gates_nlayer_size = conf_.gates_nlayer_size();
-    const size_t gates_space_size = conf_.gates_space_size();
-    const size_t h_space_size = conf_.h_space_size();
-    const size_t alg_kind = conf_.desc()->alg_kind;
+    const int seq_length = conf_.tau();
+    const int num_layers = conf_.layers();
+    const int batch_size = conf_.batch();
+    const int input_size = conf_.input_size();
+    const int state_size = conf_.hidden_size();
+    const int direction = conf_.direction();
+    const int w1_size = conf_.w1_size();
+    const int wx_size = conf_.wx_size();
+    const int h_size = conf_.h_size();
+    const int x_size = conf_.x_size();
+    const int h_nlayer_size = conf_.h_nlayer_size();
+    const int gates_size = conf_.gates_size();
+    const int gates_nlayer_size = conf_.gates_nlayer_size();
+    const int gates_space_size = conf_.gates_space_size();
+    const int h_space_size = conf_.h_space_size();
+    const int alg_kind = conf_.desc()->alg_kind;
 
     if (alg_kind == rnn_relu || alg_kind == rnn_tanh) {
         rnn_bwd_prop(seq_length, num_layers, batch_size, input_size, state_size,

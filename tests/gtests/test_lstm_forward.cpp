@@ -35,40 +35,40 @@ void compute_ref_lstm_fwd(const test_lstm_desc_t &ld, const memory::desc &x_d,
     data_t *hy_ptr = (data_t *)hy.get_data_handle();
     data_t *cy_ptr = (data_t *)cy.get_data_handle();
 
-    const size_t state_size = ld.state_size;
-    const size_t input_size = ld.input_size;
-    const size_t seq_length = ld.seq_length;
-    const size_t num_layers = ld.num_layers;
-    const size_t batch_size = ld.batch_size;
-    const size_t direction = ld.direction;
-    const size_t total_layers = num_layers * direction;
-    const size_t w1_size = state_size * (state_size + input_size + 2) * 4;
-    const size_t wx_size = state_size * (state_size + state_size + 2) * 4;
-    const size_t h_size = batch_size * state_size;
-    const size_t x_size = batch_size * input_size;
-    const size_t h_nlayer_size = h_size * num_layers;
-    const size_t gates_size = h_size * 4;
-    const size_t gates_nlayer_size = gates_size * num_layers;
-    const size_t gates_space_size = gates_nlayer_size * seq_length * direction;
-    const size_t hout_space_size = h_nlayer_size * seq_length * direction;
+    const int state_size = ld.state_size;
+    const int input_size = ld.input_size;
+    const int seq_length = ld.seq_length;
+    const int num_layers = ld.num_layers;
+    const int batch_size = ld.batch_size;
+    const int direction = ld.direction;
+    const int total_layers = num_layers * direction;
+    const int w1_size = state_size * (state_size + input_size + 2) * 4;
+    const int wx_size = state_size * (state_size + state_size + 2) * 4;
+    const int h_size = batch_size * state_size;
+    const int x_size = batch_size * input_size;
+    const int h_nlayer_size = h_size * num_layers;
+    const int gates_size = h_size * 4;
+    const int gates_nlayer_size = gates_size * num_layers;
+    const int gates_space_size = gates_nlayer_size * seq_length * direction;
+    const int hout_space_size = h_nlayer_size * seq_length * direction;
 
-    const size_t ws_size = gates_space_size + hout_space_size * 2;
+    const int ws_size = gates_space_size + hout_space_size * 2;
     data_t *ws_ptr = new data_t[ws_size];
 
-    size_t bsize = (input_size > state_size) ? input_size : state_size;
-    size_t tmp1 = bsize + state_size + 2;
-    size_t tmp2 = state_size * 4;
-    size_t btmp = (tmp1 > tmp2) ? tmp1 : tmp2;
-    size_t temp_size = btmp * batch_size;
+    int bsize = (input_size > state_size) ? input_size : state_size;
+    int tmp1 = bsize + state_size + 2;
+    int tmp2 = state_size * 4;
+    int btmp = (tmp1 > tmp2) ? tmp1 : tmp2;
+    int temp_size = btmp * batch_size;
     data_t *ts_ = new data_t[temp_size];
 
-    const size_t gates_space_off = 0;
-    const size_t hout_space_off = gates_space_size;
-    const size_t c_space_off = hout_space_off + hout_space_size;
-    size_t w_off = 0;
-    size_t in_size = 0;
-    size_t wa = w1_size + (num_layers - 1) * wx_size;
-    size_t dl, rl, roff, rt;
+    const int gates_space_off = 0;
+    const int hout_space_off = gates_space_size;
+    const int c_space_off = hout_space_off + hout_space_size;
+    int w_off = 0;
+    int in_size = 0;
+    int wa = w1_size + (num_layers - 1) * wx_size;
+    int dl, rl, roff, rt;
 
     for (int l = 0; l < total_layers; l++) {
         dl = l / num_layers;
@@ -274,12 +274,12 @@ protected:
         ASSERT_EQ(data_type, mkldnn::memory::data_type::f32);
         test_lstm_desc_t ld = p.test_ld;
         with_workspace = p.aprop_kind == prop_kind::forward_training;
-        size_t dir = (p.adirection == direction::rnn_unidirectional) ? 1 : 2;
-        const size_t w1_size
+        int dir = (p.adirection == direction::rnn_unidirectional) ? 1 : 2;
+        const int w1_size
                 = ld.state_size * (ld.state_size + ld.input_size + 2) * 4;
-        const size_t wx_size
+        const int wx_size
                 = ld.state_size * (ld.state_size + ld.state_size + 2) * 4;
-        const size_t total_w = ld.num_layers == 1 ? dir * w1_size : dir
+        const int total_w = ld.num_layers == 1 ? dir * w1_size : dir
                         * (w1_size + (ld.num_layers - 1) * wx_size);
         x_desc.reset(new memory::desc({ static_cast<int>(ld.seq_length),
                                               static_cast<int>(ld.batch_size),
@@ -339,11 +339,20 @@ protected:
                     = rnn_fwd_prim_desc->workspace_primitive_desc();
             workspace.reset(new memory(workspace_primitive_desc));
         }
-        auto l = rnn_forward(*rnn_fwd_prim_desc, x.get(), hx.get(), cx.get(),
-                weights.get(), y.get(), hy.get(), cy.get(), workspace.get());
 
-        pipeline.push_back(l);
-        s.submit(pipeline).wait();
+        if (p.test_ld.state_outputs) {
+            auto l = rnn_forward(*rnn_fwd_prim_desc, *x, *hx, *cx, *weights,
+                    *y, *hy, *cy, *workspace);
+
+            pipeline.push_back(l);
+            s.submit(pipeline).wait();
+        } else {
+            auto l = rnn_forward(*rnn_fwd_prim_desc, *x, *hx, *cx,
+                (const primitive::at &)*weights, *y, *workspace);
+
+            pipeline.push_back(l);
+            s.submit(pipeline).wait();
+        }
         compute_ref_lstm_fwd<data_t>(p.test_ld, *x_desc, *hx_desc, *y_desc,
                 *weights_desc, *x, *hx, *cx, *weights, *ref_y, *ref_hy,
                 *ref_cy);
@@ -371,7 +380,7 @@ INSTANTIATE_TEST_CASE_P(
                         direction::rnn_unidirectional,
                         input_mode::rnn_linear_input, memory::format::rnx,
                         { 128, 128, 10, 4, 32, LSTM, UNIDIRECT, LINEAR, 0 } },
-                lstm_test_params_float{ prop_kind::forward_scoring,
+                lstm_test_params_float{ prop_kind::forward_inference,
                         engine::kind::cpu, algorithm::rnn_lstm,
                         direction::rnn_unidirectional,
                         input_mode::rnn_linear_input, memory::format::rnx,
@@ -381,7 +390,7 @@ INSTANTIATE_TEST_CASE_P(
                         direction::rnn_bidirectional,
                         input_mode::rnn_linear_input, memory::format::rnx,
                         { 128, 128, 10, 4, 32, LSTM, BIDIRECT, LINEAR, 0 } },
-                lstm_test_params_float{ prop_kind::forward_scoring,
+                lstm_test_params_float{ prop_kind::forward_inference,
                         engine::kind::cpu, algorithm::rnn_lstm,
                         direction::rnn_bidirectional,
                         input_mode::rnn_linear_input, memory::format::rnx,
@@ -395,7 +404,7 @@ INSTANTIATE_TEST_CASE_P(
                         direction::rnn_unidirectional,
                         input_mode::rnn_linear_input, memory::format::rnx,
                         { 128, 128, 10, 4, 32, LSTM, UNIDIRECT, LINEAR, 1 } },
-                lstm_test_params_float{ prop_kind::forward_scoring,
+                lstm_test_params_float{ prop_kind::forward_inference,
                         engine::kind::cpu, algorithm::rnn_lstm,
                         direction::rnn_unidirectional,
                         input_mode::rnn_linear_input, memory::format::rnx,
@@ -405,7 +414,7 @@ INSTANTIATE_TEST_CASE_P(
                         direction::rnn_bidirectional,
                         input_mode::rnn_linear_input, memory::format::rnx,
                         { 128, 128, 10, 4, 32, LSTM, BIDIRECT, LINEAR, 1 } },
-                lstm_test_params_float{ prop_kind::forward_scoring,
+                lstm_test_params_float{ prop_kind::forward_inference,
                         engine::kind::cpu, algorithm::rnn_lstm,
                         direction::rnn_bidirectional,
                         input_mode::rnn_linear_input, memory::format::rnx,
