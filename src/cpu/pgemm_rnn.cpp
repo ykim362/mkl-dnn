@@ -834,23 +834,10 @@ inline void rnn_fwd_prop(const int seq_length, const int num_layers,
                     (w + w_off)[offset + ii*2 + jj];
             }
         }
-        // cblas_gemm_pack<data_traits<data_t>::data_type>(CblasRowMajor,
-        //         CblasAMatrix, CblasTrans, state_size, batch_size,
-        //         in_size + state_size + 2, 1.0, w + w_off, state_size,
-        //         weights_pack[l]);
         cblas_gemm_pack<data_traits<data_t>::data_type>(CblasRowMajor,
                 CblasAMatrix, CblasNoTrans, state_size, batch_size,
                 in_size + state_size + 2, 1.0, reordered_w, in_size + state_size + 2,
                 weights_pack[l]);
-        // cblas_gemm_pack<data_traits<data_t>::data_type>(CblasColMajor,
-        //         CblasAMatrix, CblasTrans, state_size, batch_size,
-        //         in_size + state_size + 2, 1.0, reordered_w, in_size + state_size + 2,
-        //         weights_pack[l]);
-        // cblas_gemm_pack<data_traits<data_t>::data_type>(CblasColMajor,
-        //         CblasAMatrix, CblasNoTrans, state_size, batch_size,
-        //         in_size + state_size + 2, 1.0, w + w_off, state_size,
-        //         weights_pack[l]);
-
         delete[] reordered_w;
     }
     for (int l = 0; l < total_layers; l++) {
