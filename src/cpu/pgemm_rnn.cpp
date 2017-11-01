@@ -807,10 +807,51 @@ inline void rnn_fwd_prop(const int seq_length, const int num_layers,
         roff = (rl == 0) ? 0 : (w1_size + (rl - 1) * wx_size);
         w_off = wa * dl + roff;
         in_size = (rl == 0) ? input_size : state_size;
+        data_t* reordered_w = new data_t[(in_size + state_size + 2) * state_size];
+        // Wx
+#pragma omp parallel for
+        for (size_t ii = 0; ii < state_size; ii++) {
+            for (size_t jj = 0; jj < in_size; jj++) {
+                reordered_w[ii*(in_size + state_size + 2) + jj] = 
+                    (w + w_off)[ii*in_size + jj];
+            }
+        }
+        // Wh
+        size_t offset = in_size*state_size;
+#pragma omp parallel for
+        for (size_t ii = 0; ii < state_size; ii++) {
+            for (size_t jj = 0; jj < state_size; jj++) {
+                reordered_w[ii*(in_size + state_size + 2) + in_size + jj] = 
+                    (w + w_off)[offset + ii*state_size + jj];
+            }
+        }
+        // bx
+        offset += state_size*state_size;
+#pragma omp parallel for
+        for (size_t ii = 0; ii < state_size; ii++) {
+            for (size_t jj = 0; jj < 2; jj++) {
+                reordered_w[ii*(in_size + state_size + 2) + in_size + state_size + jj] = 
+                    (w + w_off)[offset + ii*2 + jj];
+            }
+        }
+        // cblas_gemm_pack<data_traits<data_t>::data_type>(CblasRowMajor,
+        //         CblasAMatrix, CblasTrans, state_size, batch_size,
+        //         in_size + state_size + 2, 1.0, w + w_off, state_size,
+        //         weights_pack[l]);
         cblas_gemm_pack<data_traits<data_t>::data_type>(CblasRowMajor,
-                CblasAMatrix, CblasTrans, state_size, batch_size,
-                in_size + state_size + 2, 1.0, w + w_off, state_size,
+                CblasAMatrix, CblasNoTrans, state_size, batch_size,
+                in_size + state_size + 2, 1.0, reordered_w, in_size + state_size + 2,
                 weights_pack[l]);
+        // cblas_gemm_pack<data_traits<data_t>::data_type>(CblasColMajor,
+        //         CblasAMatrix, CblasTrans, state_size, batch_size,
+        //         in_size + state_size + 2, 1.0, reordered_w, in_size + state_size + 2,
+        //         weights_pack[l]);
+        // cblas_gemm_pack<data_traits<data_t>::data_type>(CblasColMajor,
+        //         CblasAMatrix, CblasNoTrans, state_size, batch_size,
+        //         in_size + state_size + 2, 1.0, w + w_off, state_size,
+        //         weights_pack[l]);
+
+        delete[] reordered_w;
     }
     for (int l = 0; l < total_layers; l++) {
         dl = l / num_layers;
