@@ -804,8 +804,11 @@ inline void rnn_fwd_prop(const int seq_length, const int num_layers,
     for (int l = 0; l < total_layers; l++) {
         dl = l / num_layers;
         rl = l % num_layers;
-        roff = (rl == 0) ? 0 : (w1_size + (rl - 1) * wx_size);
+        roff = (rl == 0) ? 0 : 
+            (input_size*state_size + (rl - 1) * (state_size*state_size));
         w_off = wa * dl + roff;
+        // roff = (rl == 0) ? 0 : (w1_size + (rl - 1) * wx_size);
+        // w_off = wa * dl + roff;
         in_size = (rl == 0) ? input_size : state_size;
         data_t* reordered_w = new data_t[(in_size + state_size + 2) * state_size];
         // Wx
@@ -813,25 +816,32 @@ inline void rnn_fwd_prop(const int seq_length, const int num_layers,
         for (size_t ii = 0; ii < state_size; ii++) {
             for (size_t jj = 0; jj < in_size; jj++) {
                 reordered_w[ii*(in_size + state_size + 2) + jj] = 
-                    (w + w_off)[ii*in_size + jj];
+                    w[rl*roff + ii*in_size + jj];
+                    // (w + w_off)[ii*in_size + jj];
             }
         }
         // Wh
         size_t offset = in_size*state_size;
+        if (num_layers > 1)
+            offset += (rl - 1)*state_size*state_size;
 #pragma omp parallel for
         for (size_t ii = 0; ii < state_size; ii++) {
             for (size_t jj = 0; jj < state_size; jj++) {
                 reordered_w[ii*(in_size + state_size + 2) + in_size + jj] = 
-                    (w + w_off)[offset + ii*state_size + jj];
+                    w[offset + ii*state_size + jj];
+                    // (w + w_off)[offset + ii*state_size + jj];
             }
         }
         // bx
         offset += state_size*state_size;
+        if (num_layers > 1)
+            offset += (rl - 1)*2*state_size;
 #pragma omp parallel for
         for (size_t ii = 0; ii < state_size; ii++) {
             for (size_t jj = 0; jj < 2; jj++) {
                 reordered_w[ii*(in_size + state_size + 2) + in_size + state_size + jj] = 
-                    (w + w_off)[offset + ii*2 + jj];
+                    w[offset + ii*2 + jj];
+                    // (w + w_off)[offset + ii*2 + jj];
             }
         }
         cblas_gemm_pack<data_traits<data_t>::data_type>(CblasRowMajor,
