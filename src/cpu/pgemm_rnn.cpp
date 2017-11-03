@@ -14,6 +14,8 @@
  * limitations under the License.
  *******************************************************************************/
 
+#include <iostream>
+
 #include "c_types_map.hpp"
 #include "type_helpers.hpp"
 
@@ -1145,6 +1147,7 @@ inline void rnn_bwd_prop(const int seq_length, const int num_layers,
 template <impl::data_type_t data_type>
 void pgemm_rnn_fwd_t<data_type>::execute_forward()
 {
+    std::cout << "Temp log: multi layer fix try 1" << std::endl;
 #ifdef USE_MKL
     auto x = reinterpret_cast<const data_t *>(this->input_memory(0));
     auto hx = reinterpret_cast<const data_t *>(this->input_memory(1));
@@ -1184,12 +1187,16 @@ void pgemm_rnn_fwd_t<data_type>::execute_forward()
     const int alg_kind = conf_.desc()->alg_kind;
 
     if (alg_kind == rnn_relu || alg_kind == rnn_tanh) {
+
+            std::cout << "test 11111" << std::endl;
+
         data_t *cx = nullptr;
         auto w = reinterpret_cast<const data_t *>(this->input_memory(2));
         rnn_fwd_prop(seq_length, num_layers, batch_size, input_size, state_size,
                 direction, alg_kind, w1_size, wx_size, h_size, x_size,
                 h_nlayer_size, gates_size, gates_nlayer_size, gates_space_size,
                 h_space_size, x, hx, cx, w, y, hy, cy, ws, ts_, weights_pack_);
+            std::cout << "test 22222" << std::endl;
     } else if (conf_.desc()->alg_kind == rnn_lstm) {
         auto cx = reinterpret_cast<const data_t *>(this->input_memory(2));
         auto w = reinterpret_cast<const data_t *>(this->input_memory(3));
