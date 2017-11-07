@@ -814,18 +814,25 @@ inline void rnn_fwd_prop(const int seq_length, const int num_layers,
         in_size = (rl == 0) ? input_size : state_size;
         data_t* reordered_w = new data_t[(in_size + state_size + 2) * state_size];
         // Wx
+        size_t offset = (rl == 0) ? 0 : 
+            (input_size*state_size + (rl - 1) * (state_size*state_size)) +
+            rl * (state_size*state_size);
 #pragma omp parallel for
         for (size_t ii = 0; ii < state_size; ii++) {
             for (size_t jj = 0; jj < in_size; jj++) {
                 reordered_w[ii*(in_size + state_size + 2) + jj] = 
-                    w[rl*roff + ii*in_size + jj];
+                    w[offset + ii*in_size + jj];
                     // (w + w_off)[ii*in_size + jj];
             }
         }
+
+        // std::cout << "11111: ";
+        // for (size_t ii = 0; ii < 24; ii++) {
+        //     std::cout << reordered_w[ii] << ", ";
+        // }
+        // std::cout << std::endl;
         // Wh
-        size_t offset = in_size*state_size;
-        if (num_layers > 1)
-            offset += (rl - 1)*state_size*state_size;
+        offset += in_size*state_size;
 #pragma omp parallel for
         for (size_t ii = 0; ii < state_size; ii++) {
             for (size_t jj = 0; jj < state_size; jj++) {
@@ -834,22 +841,51 @@ inline void rnn_fwd_prop(const int seq_length, const int num_layers,
                     // (w + w_off)[offset + ii*state_size + jj];
             }
         }
+        // for (size_t ii = 0; ii < 24; ii++) {
+        //     std::cout << reordered_w[ii] << ", " << std::endl;
+        // }
+
+        // std::cout << "222222: ";
+        // for (size_t ii = 0; ii < 24; ii++) {
+        //     std::cout << reordered_w[ii] << ", ";
+        // }
+        // std::cout << std::endl;
         // bx
-        offset += state_size*state_size;
+        offset = (input_size+state_size)*state_size;
         if (num_layers > 1)
-            offset += (rl - 1)*2*state_size;
+            offset += (num_layers - 1)*2*state_size*state_size;
 #pragma omp parallel for
         for (size_t ii = 0; ii < state_size; ii++) {
             for (size_t jj = 0; jj < 2; jj++) {
                 reordered_w[ii*(in_size + state_size + 2) + in_size + state_size + jj] = 
-                    w[offset + ii*2 + jj];
+                    w[offset + ii + jj*state_size];
+                    // std::cout << "offset: " << (offset + ii + jj*state_size) << std::endl;
+                    // if ((offset + ii + jj*state_size) == 0) {
+                    //     std::cout << "input_size: " << input_size << std::endl;
+                    //     std::cout << "state_size: " << state_size << std::endl;
+                    //     std::cout << "ii: " << ii << std::endl;
+                    //     std::cout << "jj: " << jj << std::endl;
+                    //     std::cout << "rl: " << rl << std::endl;
+                    //     std::cout << "(input_size+state_size)*state_size: " << (input_size+state_size)*state_size << std::endl;
+                    //     std::cout << "(rl - 1)*2*state_size*state_size: " << (rl - 1)*2*state_size*state_size << std::endl;
+
+                    // }
                     // (w + w_off)[offset + ii*2 + jj];
             }
         }
+
+        // std::cout << "33333: ";
+        // for (size_t ii = 0; ii < 24; ii++) {
+        //     std::cout << reordered_w[ii] << ", ";
+        // }
+        // std::cout << std::endl;
         cblas_gemm_pack<data_traits<data_t>::data_type>(CblasRowMajor,
                 CblasAMatrix, CblasNoTrans, state_size, batch_size,
                 in_size + state_size + 2, 1.0, reordered_w, in_size + state_size + 2,
                 weights_pack[l]);
+        // for (size_t ii = 0; ii < 24; ii++) {
+        //     std::cout << reordered_w[ii] << ", " << std::endl;
+        // }
         delete[] reordered_w;
     }
     for (int l = 0; l < total_layers; l++) {
@@ -1147,7 +1183,7 @@ inline void rnn_bwd_prop(const int seq_length, const int num_layers,
 template <impl::data_type_t data_type>
 void pgemm_rnn_fwd_t<data_type>::execute_forward()
 {
-    std::cout << "Temp log: multi layer fix try 1" << std::endl;
+    std::cout << "Temp log: multi layer fix try 2" << std::endl;
 #ifdef USE_MKL
     auto x = reinterpret_cast<const data_t *>(this->input_memory(0));
     auto hx = reinterpret_cast<const data_t *>(this->input_memory(1));
@@ -1188,7 +1224,7 @@ void pgemm_rnn_fwd_t<data_type>::execute_forward()
 
     if (alg_kind == rnn_relu || alg_kind == rnn_tanh) {
 
-            std::cout << "test 11111" << std::endl;
+            // std::cout << "test 11111" << std::endl;
 
         data_t *cx = nullptr;
         auto w = reinterpret_cast<const data_t *>(this->input_memory(2));
@@ -1196,7 +1232,7 @@ void pgemm_rnn_fwd_t<data_type>::execute_forward()
                 direction, alg_kind, w1_size, wx_size, h_size, x_size,
                 h_nlayer_size, gates_size, gates_nlayer_size, gates_space_size,
                 h_space_size, x, hx, cx, w, y, hy, cy, ws, ts_, weights_pack_);
-            std::cout << "test 22222" << std::endl;
+            // std::cout << "test 22222" << std::endl;
     } else if (conf_.desc()->alg_kind == rnn_lstm) {
         auto cx = reinterpret_cast<const data_t *>(this->input_memory(2));
         auto w = reinterpret_cast<const data_t *>(this->input_memory(3));
