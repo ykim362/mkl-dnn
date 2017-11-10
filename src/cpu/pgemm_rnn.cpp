@@ -803,21 +803,21 @@ inline void rnn_fwd_prop(const int seq_length, const int num_layers,
         ws_ptr = ts_;
         tmp_space_off = hout_space_off + hout_space_size;
     }
+    
+    data_t* reordered_w = 
+        new data_t[((input_size > state_size) ? input_size : state_size +
+            state_size + 2) * state_size];
     for (int l = 0; l < total_layers; l++) {
         dl = l / num_layers;
         rl = l % num_layers;
-        roff = (rl == 0) ? 0 : 
-            (input_size*state_size + (rl - 1) * (state_size*state_size));
-        w_off = wa * dl + roff;
-        // roff = (rl == 0) ? 0 : (w1_size + (rl - 1) * wx_size);
-        // w_off = wa * dl + roff;
         in_size = (rl == 0) ? input_size : state_size;
-        data_t* reordered_w = new data_t[(in_size + state_size + 2) * state_size];
         // Wx
         size_t offset = (rl == 0) ? 0 : 
             (input_size*state_size + (rl - 1) * (state_size*state_size)) +
             rl * (state_size*state_size);
+#if defined(_OPENMP)
 #pragma omp parallel for
+#endif
         for (size_t ii = 0; ii < state_size; ii++) {
             for (size_t jj = 0; jj < in_size; jj++) {
                 reordered_w[ii*(in_size + state_size + 2) + jj] = 
@@ -826,14 +826,11 @@ inline void rnn_fwd_prop(const int seq_length, const int num_layers,
             }
         }
 
-        // std::cout << "11111: ";
-        // for (size_t ii = 0; ii < 24; ii++) {
-        //     std::cout << reordered_w[ii] << ", ";
-        // }
-        // std::cout << std::endl;
         // Wh
         offset += in_size*state_size;
+#if defined(_OPENMP)
 #pragma omp parallel for
+#endif
         for (size_t ii = 0; ii < state_size; ii++) {
             for (size_t jj = 0; jj < state_size; jj++) {
                 reordered_w[ii*(in_size + state_size + 2) + in_size + jj] = 
@@ -841,58 +838,32 @@ inline void rnn_fwd_prop(const int seq_length, const int num_layers,
                     // (w + w_off)[offset + ii*state_size + jj];
             }
         }
-        // for (size_t ii = 0; ii < 24; ii++) {
-        //     std::cout << reordered_w[ii] << ", " << std::endl;
-        // }
 
-        // std::cout << "222222: ";
-        // for (size_t ii = 0; ii < 24; ii++) {
-        //     std::cout << reordered_w[ii] << ", ";
-        // }
-        // std::cout << std::endl;
         // bx
         offset = (input_size+state_size)*state_size;
         if (num_layers > 1)
-            offset += (num_layers - 1)*2*state_size*state_size;
+            offset += (num_layers - 1)*2*state_size*state_size + rl*2*state_size;
+#if defined(_OPENMP)
 #pragma omp parallel for
+#endif
         for (size_t ii = 0; ii < state_size; ii++) {
             for (size_t jj = 0; jj < 2; jj++) {
                 reordered_w[ii*(in_size + state_size + 2) + in_size + state_size + jj] = 
                     w[offset + ii + jj*state_size];
-                    // std::cout << "offset: " << (offset + ii + jj*state_size) << std::endl;
-                    // if ((offset + ii + jj*state_size) == 0) {
-                    //     std::cout << "input_size: " << input_size << std::endl;
-                    //     std::cout << "state_size: " << state_size << std::endl;
-                    //     std::cout << "ii: " << ii << std::endl;
-                    //     std::cout << "jj: " << jj << std::endl;
-                    //     std::cout << "rl: " << rl << std::endl;
-                    //     std::cout << "(input_size+state_size)*state_size: " << (input_size+state_size)*state_size << std::endl;
-                    //     std::cout << "(rl - 1)*2*state_size*state_size: " << (rl - 1)*2*state_size*state_size << std::endl;
-
-                    // }
-                    // (w + w_off)[offset + ii*2 + jj];
             }
         }
 
-        // std::cout << "33333: ";
-        // for (size_t ii = 0; ii < 24; ii++) {
-        //     std::cout << reordered_w[ii] << ", ";
-        // }
-        // std::cout << std::endl;
         cblas_gemm_pack<data_traits<data_t>::data_type>(CblasRowMajor,
                 CblasAMatrix, CblasNoTrans, state_size, batch_size,
                 in_size + state_size + 2, 1.0, reordered_w, in_size + state_size + 2,
                 weights_pack[l]);
-        // for (size_t ii = 0; ii < 24; ii++) {
-        //     std::cout << reordered_w[ii] << ", " << std::endl;
-        // }
-        delete[] reordered_w;
+
     }
+    delete[] reordered_w;
+
     for (int l = 0; l < total_layers; l++) {
         dl = l / num_layers;
         rl = l % num_layers;
-        roff = (rl == 0) ? 0 : (w1_size + (rl - 1) * wx_size);
-        w_off = wa * dl + roff;
         if (dl == 0) {
             for (int t = 0; t < seq_length; t++) {
                 rt = t;
@@ -1058,15 +1029,58 @@ inline void rnn_bwd_prop(const int seq_length, const int num_layers,
                     1);
         }
     }
+    data_t* reordered_w = 
+        new data_t[((input_size > state_size) ? input_size : state_size +
+            state_size + 2) * state_size];
     for (int l = 0; l < total_layers; l++) {
         dl = l / num_layers;
         rl = l % num_layers;
-        roff = (rl == 0) ? 0 : (w1_size + (rl - 1) * wx_size);
-        w_off = wa * dl + roff;
         in_size = (rl == 0) ? input_size : state_size;
+        // Wx
+        size_t offset = (rl == 0) ? 0 : 
+            (input_size*state_size + (rl - 1) * (state_size*state_size)) +
+            rl * (state_size*state_size);
+#if defined(_OPENMP)
+#pragma omp parallel for
+#endif
+        for (size_t ii = 0; ii < state_size; ii++) {
+            for (size_t jj = 0; jj < in_size; jj++) {
+                reordered_w[ii*(in_size + state_size + 2) + jj] = 
+                    w[offset + ii*in_size + jj];
+                    // (w + w_off)[ii*in_size + jj];
+            }
+        }
+
+        // Wh
+        offset += in_size*state_size;
+#if defined(_OPENMP)
+#pragma omp parallel for
+#endif
+        for (size_t ii = 0; ii < state_size; ii++) {
+            for (size_t jj = 0; jj < state_size; jj++) {
+                reordered_w[ii*(in_size + state_size + 2) + in_size + jj] = 
+                    w[offset + ii*state_size + jj];
+                    // (w + w_off)[offset + ii*state_size + jj];
+            }
+        }
+
+        // bx
+        offset = (input_size+state_size)*state_size;
+        if (num_layers > 1)
+            offset += (num_layers - 1)*2*state_size*state_size + rl*2*state_size;
+#if defined(_OPENMP)
+#pragma omp parallel for
+#endif
+        for (size_t ii = 0; ii < state_size; ii++) {
+            for (size_t jj = 0; jj < 2; jj++) {
+                reordered_w[ii*(in_size + state_size + 2) + in_size + state_size + jj] = 
+                    w[offset + ii + jj*state_size];
+            }
+        }
+
         cblas_gemm_pack<data_traits<data_t>::data_type>(CblasRowMajor,
-                CblasAMatrix, CblasNoTrans, in_size + state_size + 2,
-                batch_size, state_size, 1.0, w + w_off, state_size,
+                CblasAMatrix, CblasNoTrans, state_size, batch_size,
+                in_size + state_size + 2, 1.0, reordered_w, in_size + state_size + 2,
                 weights_pack[l]);
     }
 
@@ -1088,7 +1102,7 @@ inline void rnn_bwd_prop(const int seq_length, const int num_layers,
                                     + rl * gates_size + rt * gates_nlayer_size,
                             ts_ + dh_space_off + rl * h_size
                                     + rt * h_nlayer_size,
-                            dw + w_off, ts_ + dh_space_off + (rl - 1) * h_size
+                            reordered_w, ts_ + dh_space_off + (rl - 1) * h_size
                                     + rt * h_nlayer_size,
                             ts_ + dh_space_off + rl * h_size
                                     + (rt - 1) * h_nlayer_size,
@@ -1104,7 +1118,7 @@ inline void rnn_bwd_prop(const int seq_length, const int num_layers,
                                     + rl * gates_size + rt * gates_nlayer_size,
                             ts_ + dh_space_off + rl * h_size
                                     + rt * h_nlayer_size,
-                            dw + w_off, dx + t * x_size, ts_ + dh_space_off
+                            reordered_w, dx + t * x_size, ts_ + dh_space_off
                                     + rl * h_size + (rt - 1) * h_nlayer_size,
                             ts_ + dgates_space_off + rl * gates_size
                                     + rt * gates_nlayer_size,
@@ -1124,7 +1138,7 @@ inline void rnn_bwd_prop(const int seq_length, const int num_layers,
                                     + rl * gates_size + rt * gates_nlayer_size,
                             ts_ + dh_space_off + rl * h_size
                                     + rt * h_nlayer_size,
-                            dw + w_off, ts_ + dh_space_off + (rl - 1) * h_size
+                            reordered_w, ts_ + dh_space_off + (rl - 1) * h_size
                                     + rt * h_nlayer_size,
                             ts_ + dh_space_off + rl * h_size
                                     + (rt - 1) * h_nlayer_size,
@@ -1140,7 +1154,7 @@ inline void rnn_bwd_prop(const int seq_length, const int num_layers,
                                     + rl * gates_size + rt * gates_nlayer_size,
                             ts_ + dh_space_off + rl * h_size
                                     + rt * h_nlayer_size,
-                            dw + w_off, dx + t * x_size, ts_ + dh_space_off
+                            reordered_w, dx + t * x_size, ts_ + dh_space_off
                                     + rl * h_size + (rt - 1) * h_nlayer_size,
                             ts_ + dgates_space_off + rl * gates_size
                                     + rt * gates_nlayer_size,
@@ -1154,7 +1168,7 @@ inline void rnn_bwd_prop(const int seq_length, const int num_layers,
                                     + rt * gates_nlayer_size,
                             ts_ + dh_space_off + rl * h_size
                                     + rt * h_nlayer_size,
-                            dw + w_off,
+                            reordered_w,
                             // dx + t * x_size,
                             ts_ + dh_space_off + (rl - 1) * h_size
                                     + rt * h_nlayer_size,
@@ -1169,21 +1183,91 @@ inline void rnn_bwd_prop(const int seq_length, const int num_layers,
                                     + rt * gates_nlayer_size,
                             ts_ + dh_space_off + rl * h_size
                                     + rt * h_nlayer_size,
-                            dw + w_off, dx + t * x_size, dhx + l * h_size,
+                            reordered_w, dx + t * x_size, dhx + l * h_size,
                             ts_ + dgates_space_off + rl * gates_size
                                     + rt * gates_nlayer_size,
                             ts_ + tmp_space_off);
                 }
             }
         }
+
+        // Reorder dw
+        in_size = (rl == 0) ? input_size : state_size;
+        // Wx
+        size_t offset = (rl == 0) ? 0 : 
+            (input_size*state_size + (rl - 1) * (state_size*state_size)) +
+            rl * (state_size*state_size);
+#if defined(_OPENMP)
+#pragma omp parallel for
+#endif
+        for (size_t ii = 0; ii < state_size; ii++) {
+            for (size_t jj = 0; jj < in_size; jj++) {
+                dw[offset + ii*in_size + jj] =
+                    reordered_w[ii*(in_size + state_size + 2) + jj];
+            }
+        }
+
+        // Wh
+        offset += in_size*state_size;
+#if defined(_OPENMP)
+#pragma omp parallel for
+#endif
+        for (size_t ii = 0; ii < state_size; ii++) {
+            for (size_t jj = 0; jj < state_size; jj++) {
+                dw[offset + ii*state_size + jj] = 
+                    reordered_w[ii*(in_size + state_size + 2) + in_size + jj];
+            }
+        }
+        // bx
+        offset = (input_size+state_size)*state_size;
+        if (num_layers > 1)
+            offset += (num_layers - 1)*2*state_size*state_size + rl*2*state_size;
+#if defined(_OPENMP)
+#pragma omp parallel for
+#endif
+        for (size_t ii = 0; ii < state_size; ii++) {
+            for (size_t jj = 0; jj < 2; jj++) {
+                dw[offset + ii + jj*state_size] = 
+                    reordered_w[ii*(in_size + state_size + 2) + in_size + state_size + jj];
+                // reordered_w[ii*(in_size + state_size + 2) + in_size + state_size + jj] = 
+                //     w[offset + ii + jj*state_size];
+                    // std::cout << "offset: " << (offset + ii + jj*state_size) << std::endl;
+                    // if ((offset + ii + jj*state_size) == 0) {
+                    //     std::cout << "input_size: " << input_size << std::endl;
+                    //     std::cout << "state_size: " << state_size << std::endl;
+                    //     std::cout << "ii: " << ii << std::endl;
+                    //     std::cout << "jj: " << jj << std::endl;
+                    //     std::cout << "rl: " << rl << std::endl;
+                    //     std::cout << "(input_size+state_size)*state_size: " << (input_size+state_size)*state_size << std::endl;
+                    //     std::cout << "(rl - 1)*2*state_size*state_size: " << (rl - 1)*2*state_size*state_size << std::endl;
+
+                    // }
+                    // (w + w_off)[offset + ii*2 + jj];
+            }
+        }
+
+        // std::cout << "33333: ";
+        // for (size_t ii = 0; ii < 24; ii++) {
+        //     std::cout << reordered_w[ii] << ", ";
+        // }
+        // std::cout << std::endl;
+        // cblas_gemm_pack<data_traits<data_t>::data_type>(CblasRowMajor,
+        //         CblasAMatrix, CblasNoTrans, state_size, batch_size,
+        //         in_size + state_size + 2, 1.0, reordered_w, in_size + state_size + 2,
+        //         weights_pack[l]);
+        // for (size_t ii = 0; ii < 24; ii++) {
+        //     std::cout << reordered_w[ii] << ", " << std::endl;
+        // }
     }
+
+    delete[] reordered_w;
 #endif
 }
 
 template <impl::data_type_t data_type>
 void pgemm_rnn_fwd_t<data_type>::execute_forward()
 {
-    std::cout << "Temp log: multi layer fix try 2" << std::endl;
+    std::cout << "Temp log: fused RNN fwd/bwd fixed" << std::endl;
 #ifdef USE_MKL
     auto x = reinterpret_cast<const data_t *>(this->input_memory(0));
     auto hx = reinterpret_cast<const data_t *>(this->input_memory(1));
