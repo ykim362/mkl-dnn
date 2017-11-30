@@ -14,8 +14,6 @@
  * limitations under the License.
  *******************************************************************************/
 
-#include <iostream>
-
 #include "c_types_map.hpp"
 #include "type_helpers.hpp"
 
@@ -60,18 +58,45 @@ inline void lstm_fwd_ele_wise(data_t *Gates, const data_t *Ct_1, data_t *Ct,
 #if defined(_OPENMP)
 #pragma OMP_FOR_SIMD
 #endif
+    // for (int j = 0; j < 4; j++) {
+    //     for (int i = 0; i < Length; i++) {
+    //         std::cout << Gates[i + j*Length] << ", ";
+    //     }
+    // }
+    // std::cout << std::endl;
+    // std::cout << "Ct_1";
+    // for (int j = 0; j < 3; j++) {
+    //     // for (int i = 0; i < Length; i++) {
+    //         std::cout << Ct_1[j] << ", ";
+    //     // }
+    // }
+    // std::cout << std::endl;
     for (int i = 0; i < Length; i++) {
         Gates[i] = Sigmoid<data_traits<data_t>::data_type>(Gates[i]);
         Gates[Length + i]
                 = Sigmoid<data_traits<data_t>::data_type>(Gates[Length + i]);
-        Gates[2 * Length + i] = Sigmoid<data_traits<data_t>::data_type>(
+        Gates[2 * Length + i] = Tanh<data_traits<data_t>::data_type>(
                 Gates[2 * Length + i]);
         Gates[3 * Length + i]
-                = Tanh<data_traits<data_t>::data_type>(Gates[3 * Length + i]);
-        Ct[i] = Ct_1[i] * Gates[Length + i] + Gates[i] * Gates[3 * Length + i];
-        Ht[i] = Gates[2 * Length + i]
+                = Sigmoid<data_traits<data_t>::data_type>(Gates[3 * Length + i]);
+        Ct[i] = Ct_1[i] * Gates[Length + i] + Gates[i] * Gates[2 * Length + i];
+        Ht[i] = Gates[3 * Length + i]
                 * Tanh<data_traits<data_t>::data_type>(Ct[i]);
     }
+    // std::cout << "Ct";
+    // for (int j = 0; j < 3; j++) {
+    //     // for (int i = 0; i < Length; i++) {
+    //         std::cout << Ct[j] << ", ";
+    //     // }
+    // }
+    // std::cout << std::endl;
+    // std::cout << "Ht";
+    // for (int j = 0; j < 3; j++) {
+    //     // for (int i = 0; i < Length; i++) {
+    //         std::cout << Ht[j] << ", ";
+    //     // }
+    // }
+    // std::cout << std::endl;
 }
 
 template <typename data_t>
@@ -88,16 +113,16 @@ inline void lstm_bwd_ele_wise(const data_t *Gates, data_t *dGates,
     for (int i = 0; i < Length; i++) {
         dCt[i] += (1 - Pow<data_traits<data_t>::data_type>(
                                Tanh<data_traits<data_t>::data_type>(Ct[i]), 2))
-                * dHt[i] * Gates[2 * Length + i];
+                * dHt[i] * Gates[3 * Length + i];
         dCt_1[i] = dCt[i] * Gates[Length + i];
-        dGates[i] = dCt[i] * Gates[3 * Length + i] * Gates[i] * (1 - Gates[i]);
+        dGates[i] = dCt[i] * Gates[2 * Length + i] * Gates[i] * (1 - Gates[i]);
         dGates[Length + i] = dCt[i] * Ct_1[i] * Gates[Length + i]
                 * (1 - Gates[Length + i]);
-        dGates[2 * Length + i] = dHt[i]
+        dGates[2 * Length + i] = dCt[i] * Gates[i]
+                * (1 - Gates[2 * Length + i] * Gates[2 * Length + i]);
+        dGates[3 * Length + i] = dHt[i]
                 * Tanh<data_traits<data_t>::data_type>(Ct[i])
-                * Gates[2 * Length + i] * (1 - Gates[2 * Length + i]);
-        dGates[3 * Length + i] = dCt[i] * Gates[i]
-                * (1 - Gates[3 * Length + i] * Gates[3 * Length + i]);
+                * Gates[3 * Length + i] * (1 - Gates[3 * Length + i]);
     }
 }
 
@@ -135,6 +160,13 @@ inline void lstm_fwd_prop_single(const int input_size,
             tmp[ii + x_size] = ht_1[ii];
     }
     array_set(tmp + x_size + h_size, 1.0, 2 * batch_size);
+
+    // std::cout << "input " << std::endl;
+    // for (size_t ii = 0; ii < 7; ii++) {
+    //     std::cout << tmp[ii] << ", ";
+    // }
+    // std::cout << std::endl;
+
     cblas_gemm_compute<data_traits<data_t>::data_type>(CblasRowMajor,
             CblasPacked, CblasNoTrans, 4 * state_size, batch_size,
             input_size + state_size + 2, w, 4 * state_size, tmp, batch_size,
@@ -245,17 +277,89 @@ inline void lstm_fwd_prop(const int seq_length, const int num_layers,
         ws_ptr = ts_;
         tmp_space_off = c_space_off + h_space_size;
     }
+    
+    data_t* reordered_w = 
+        new data_t[((input_size > state_size) ? input_size : state_size +
+            state_size + 2) * state_size * 4];
     for (int l = 0; l < total_layers; l++) {
         dl = l / num_layers;
         rl = l % num_layers;
-        roff = (rl == 0) ? 0 : (w1_size + (rl - 1) * wx_size);
-        w_off = wa * dl + roff;
         in_size = (rl == 0) ? input_size : state_size;
+        // Wx
+        size_t offset = (rl == 0) ? 0 : 
+            4*(input_size*state_size + (rl - 1) * (state_size*state_size)) +
+            4*rl * (state_size*state_size);
+#if defined(_OPENMP)
+#pragma omp parallel for
+#endif
+        for (size_t ii = 0; ii < 4*state_size; ii++) {
+            for (size_t jj = 0; jj < in_size; jj++) {
+                reordered_w[ii*(in_size + state_size + 2) + jj] = 
+                    w[offset + ii*in_size + jj];
+                    // (w + w_off)[ii*in_size + jj];
+            }
+        }
+
+        // Wh
+        offset += 4*in_size*state_size;
+#if defined(_OPENMP)
+#pragma omp parallel for
+#endif
+        for (size_t ii = 0; ii < 4*state_size; ii++) {
+            for (size_t jj = 0; jj < state_size; jj++) {
+                reordered_w[ii*(in_size + state_size + 2) + in_size + jj] = 
+                    w[offset + ii*state_size + jj];
+                    // (w + w_off)[offset + ii*state_size + jj];
+            }
+        }
+
+        // bx
+        offset =  4*(input_size+state_size)*state_size;
+        if (num_layers > 1)
+            offset += (num_layers - 1)*8*state_size*state_size + rl*8*state_size;
+#if defined(_OPENMP)
+#pragma omp parallel for
+#endif
+        for (size_t ii = 0; ii < 4*state_size; ii++) {
+            // reordered_w[ii*(in_size + state_size + 2) + in_size + state_size] =
+            //     0.0;
+            // reordered_w[ii*(in_size + state_size + 2) + in_size + state_size + 1] = 
+            //     w[offset + ii + state_size*4];
+            for (size_t jj = 0; jj < 2; jj++) {
+                reordered_w[ii*(in_size + state_size + 2) + in_size + state_size + jj] = 
+                    w[offset + ii + jj*state_size*4];
+            }
+        }
+
+        // cblas_gemm_pack<data_traits<data_t>::data_type>(CblasRowMajor,
+        //         CblasAMatrix, CblasTrans, 4 * state_size, batch_size,
+        //         in_size + state_size + 2, 1.0, reordered_w, 4*state_size,
+        //         weights_pack[l]);
         cblas_gemm_pack<data_traits<data_t>::data_type>(CblasRowMajor,
-                CblasAMatrix, CblasTrans, 4 * state_size, batch_size,
-                (in_size + state_size + 2), 1.0, w + w_off, 4 * state_size,
+                CblasAMatrix, CblasNoTrans, 4 * state_size, batch_size,
+                in_size + state_size + 2, 1.0, reordered_w, in_size + state_size + 2,
                 weights_pack[l]);
+
+        // std::cout << "weight packed" << std::endl;
+        // for (size_t ii = 0; ii < 80; ii++) {
+        //     std::cout << reordered_w[ii] << ", ";
+        // }
+        // std::cout << std::endl;
+
     }
+    delete[] reordered_w;
+
+    // for (int l = 0; l < total_layers; l++) {
+    //     dl = l / num_layers;
+    //     rl = l % num_layers;
+    //     roff = (rl == 0) ? 0 : (w1_size + (rl - 1) * wx_size);
+    //     w_off = wa * dl + roff;
+    //     in_size = (rl == 0) ? input_size : state_size;
+    //     cblas_gemm_pack<data_traits<data_t>::data_type>(CblasRowMajor,
+    //             CblasAMatrix, CblasTrans, 4 * state_size, batch_size,
+    //             (in_size + state_size + 2), 1.0, w + w_off, 4 * state_size,
+    //             weights_pack[l]);
+    // }
     for (int l = 0; l < total_layers; l++) {
         dl = l / num_layers;
         rl = l % num_layers;
@@ -470,22 +574,94 @@ inline void lstm_bwd_prop(const int seq_length, const int num_layers,
                     batch_size);
         }
     }
+    
+    data_t* reordered_w = 
+        new data_t[((input_size > state_size) ? input_size : state_size +
+            state_size + 2) * state_size * 4];
     for (int l = 0; l < total_layers; l++) {
         dl = l / num_layers;
         rl = l % num_layers;
-        roff = (rl == 0) ? 0 : (w1_size + (rl - 1) * wx_size);
-        w_off = wa * dl + roff;
         in_size = (rl == 0) ? input_size : state_size;
+        // Wx
+        size_t offset = (rl == 0) ? 0 : 
+            4*(input_size*state_size + (rl - 1) * (state_size*state_size)) +
+            4*rl * (state_size*state_size);
+#if defined(_OPENMP)
+#pragma omp parallel for
+#endif
+        for (size_t ii = 0; ii < 4*state_size; ii++) {
+            for (size_t jj = 0; jj < in_size; jj++) {
+                reordered_w[ii*(in_size + state_size + 2) + jj] = 
+                    w[offset + ii*in_size + jj];
+                    // (w + w_off)[ii*in_size + jj];
+            }
+        }
+
+        // Wh
+        offset += 4*in_size*state_size;
+#if defined(_OPENMP)
+#pragma omp parallel for
+#endif
+        for (size_t ii = 0; ii < 4*state_size; ii++) {
+            for (size_t jj = 0; jj < state_size; jj++) {
+                reordered_w[ii*(in_size + state_size + 2) + in_size + jj] = 
+                    w[offset + ii*state_size + jj];
+                    // (w + w_off)[offset + ii*state_size + jj];
+            }
+        }
+
+        // bx
+        offset =  4*(input_size+state_size)*state_size;
+        if (num_layers > 1)
+            offset += (num_layers - 1)*8*state_size*state_size + rl*8*state_size;
+#if defined(_OPENMP)
+#pragma omp parallel for
+#endif
+        for (size_t ii = 0; ii < 4*state_size; ii++) {
+            // reordered_w[ii*(in_size + state_size + 2) + in_size + state_size] =
+            //     0.0;
+            // reordered_w[ii*(in_size + state_size + 2) + in_size + state_size + 1] = 
+            //     w[offset + ii + state_size*4];
+            for (size_t jj = 0; jj < 2; jj++) {
+                reordered_w[ii*(in_size + state_size + 2) + in_size + state_size + jj] = 
+                    w[offset + ii + jj*state_size*4];
+            }
+        }
+
+        // cblas_gemm_pack<data_traits<data_t>::data_type>(CblasRowMajor,
+        //         CblasAMatrix, CblasTrans, 4 * state_size, batch_size,
+        //         in_size + state_size + 2, 1.0, reordered_w, 4*state_size,
+        //         weights_pack[l]);
         cblas_gemm_pack<data_traits<data_t>::data_type>(CblasRowMajor,
-                CblasAMatrix, CblasNoTrans, (in_size + state_size + 2),
-                batch_size, 4 * state_size, 1.0, w + w_off, 4 * state_size,
+                CblasAMatrix, CblasNoTrans, 4 * state_size, batch_size,
+                in_size + state_size + 2, 1.0, reordered_w, in_size + state_size + 2,
                 weights_pack[l]);
+
+        // std::cout << "weight packed" << std::endl;
+        // for (size_t ii = 0; ii < 80; ii++) {
+        //     std::cout << reordered_w[ii] << ", ";
+        // }
+        // std::cout << std::endl;
+
     }
+    // delete[] reordered_w;
+
+    // for (int l = 0; l < total_layers; l++) {
+    //     dl = l / num_layers;
+    //     rl = l % num_layers;
+    //     roff = (rl == 0) ? 0 : (w1_size + (rl - 1) * wx_size);
+    //     w_off = wa * dl + roff;
+    //     in_size = (rl == 0) ? input_size : state_size;
+    //     cblas_gemm_pack<data_traits<data_t>::data_type>(CblasRowMajor,
+    //             CblasAMatrix, CblasNoTrans, (in_size + state_size + 2),
+    //             batch_size, 4 * state_size, 1.0, w + w_off, 4 * state_size,
+    //             weights_pack[l]);
+    // }
     for (int l = (total_layers - 1); l >= 0; l--) {
         dl = l / num_layers;
         rl = l % num_layers;
-        roff = (rl == 0) ? 0 : (w1_size + (rl - 1) * wx_size);
-        w_off = wa * dl + roff;
+        // roff = (rl == 0) ? 0 : (w1_size + (rl - 1) * wx_size);
+        // w_off = wa * dl + roff;
         if (dl == 1) {
             for (int t = 0; t < seq_length; t++) {
                 rt = 2 * seq_length - t - 1;
@@ -505,7 +681,7 @@ inline void lstm_bwd_prop(const int seq_length, const int num_layers,
                                     + rt * h_nlayer_size,
                             ts_ + dc_space_off + rl * h_size
                                     + rt * h_nlayer_size,
-                            dw + w_off, ts_ + dh_space_off + (rl - 1) * h_size
+                            reordered_w, ts_ + dh_space_off + (rl - 1) * h_size
                                     + rt * h_nlayer_size,
                             ts_ + dh_space_off + rl * h_size
                                     + (rt - 1) * h_nlayer_size,
@@ -528,7 +704,7 @@ inline void lstm_bwd_prop(const int seq_length, const int num_layers,
                                     + rt * h_nlayer_size,
                             ts_ + dc_space_off + rl * h_size
                                     + rt * h_nlayer_size,
-                            dw + w_off, dx + t * x_size, ts_ + dh_space_off
+                            reordered_w, dx + t * x_size, ts_ + dh_space_off
                                     + rl * h_size + (rt - 1) * h_nlayer_size,
                             ts_ + dc_space_off + rl * h_size
                                     + (rt - 1) * h_nlayer_size,
@@ -556,7 +732,7 @@ inline void lstm_bwd_prop(const int seq_length, const int num_layers,
                                     + rt * h_nlayer_size,
                             ts_ + dc_space_off + rl * h_size
                                     + rt * h_nlayer_size,
-                            dw + w_off, ts_ + dh_space_off + (rl - 1) * h_size
+                            reordered_w, ts_ + dh_space_off + (rl - 1) * h_size
                                     + rt * h_nlayer_size,
                             ts_ + dh_space_off + rl * h_size
                                     + (rt - 1) * h_nlayer_size,
@@ -579,7 +755,7 @@ inline void lstm_bwd_prop(const int seq_length, const int num_layers,
                                     + rt * h_nlayer_size,
                             ts_ + dc_space_off + rl * h_size
                                     + rt * h_nlayer_size,
-                            dw + w_off, dx + t * x_size, ts_ + dh_space_off
+                            reordered_w, dx + t * x_size, ts_ + dh_space_off
                                     + rl * h_size + (rt - 1) * h_nlayer_size,
                             ts_ + dc_space_off + rl * h_size
                                     + (rt - 1) * h_nlayer_size,
@@ -599,7 +775,7 @@ inline void lstm_bwd_prop(const int seq_length, const int num_layers,
                                     + rt * h_nlayer_size,
                             ts_ + dc_space_off + rl * h_size
                                     + rt * h_nlayer_size,
-                            dw + w_off, ts_ + dh_space_off + (rl - 1) * h_size
+                            reordered_w, ts_ + dh_space_off + (rl - 1) * h_size
                                     + rt * h_nlayer_size,
                             dhx + l * h_size, dcx + l * h_size,
                             ts_ + dgates_space_off + rl * gates_size
@@ -616,14 +792,85 @@ inline void lstm_bwd_prop(const int seq_length, const int num_layers,
                                     + rt * h_nlayer_size,
                             ts_ + dc_space_off + rl * h_size
                                     + rt * h_nlayer_size,
-                            dw + w_off, dx + t * x_size, dhx + l * h_size,
+                            reordered_w, dx + t * x_size, dhx + l * h_size,
                             dcx + l * h_size, ts_ + dgates_space_off
                                     + rl * gates_size + rt * gates_nlayer_size,
                             ts_ + tmp_space_off);
                 }
             }
         }
+
+        // Reorder dw
+        in_size = (rl == 0) ? input_size : state_size;
+        // Wx
+        size_t offset = (rl == 0) ? 0 : 
+            4 * (input_size*state_size + (rl - 1) * (state_size*state_size)) +
+            4 * rl * (state_size*state_size);
+#if defined(_OPENMP)
+#pragma omp parallel for
+#endif
+        for (size_t ii = 0; ii < 4*state_size; ii++) {
+            for (size_t jj = 0; jj < in_size; jj++) {
+                dw[offset + ii*in_size + jj] =
+                    reordered_w[ii*(in_size + state_size + 2) + jj];
+            }
+        }
+
+        // Wh
+        offset += 4*in_size*state_size;
+#if defined(_OPENMP)
+#pragma omp parallel for
+#endif
+        for (size_t ii = 0; ii < 4*state_size; ii++) {
+            for (size_t jj = 0; jj < state_size; jj++) {
+                dw[offset + ii*state_size + jj] = 
+                    reordered_w[ii*(in_size + state_size + 2) + in_size + jj];
+            }
+        }
+        // bx
+        offset = 4*(input_size+state_size)*state_size;
+        if (num_layers > 1)
+            offset += (num_layers - 1)*8*state_size*state_size + rl*8*state_size;
+#if defined(_OPENMP)
+#pragma omp parallel for
+#endif
+        for (size_t ii = 0; ii < 4*state_size; ii++) {
+            for (size_t jj = 0; jj < 2; jj++) {
+                dw[offset + ii + jj*state_size*4] = 
+                    reordered_w[ii*(in_size + state_size + 2) + in_size + state_size + jj];
+                // reordered_w[ii*(in_size + state_size + 2) + in_size + state_size + jj] = 
+                //     w[offset + ii + jj*state_size];
+                    // std::cout << "offset: " << (offset + ii + jj*state_size) << std::endl;
+                    // if ((offset + ii + jj*state_size) == 0) {
+                    //     std::cout << "input_size: " << input_size << std::endl;
+                    //     std::cout << "state_size: " << state_size << std::endl;
+                    //     std::cout << "ii: " << ii << std::endl;
+                    //     std::cout << "jj: " << jj << std::endl;
+                    //     std::cout << "rl: " << rl << std::endl;
+                    //     std::cout << "(input_size+state_size)*state_size: " << (input_size+state_size)*state_size << std::endl;
+                    //     std::cout << "(rl - 1)*2*state_size*state_size: " << (rl - 1)*2*state_size*state_size << std::endl;
+
+                    // }
+                    // (w + w_off)[offset + ii*2 + jj];
+            }
+        }
+
+        // std::cout << "33333: ";
+        // for (size_t ii = 0; ii < 24; ii++) {
+        //     std::cout << reordered_w[ii] << ", ";
+        // }
+        // std::cout << std::endl;
+        // cblas_gemm_pack<data_traits<data_t>::data_type>(CblasRowMajor,
+        //         CblasAMatrix, CblasNoTrans, state_size, batch_size,
+        //         in_size + state_size + 2, 1.0, reordered_w, in_size + state_size + 2,
+        //         weights_pack[l]);
+        // for (size_t ii = 0; ii < 24; ii++) {
+        //     std::cout << reordered_w[ii] << ", " << std::endl;
+        // }
+
     }
+
+    delete[] reordered_w;
 #endif
 }
 
@@ -803,7 +1050,7 @@ inline void rnn_fwd_prop(const int seq_length, const int num_layers,
         ws_ptr = ts_;
         tmp_space_off = hout_space_off + hout_space_size;
     }
-    
+
     data_t* reordered_w = 
         new data_t[((input_size > state_size) ? input_size : state_size +
             state_size + 2) * state_size];
