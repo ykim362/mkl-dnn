@@ -52,8 +52,8 @@ template <typename data_t>
 #if defined(_OPENMP)
 #pragma OMP_SIMD
 #endif
-inline void lstm_fwd_ele_wise(data_t *Gates, const data_t *Ct_1, data_t *Ct,
-        data_t *Ht, int Length)
+inline void lstm_fwd_ele_wise(
+        data_t *Gates, const data_t *Ct_1, data_t *Ct, data_t *Ht, int Length)
 {
 #if defined(_OPENMP)
 #pragma OMP_FOR_SIMD
@@ -62,10 +62,10 @@ inline void lstm_fwd_ele_wise(data_t *Gates, const data_t *Ct_1, data_t *Ct,
         Gates[i] = Sigmoid<data_traits<data_t>::data_type>(Gates[i]);
         Gates[Length + i]
                 = Sigmoid<data_traits<data_t>::data_type>(Gates[Length + i]);
-        Gates[2 * Length + i] = Tanh<data_traits<data_t>::data_type>(
-                Gates[2 * Length + i]);
-        Gates[3 * Length + i]
-                = Sigmoid<data_traits<data_t>::data_type>(Gates[3 * Length + i]);
+        Gates[2 * Length + i]
+                = Tanh<data_traits<data_t>::data_type>(Gates[2 * Length + i]);
+        Gates[3 * Length + i] = Sigmoid<data_traits<data_t>::data_type>(
+                Gates[3 * Length + i]);
         Ct[i] = Ct_1[i] * Gates[Length + i] + Gates[i] * Gates[2 * Length + i];
         Ht[i] = Gates[3 * Length + i]
                 * Tanh<data_traits<data_t>::data_type>(Ct[i]);
@@ -103,11 +103,10 @@ template <typename data_t>
 #if defined(_OPENMP)
 #pragma OMP_SIMD
 #endif
-inline void lstm_fwd_prop_single(const int input_size,
-        const int state_size, const int batch_size, const data_t *x,
-        int tranx, const data_t *ht_1, int tranht_1, const data_t *ct_1,
-        int tranct_1, const data_t *w, data_t *ht, data_t *ct, data_t *gates,
-        data_t *tmp)
+inline void lstm_fwd_prop_single(const int input_size, const int state_size,
+        const int batch_size, const data_t *x, int tranx, const data_t *ht_1,
+        int tranht_1, const data_t *ct_1, int tranct_1, const data_t *w,
+        data_t *ht, data_t *ct, data_t *gates, data_t *tmp)
 {
 #ifdef USE_MKL
     auto x_size = input_size * batch_size;
@@ -148,12 +147,12 @@ inline void lstm_fwd_prop_single(const int input_size,
 }
 
 template <typename data_t>
-inline void lstm_bwd_prop_single(const int input_size,
-        const int state_size, const int batch_size, const data_t *x,
-        int tranx, const data_t *ht_1, int tranht_1, const data_t *ct_1,
-        int tranct_1, const data_t *ct, const data_t *w, const data_t *gates,
-        data_t *dht, data_t *dct, data_t *dw, data_t *dx, data_t *dht_1,
-        data_t *dct_1, data_t *dgates, data_t *tmp)
+inline void lstm_bwd_prop_single(const int input_size, const int state_size,
+        const int batch_size, const data_t *x, int tranx, const data_t *ht_1,
+        int tranht_1, const data_t *ct_1, int tranct_1, const data_t *ct,
+        const data_t *w, const data_t *gates, data_t *dht, data_t *dct,
+        data_t *dw, data_t *dx, data_t *dht_1, data_t *dct_1, data_t *dgates,
+        data_t *tmp)
 {
 #ifdef USE_MKL
     auto x_size = input_size * batch_size;
@@ -216,14 +215,13 @@ inline void lstm_bwd_prop_single(const int input_size,
 
 template <typename data_t>
 inline void lstm_fwd_prop(const int seq_length, const int num_layers,
-        const int batch_size, const int input_size,
-        const int state_size, const int direction, const int w1_size,
-        const int wx_size, const int h_size, const int x_size,
-        const int h_nlayer_size, const int gates_size,
-        const int gates_nlayer_size, const int gates_space_size,
-        const int h_space_size, const data_t *x, const data_t *hx,
-        const data_t *cx, const data_t *w, data_t *y, data_t *hy, data_t *cy,
-        data_t *ws, data_t *ts_, data_t **weights_pack)
+        const int batch_size, const int input_size, const int state_size,
+        const int direction, const int w1_size, const int wx_size,
+        const int h_size, const int x_size, const int h_nlayer_size,
+        const int gates_size, const int gates_nlayer_size,
+        const int gates_space_size, const int h_space_size, const data_t *x,
+        const data_t *hx, const data_t *cx, const data_t *w, data_t *y,
+        data_t *hy, data_t *cy, data_t *ws, data_t *ts_, data_t **weights_pack)
 {
 #ifdef USE_MKL
     const int total_layers = num_layers * direction;
@@ -243,58 +241,63 @@ inline void lstm_fwd_prop(const int seq_length, const int num_layers,
         ws_ptr = ts_;
         tmp_space_off = c_space_off + h_space_size;
     }
-    
-    data_t* reordered_w = 
-        new data_t[((input_size > state_size) ? input_size : state_size +
-            state_size + 2) * state_size * 4];
+
+    data_t *reordered_w
+            = new data_t[((input_size > state_size) ? input_size : state_size
+                                                 + state_size + 2)
+                    * state_size * 4];
     for (int l = 0; l < total_layers; l++) {
         dl = l / num_layers;
         rl = l % num_layers;
         in_size = (rl == 0) ? input_size : state_size;
         // Wx
-        size_t offset = (rl == 0) ? 0 : 
-            4*(input_size*state_size + (rl - 1) * (state_size*state_size)) +
-            4*rl * (state_size*state_size);
+        size_t offset = (rl == 0) ?
+                0 :
+                4 * (input_size * state_size
+                            + (rl - 1) * (state_size * state_size))
+                        + 4 * rl * (state_size * state_size);
 #if defined(_OPENMP)
 #pragma omp parallel for
 #endif
-        for (size_t ii = 0; ii < 4*state_size; ii++) {
+        for (size_t ii = 0; ii < 4 * state_size; ii++) {
             for (size_t jj = 0; jj < in_size; jj++) {
-                reordered_w[ii*(in_size + state_size + 2) + jj] = 
-                    w[offset + ii*in_size + jj];
+                reordered_w[ii * (in_size + state_size + 2) + jj]
+                        = w[offset + ii * in_size + jj];
             }
         }
 
         // Wh
-        offset += 4*in_size*state_size;
+        offset += 4 * in_size * state_size;
 #if defined(_OPENMP)
 #pragma omp parallel for
 #endif
-        for (size_t ii = 0; ii < 4*state_size; ii++) {
+        for (size_t ii = 0; ii < 4 * state_size; ii++) {
             for (size_t jj = 0; jj < state_size; jj++) {
-                reordered_w[ii*(in_size + state_size + 2) + in_size + jj] = 
-                    w[offset + ii*state_size + jj];
+                reordered_w[ii * (in_size + state_size + 2) + in_size + jj]
+                        = w[offset + ii * state_size + jj];
             }
         }
 
         // bx
-        offset =  4*(input_size+state_size)*state_size;
+        offset = 4 * (input_size + state_size) * state_size;
         if (num_layers > 1)
-            offset += (num_layers - 1)*8*state_size*state_size + rl*8*state_size;
+            offset += (num_layers - 1) * 8 * state_size * state_size
+                    + rl * 8 * state_size;
 #if defined(_OPENMP)
 #pragma omp parallel for
 #endif
-        for (size_t ii = 0; ii < 4*state_size; ii++) {
+        for (size_t ii = 0; ii < 4 * state_size; ii++) {
             for (size_t jj = 0; jj < 2; jj++) {
-                reordered_w[ii*(in_size + state_size + 2) + in_size + state_size + jj] = 
-                    w[offset + ii + jj*state_size*4];
+                reordered_w[ii * (in_size + state_size + 2) + in_size
+                        + state_size + jj]
+                        = w[offset + ii + jj * state_size * 4];
             }
         }
 
         cblas_gemm_pack<data_traits<data_t>::data_type>(CblasRowMajor,
                 CblasAMatrix, CblasNoTrans, 4 * state_size, batch_size,
-                in_size + state_size + 2, 1.0, reordered_w, in_size + state_size + 2,
-                weights_pack[l]);
+                in_size + state_size + 2, 1.0, reordered_w,
+                in_size + state_size + 2, weights_pack[l]);
     }
     delete[] reordered_w;
 
@@ -439,13 +442,13 @@ inline void lstm_fwd_prop(const int seq_length, const int num_layers,
 
 template <typename data_t>
 inline void lstm_bwd_prop(const int seq_length, const int num_layers,
-        const int batch_size, const int input_size,
-        const int state_size, const int direction, const int w1_size,
-        const int wx_size, const int h_size, const int x_size,
-        const int h_nlayer_size, const int gates_size,
-        const int gates_nlayer_size, const int gates_space_size,
-        const int h_space_size, const int state_outputs, const data_t *x,
-        const data_t *hx, const data_t *cx, const data_t *dy, const data_t *dhy,
+        const int batch_size, const int input_size, const int state_size,
+        const int direction, const int w1_size, const int wx_size,
+        const int h_size, const int x_size, const int h_nlayer_size,
+        const int gates_size, const int gates_nlayer_size,
+        const int gates_space_size, const int h_space_size,
+        const int state_outputs, const data_t *x, const data_t *hx,
+        const data_t *cx, const data_t *dy, const data_t *dhy,
         const data_t *dcy, const data_t *w, const data_t *ws, data_t *dx,
         data_t *dhx, data_t *dcx, data_t *dw, data_t *ts_,
         data_t **weights_pack)
@@ -510,57 +513,62 @@ inline void lstm_bwd_prop(const int seq_length, const int num_layers,
                     batch_size);
         }
     }
-    
-    data_t* reordered_w = 
-        new data_t[((input_size > state_size) ? input_size : state_size +
-            state_size + 2) * state_size * 4];
+
+    data_t *reordered_w
+            = new data_t[((input_size > state_size) ? input_size : state_size
+                                                 + state_size + 2)
+                    * state_size * 4];
     for (int l = 0; l < total_layers; l++) {
         dl = l / num_layers;
         rl = l % num_layers;
         in_size = (rl == 0) ? input_size : state_size;
         // Wx
-        size_t offset = (rl == 0) ? 0 : 
-            4*(input_size*state_size + (rl - 1) * (state_size*state_size)) +
-            4*rl * (state_size*state_size);
+        size_t offset = (rl == 0) ?
+                0 :
+                4 * (input_size * state_size
+                            + (rl - 1) * (state_size * state_size))
+                        + 4 * rl * (state_size * state_size);
 #if defined(_OPENMP)
 #pragma omp parallel for
 #endif
-        for (size_t ii = 0; ii < 4*state_size; ii++) {
+        for (size_t ii = 0; ii < 4 * state_size; ii++) {
             for (size_t jj = 0; jj < in_size; jj++) {
-                reordered_w[ii*(in_size + state_size + 2) + jj] = 
-                    w[offset + ii*in_size + jj];
+                reordered_w[ii * (in_size + state_size + 2) + jj]
+                        = w[offset + ii * in_size + jj];
             }
         }
 
         // Wh
-        offset += 4*in_size*state_size;
+        offset += 4 * in_size * state_size;
 #if defined(_OPENMP)
 #pragma omp parallel for
 #endif
-        for (size_t ii = 0; ii < 4*state_size; ii++) {
+        for (size_t ii = 0; ii < 4 * state_size; ii++) {
             for (size_t jj = 0; jj < state_size; jj++) {
-                reordered_w[ii*(in_size + state_size + 2) + in_size + jj] = 
-                    w[offset + ii*state_size + jj];
+                reordered_w[ii * (in_size + state_size + 2) + in_size + jj]
+                        = w[offset + ii * state_size + jj];
             }
         }
 
         // bx
-        offset =  4*(input_size+state_size)*state_size;
+        offset = 4 * (input_size + state_size) * state_size;
         if (num_layers > 1)
-            offset += (num_layers - 1)*8*state_size*state_size + rl*8*state_size;
+            offset += (num_layers - 1) * 8 * state_size * state_size
+                    + rl * 8 * state_size;
 #if defined(_OPENMP)
 #pragma omp parallel for
 #endif
-        for (size_t ii = 0; ii < 4*state_size; ii++) {
+        for (size_t ii = 0; ii < 4 * state_size; ii++) {
             for (size_t jj = 0; jj < 2; jj++) {
-                reordered_w[ii*(in_size + state_size + 2) + in_size + state_size + jj] = 
-                    w[offset + ii + jj*state_size*4];
+                reordered_w[ii * (in_size + state_size + 2) + in_size
+                        + state_size + jj]
+                        = w[offset + ii + jj * state_size * 4];
             }
         }
         cblas_gemm_pack<data_traits<data_t>::data_type>(CblasRowMajor,
                 CblasAMatrix, CblasNoTrans, 4 * state_size, batch_size,
-                in_size + state_size + 2, 1.0, reordered_w, in_size + state_size + 2,
-                weights_pack[l]);
+                in_size + state_size + 2, 1.0, reordered_w,
+                in_size + state_size + 2, weights_pack[l]);
     }
 
     for (int l = (total_layers - 1); l >= 0; l--) {
@@ -707,41 +715,46 @@ inline void lstm_bwd_prop(const int seq_length, const int num_layers,
         // Reorder dw
         in_size = (rl == 0) ? input_size : state_size;
         // Wx
-        size_t offset = (rl == 0) ? 0 : 
-            4 * (input_size*state_size + (rl - 1) * (state_size*state_size)) +
-            4 * rl * (state_size*state_size);
+        size_t offset = (rl == 0) ?
+                0 :
+                4 * (input_size * state_size
+                            + (rl - 1) * (state_size * state_size))
+                        + 4 * rl * (state_size * state_size);
 #if defined(_OPENMP)
 #pragma omp parallel for
 #endif
-        for (size_t ii = 0; ii < 4*state_size; ii++) {
+        for (size_t ii = 0; ii < 4 * state_size; ii++) {
             for (size_t jj = 0; jj < in_size; jj++) {
-                dw[offset + ii*in_size + jj] =
-                    reordered_w[ii*(in_size + state_size + 2) + jj];
+                dw[offset + ii * in_size + jj]
+                        = reordered_w[ii * (in_size + state_size + 2) + jj];
             }
         }
 
         // Wh
-        offset += 4*in_size*state_size;
+        offset += 4 * in_size * state_size;
 #if defined(_OPENMP)
 #pragma omp parallel for
 #endif
-        for (size_t ii = 0; ii < 4*state_size; ii++) {
+        for (size_t ii = 0; ii < 4 * state_size; ii++) {
             for (size_t jj = 0; jj < state_size; jj++) {
-                dw[offset + ii*state_size + jj] = 
-                    reordered_w[ii*(in_size + state_size + 2) + in_size + jj];
+                dw[offset + ii * state_size + jj]
+                        = reordered_w[ii * (in_size + state_size + 2) + in_size
+                                + jj];
             }
         }
         // bx
-        offset = 4*(input_size+state_size)*state_size;
+        offset = 4 * (input_size + state_size) * state_size;
         if (num_layers > 1)
-            offset += (num_layers - 1)*8*state_size*state_size + rl*8*state_size;
+            offset += (num_layers - 1) * 8 * state_size * state_size
+                    + rl * 8 * state_size;
 #if defined(_OPENMP)
 #pragma omp parallel for
 #endif
-        for (size_t ii = 0; ii < 4*state_size; ii++) {
+        for (size_t ii = 0; ii < 4 * state_size; ii++) {
             for (size_t jj = 0; jj < 2; jj++) {
-                dw[offset + ii + jj*state_size*4] = 
-                    reordered_w[ii*(in_size + state_size + 2) + in_size + state_size + jj];
+                dw[offset + ii + jj * state_size * 4]
+                        = reordered_w[ii * (in_size + state_size + 2) + in_size
+                                + state_size + jj];
             }
         }
     }
@@ -751,8 +764,8 @@ inline void lstm_bwd_prop(const int seq_length, const int num_layers,
 }
 
 template <typename data_t>
-inline void rnn_fwd_ele_wise(const data_t *Gates, data_t *Ht,
-        const int Length, const int alg_kind)
+inline void rnn_fwd_ele_wise(
+        const data_t *Gates, data_t *Ht, const int Length, const int alg_kind)
 {
 #ifdef USE_MKL
     if (alg_kind == rnn_relu) {
@@ -774,10 +787,10 @@ inline void rnn_fwd_ele_wise(const data_t *Gates, data_t *Ht,
 }
 
 template <typename data_t>
-inline void rnn_fwd_prop_single(const int input_size,
-        const int state_size, const int batch_size, const int alg_kind,
-        const data_t *x, int tranx, const data_t *ht_1, int tranht_1,
-        const data_t *w, data_t *ht, data_t *gates, data_t *tmp)
+inline void rnn_fwd_prop_single(const int input_size, const int state_size,
+        const int batch_size, const int alg_kind, const data_t *x, int tranx,
+        const data_t *ht_1, int tranht_1, const data_t *w, data_t *ht,
+        data_t *gates, data_t *tmp)
 {
 #ifdef USE_MKL
     auto x_size = input_size * batch_size;
@@ -839,11 +852,11 @@ inline void rnn_bwd_ele_wise(const data_t *Gates, data_t *dGates,
 }
 
 template <typename data_t>
-inline void rnn_bwd_prop_single(const int input_size,
-        const int state_size, const int batch_size, const int alg_kind,
-        const data_t *x, int tranx, const data_t *ht_1, int tranht_1,
-        const data_t *w, const data_t *gates, data_t *dht, data_t *dw,
-        data_t *dx, data_t *dht_1, data_t *dgates, data_t *tmp)
+inline void rnn_bwd_prop_single(const int input_size, const int state_size,
+        const int batch_size, const int alg_kind, const data_t *x, int tranx,
+        const data_t *ht_1, int tranht_1, const data_t *w, const data_t *gates,
+        data_t *dht, data_t *dw, data_t *dx, data_t *dht_1, data_t *dgates,
+        data_t *tmp)
 {
 #ifdef USE_MKL
     auto x_size = input_size * batch_size;
@@ -899,15 +912,14 @@ inline void rnn_bwd_prop_single(const int input_size,
 
 template <typename data_t>
 inline void rnn_fwd_prop(const int seq_length, const int num_layers,
-        const int batch_size, const int input_size,
-        const int state_size, const int direction, const int alg_kind,
-        const int w1_size, const int wx_size, const int h_size,
-        const int x_size, const int h_nlayer_size,
-        const int gates_size, const int gates_nlayer_size,
-        const int gates_space_size, const int hout_space_size,
-        const data_t *x, const data_t *hx, const data_t *cx, const data_t *w,
-        data_t *y, data_t *hy, data_t *cy, data_t *ws, data_t *ts_,
-        data_t **weights_pack)
+        const int batch_size, const int input_size, const int state_size,
+        const int direction, const int alg_kind, const int w1_size,
+        const int wx_size, const int h_size, const int x_size,
+        const int h_nlayer_size, const int gates_size,
+        const int gates_nlayer_size, const int gates_space_size,
+        const int hout_space_size, const data_t *x, const data_t *hx,
+        const data_t *cx, const data_t *w, data_t *y, data_t *hy, data_t *cy,
+        data_t *ws, data_t *ts_, data_t **weights_pack)
 {
 #ifdef USE_MKL
     const int total_layers = num_layers * direction;
@@ -927,60 +939,61 @@ inline void rnn_fwd_prop(const int seq_length, const int num_layers,
         tmp_space_off = hout_space_off + hout_space_size;
     }
 
-    data_t* reordered_w = 
-        new data_t[((input_size > state_size) ? input_size : state_size +
-            state_size + 2) * state_size];
+    data_t *reordered_w
+            = new data_t[((input_size > state_size) ? input_size : state_size
+                                                 + state_size + 2)
+                    * state_size];
     for (int l = 0; l < total_layers; l++) {
         dl = l / num_layers;
         rl = l % num_layers;
         in_size = (rl == 0) ? input_size : state_size;
         // Wx
-        size_t offset = (rl == 0) ? 0 : 
-            (input_size*state_size + (rl - 1) * (state_size*state_size)) +
-            rl * (state_size*state_size);
+        size_t offset = (rl == 0) ?
+                0 :
+                (input_size * state_size + (rl - 1) * (state_size * state_size))
+                        + rl * (state_size * state_size);
 #if defined(_OPENMP)
 #pragma omp parallel for
 #endif
         for (size_t ii = 0; ii < state_size; ii++) {
             for (size_t jj = 0; jj < in_size; jj++) {
-                reordered_w[ii*(in_size + state_size + 2) + jj] = 
-                    w[offset + ii*in_size + jj];
-                    // (w + w_off)[ii*in_size + jj];
+                reordered_w[ii * (in_size + state_size + 2) + jj]
+                        = w[offset + ii * in_size + jj];
             }
         }
 
         // Wh
-        offset += in_size*state_size;
+        offset += in_size * state_size;
 #if defined(_OPENMP)
 #pragma omp parallel for
 #endif
         for (size_t ii = 0; ii < state_size; ii++) {
             for (size_t jj = 0; jj < state_size; jj++) {
-                reordered_w[ii*(in_size + state_size + 2) + in_size + jj] = 
-                    w[offset + ii*state_size + jj];
-                    // (w + w_off)[offset + ii*state_size + jj];
+                reordered_w[ii * (in_size + state_size + 2) + in_size + jj]
+                        = w[offset + ii * state_size + jj];
             }
         }
 
         // bx
-        offset = (input_size+state_size)*state_size;
+        offset = (input_size + state_size) * state_size;
         if (num_layers > 1)
-            offset += (num_layers - 1)*2*state_size*state_size + rl*2*state_size;
+            offset += (num_layers - 1) * 2 * state_size * state_size
+                    + rl * 2 * state_size;
 #if defined(_OPENMP)
 #pragma omp parallel for
 #endif
         for (size_t ii = 0; ii < state_size; ii++) {
             for (size_t jj = 0; jj < 2; jj++) {
-                reordered_w[ii*(in_size + state_size + 2) + in_size + state_size + jj] = 
-                    w[offset + ii + jj*state_size];
+                reordered_w[ii * (in_size + state_size + 2) + in_size
+                        + state_size + jj]
+                        = w[offset + ii + jj * state_size];
             }
         }
 
         cblas_gemm_pack<data_traits<data_t>::data_type>(CblasRowMajor,
                 CblasAMatrix, CblasNoTrans, state_size, batch_size,
-                in_size + state_size + 2, 1.0, reordered_w, in_size + state_size + 2,
-                weights_pack[l]);
-
+                in_size + state_size + 2, 1.0, reordered_w,
+                in_size + state_size + 2, weights_pack[l]);
     }
     delete[] reordered_w;
 
@@ -1093,14 +1106,13 @@ inline void rnn_fwd_prop(const int seq_length, const int num_layers,
 
 template <typename data_t>
 inline void rnn_bwd_prop(const int seq_length, const int num_layers,
-        const int batch_size, const int input_size,
-        const int state_size, const int direction, const int alg_kind,
-        const int w1_size, const int wx_size, const int h_size,
-        const int x_size, const int h_nlayer_size,
-        const int gates_size, const int gates_nlayer_size,
-        const int gates_space_size, const int h_space_size,
-        const int state_outputs, const data_t *x, const data_t *hx,
-        const data_t *cx, const data_t *dy, const data_t *dhy,
+        const int batch_size, const int input_size, const int state_size,
+        const int direction, const int alg_kind, const int w1_size,
+        const int wx_size, const int h_size, const int x_size,
+        const int h_nlayer_size, const int gates_size,
+        const int gates_nlayer_size, const int gates_space_size,
+        const int h_space_size, const int state_outputs, const data_t *x,
+        const data_t *hx, const data_t *cx, const data_t *dy, const data_t *dhy,
         const data_t *dcy, const data_t *w, const data_t *ws, data_t *dx,
         data_t *dhx, data_t *dcx, data_t *dw, data_t *ts_,
         data_t **weights_pack)
@@ -1152,59 +1164,63 @@ inline void rnn_bwd_prop(const int seq_length, const int num_layers,
                     1);
         }
     }
-    data_t* reordered_w = 
-        new data_t[((input_size > state_size) ? input_size : state_size +
-            state_size + 2) * state_size];
+    data_t *reordered_w
+            = new data_t[((input_size > state_size) ? input_size : state_size
+                                                 + state_size + 2)
+                    * state_size];
     for (int l = 0; l < total_layers; l++) {
         dl = l / num_layers;
         rl = l % num_layers;
         in_size = (rl == 0) ? input_size : state_size;
         // Wx
-        size_t offset = (rl == 0) ? 0 : 
-            (input_size*state_size + (rl - 1) * (state_size*state_size)) +
-            rl * (state_size*state_size);
+        size_t offset = (rl == 0) ?
+                0 :
+                (input_size * state_size + (rl - 1) * (state_size * state_size))
+                        + rl * (state_size * state_size);
 #if defined(_OPENMP)
 #pragma omp parallel for
 #endif
         for (size_t ii = 0; ii < state_size; ii++) {
             for (size_t jj = 0; jj < in_size; jj++) {
-                reordered_w[ii*(in_size + state_size + 2) + jj] = 
-                    w[offset + ii*in_size + jj];
-                    // (w + w_off)[ii*in_size + jj];
+                reordered_w[ii * (in_size + state_size + 2) + jj]
+                        = w[offset + ii * in_size + jj];
+                // (w + w_off)[ii*in_size + jj];
             }
         }
 
         // Wh
-        offset += in_size*state_size;
+        offset += in_size * state_size;
 #if defined(_OPENMP)
 #pragma omp parallel for
 #endif
         for (size_t ii = 0; ii < state_size; ii++) {
             for (size_t jj = 0; jj < state_size; jj++) {
-                reordered_w[ii*(in_size + state_size + 2) + in_size + jj] = 
-                    w[offset + ii*state_size + jj];
-                    // (w + w_off)[offset + ii*state_size + jj];
+                reordered_w[ii * (in_size + state_size + 2) + in_size + jj]
+                        = w[offset + ii * state_size + jj];
+                // (w + w_off)[offset + ii*state_size + jj];
             }
         }
 
         // bx
-        offset = (input_size+state_size)*state_size;
+        offset = (input_size + state_size) * state_size;
         if (num_layers > 1)
-            offset += (num_layers - 1)*2*state_size*state_size + rl*2*state_size;
+            offset += (num_layers - 1) * 2 * state_size * state_size
+                    + rl * 2 * state_size;
 #if defined(_OPENMP)
 #pragma omp parallel for
 #endif
         for (size_t ii = 0; ii < state_size; ii++) {
             for (size_t jj = 0; jj < 2; jj++) {
-                reordered_w[ii*(in_size + state_size + 2) + in_size + state_size + jj] = 
-                    w[offset + ii + jj*state_size];
+                reordered_w[ii * (in_size + state_size + 2) + in_size
+                        + state_size + jj]
+                        = w[offset + ii + jj * state_size];
             }
         }
 
         cblas_gemm_pack<data_traits<data_t>::data_type>(CblasRowMajor,
                 CblasAMatrix, CblasNoTrans, state_size, batch_size,
-                in_size + state_size + 2, 1.0, reordered_w, in_size + state_size + 2,
-                weights_pack[l]);
+                in_size + state_size + 2, 1.0, reordered_w,
+                in_size + state_size + 2, weights_pack[l]);
     }
 
     for (int l = (total_layers - 1); l >= 0; l--) {
@@ -1315,41 +1331,45 @@ inline void rnn_bwd_prop(const int seq_length, const int num_layers,
         // Reorder dw
         in_size = (rl == 0) ? input_size : state_size;
         // Wx
-        size_t offset = (rl == 0) ? 0 : 
-            (input_size*state_size + (rl - 1) * (state_size*state_size)) +
-            rl * (state_size*state_size);
+        size_t offset = (rl == 0) ?
+                0 :
+                (input_size * state_size + (rl - 1) * (state_size * state_size))
+                        + rl * (state_size * state_size);
 #if defined(_OPENMP)
 #pragma omp parallel for
 #endif
         for (size_t ii = 0; ii < state_size; ii++) {
             for (size_t jj = 0; jj < in_size; jj++) {
-                dw[offset + ii*in_size + jj] =
-                    reordered_w[ii*(in_size + state_size + 2) + jj];
+                dw[offset + ii * in_size + jj]
+                        = reordered_w[ii * (in_size + state_size + 2) + jj];
             }
         }
 
         // Wh
-        offset += in_size*state_size;
+        offset += in_size * state_size;
 #if defined(_OPENMP)
 #pragma omp parallel for
 #endif
         for (size_t ii = 0; ii < state_size; ii++) {
             for (size_t jj = 0; jj < state_size; jj++) {
-                dw[offset + ii*state_size + jj] = 
-                    reordered_w[ii*(in_size + state_size + 2) + in_size + jj];
+                dw[offset + ii * state_size + jj]
+                        = reordered_w[ii * (in_size + state_size + 2) + in_size
+                                + jj];
             }
         }
         // bx
-        offset = (input_size+state_size)*state_size;
+        offset = (input_size + state_size) * state_size;
         if (num_layers > 1)
-            offset += (num_layers - 1)*2*state_size*state_size + rl*2*state_size;
+            offset += (num_layers - 1) * 2 * state_size * state_size
+                    + rl * 2 * state_size;
 #if defined(_OPENMP)
 #pragma omp parallel for
 #endif
         for (size_t ii = 0; ii < state_size; ii++) {
             for (size_t jj = 0; jj < 2; jj++) {
-                dw[offset + ii + jj*state_size] = 
-                    reordered_w[ii*(in_size + state_size + 2) + in_size + state_size + jj];
+                dw[offset + ii + jj * state_size]
+                        = reordered_w[ii * (in_size + state_size + 2) + in_size
+                                + state_size + jj];
             }
         }
     }
@@ -1361,7 +1381,6 @@ inline void rnn_bwd_prop(const int seq_length, const int num_layers,
 template <impl::data_type_t data_type>
 void pgemm_rnn_fwd_t<data_type>::execute_forward()
 {
-    // std::cout << "Temp log: fused RNN + LSTM fwd/bwd fixed" << std::endl;
 #ifdef USE_MKL
     auto x = reinterpret_cast<const data_t *>(this->input_memory(0));
     auto hx = reinterpret_cast<const data_t *>(this->input_memory(1));
@@ -1401,16 +1420,12 @@ void pgemm_rnn_fwd_t<data_type>::execute_forward()
     const int alg_kind = conf_.desc()->alg_kind;
 
     if (alg_kind == rnn_relu || alg_kind == rnn_tanh) {
-
-            // std::cout << "test 11111" << std::endl;
-
         data_t *cx = nullptr;
         auto w = reinterpret_cast<const data_t *>(this->input_memory(2));
         rnn_fwd_prop(seq_length, num_layers, batch_size, input_size, state_size,
                 direction, alg_kind, w1_size, wx_size, h_size, x_size,
                 h_nlayer_size, gates_size, gates_nlayer_size, gates_space_size,
                 h_space_size, x, hx, cx, w, y, hy, cy, ws, ts_, weights_pack_);
-            // std::cout << "test 22222" << std::endl;
     } else if (conf_.desc()->alg_kind == rnn_lstm) {
         auto cx = reinterpret_cast<const data_t *>(this->input_memory(2));
         auto w = reinterpret_cast<const data_t *>(this->input_memory(3));

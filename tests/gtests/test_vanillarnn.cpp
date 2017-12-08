@@ -63,9 +63,10 @@ void compute_ref_rnn_fwd(const test_rnn_desc_t &rd, const memory::desc &x_d,
     int wa = w1_size + (num_layers - 1) * wx_size;
     int dl, rl, rt;
 
-    data_t* reordered_w = 
-        new data_t[((input_size > state_size) ? input_size : state_size +
-            state_size + 2) * state_size];
+    data_t *reordered_w
+            = new data_t[((input_size > state_size) ? input_size : state_size
+                                                 + state_size + 2)
+                    * state_size];
 
     for (int l = 0; l < total_layers; l++) {
         dl = l / num_layers;
@@ -73,33 +74,36 @@ void compute_ref_rnn_fwd(const test_rnn_desc_t &rd, const memory::desc &x_d,
         in_size = (rl == 0) ? input_size : state_size;
 
         // Wx
-        size_t offset = (rl == 0) ? 0 : 
-            (input_size*state_size + (rl - 1) * (state_size*state_size)) +
-            rl * (state_size*state_size);
+        size_t offset = (rl == 0) ?
+                0 :
+                (input_size * state_size + (rl - 1) * (state_size * state_size))
+                        + rl * (state_size * state_size);
         for (size_t ii = 0; ii < state_size; ii++) {
             for (size_t jj = 0; jj < in_size; jj++) {
-                reordered_w[ii*(in_size + state_size + 2) + jj] = 
-                    weights_ptr[offset + ii*in_size + jj];
+                reordered_w[ii * (in_size + state_size + 2) + jj]
+                        = weights_ptr[offset + ii * in_size + jj];
             }
         }
 
         // Wh
-        offset += in_size*state_size;
+        offset += in_size * state_size;
         for (size_t ii = 0; ii < state_size; ii++) {
             for (size_t jj = 0; jj < state_size; jj++) {
-                reordered_w[ii*(in_size + state_size + 2) + in_size + jj] = 
-                    weights_ptr[offset + ii*state_size + jj];
+                reordered_w[ii * (in_size + state_size + 2) + in_size + jj]
+                        = weights_ptr[offset + ii * state_size + jj];
             }
         }
 
         // bx
-        offset = (input_size+state_size)*state_size;
+        offset = (input_size + state_size) * state_size;
         if (num_layers > 1)
-            offset += (num_layers - 1)*2*state_size*state_size + rl*2*state_size;
+            offset += (num_layers - 1) * 2 * state_size * state_size
+                    + rl * 2 * state_size;
         for (size_t ii = 0; ii < state_size; ii++) {
             for (size_t jj = 0; jj < 2; jj++) {
-                reordered_w[ii*(in_size + state_size + 2) + in_size + state_size + jj] = 
-                    weights_ptr[offset + ii + jj*state_size];
+                reordered_w[ii * (in_size + state_size + 2) + in_size
+                        + state_size + jj]
+                        = weights_ptr[offset + ii + jj * state_size];
             }
         }
 
@@ -290,9 +294,10 @@ void compute_ref_rnn_bwd(const test_rnn_desc_t &rd, const memory::desc &x_d,
     int wa = w1_size + (num_layers - 1) * wx_size;
     int dl, rl, rt;
 
-    data_t* reordered_w = 
-        new data_t[((input_size > state_size) ? input_size : state_size +
-            state_size + 2) * state_size];
+    data_t *reordered_w
+            = new data_t[((input_size > state_size) ? input_size : state_size
+                                                 + state_size + 2)
+                    * state_size];
 
 #pragma omp parallel for
     for (int seq = 0; seq < seq_length; seq++) {
@@ -326,33 +331,36 @@ void compute_ref_rnn_bwd(const test_rnn_desc_t &rd, const memory::desc &x_d,
         in_size = (rl == 0) ? input_size : state_size;
 
         // Wx
-        size_t offset = (rl == 0) ? 0 : 
-            (input_size*state_size + (rl - 1) * (state_size*state_size)) +
-            rl * (state_size*state_size);
+        size_t offset = (rl == 0) ?
+                0 :
+                (input_size * state_size + (rl - 1) * (state_size * state_size))
+                        + rl * (state_size * state_size);
         for (size_t ii = 0; ii < state_size; ii++) {
             for (size_t jj = 0; jj < in_size; jj++) {
-                reordered_w[ii*(in_size + state_size + 2) + jj] = 
-                    weights_ptr[offset + ii*in_size + jj];
+                reordered_w[ii * (in_size + state_size + 2) + jj]
+                        = weights_ptr[offset + ii * in_size + jj];
             }
         }
 
         // Wh
-        offset += in_size*state_size;
+        offset += in_size * state_size;
         for (size_t ii = 0; ii < state_size; ii++) {
             for (size_t jj = 0; jj < state_size; jj++) {
-                reordered_w[ii*(in_size + state_size + 2) + in_size + jj] = 
-                    weights_ptr[offset + ii*state_size + jj];
+                reordered_w[ii * (in_size + state_size + 2) + in_size + jj]
+                        = weights_ptr[offset + ii * state_size + jj];
             }
         }
 
         // bx
-        offset = (input_size+state_size)*state_size;
+        offset = (input_size + state_size) * state_size;
         if (num_layers > 1)
-            offset += (num_layers - 1)*2*state_size*state_size + rl*2*state_size;
+            offset += (num_layers - 1) * 2 * state_size * state_size
+                    + rl * 2 * state_size;
         for (size_t ii = 0; ii < state_size; ii++) {
             for (size_t jj = 0; jj < 2; jj++) {
-                reordered_w[ii*(in_size + state_size + 2) + in_size + state_size + jj] = 
-                    weights_ptr[offset + ii + jj*state_size];
+                reordered_w[ii * (in_size + state_size + 2) + in_size
+                        + state_size + jj]
+                        = weights_ptr[offset + ii + jj * state_size];
             }
         }
 
@@ -408,9 +416,8 @@ void compute_ref_rnn_bwd(const test_rnn_desc_t &rd, const memory::desc &x_d,
                         dweights_ptr + w_off, in_size + state_size + 2,
                         state_size, batch_size, 1);
 
-                gemm<data_t>(TRANS, NOTRANS, reordered_w,
-                        ts_ + dgates_space_off + rl * gates_size
-                                + rt * gates_nlayer_size,
+                gemm<data_t>(TRANS, NOTRANS, reordered_w, ts_ + dgates_space_off
+                                + rl * gates_size + rt * gates_nlayer_size,
                         ts_ + temp_space_off, in_size + state_size + 2,
                         batch_size, state_size, 0);
                 if (rl == 0) {
@@ -499,9 +506,8 @@ void compute_ref_rnn_bwd(const test_rnn_desc_t &rd, const memory::desc &x_d,
                         dweights_ptr + w_off, in_size + state_size + 2,
                         state_size, batch_size, 1);
 
-                gemm<data_t>(TRANS, NOTRANS, reordered_w,
-                        ts_ + dgates_space_off + rl * gates_size
-                                + rt * gates_nlayer_size,
+                gemm<data_t>(TRANS, NOTRANS, reordered_w, ts_ + dgates_space_off
+                                + rl * gates_size + rt * gates_nlayer_size,
                         ts_ + temp_space_off, in_size + state_size + 2,
                         batch_size, state_size, 0);
 
@@ -587,10 +593,8 @@ protected:
         with_workspace = p.aprop_kind == prop_kind::forward_training;
         int dir = (p.adirection == direction::rnn_unidirectional) ? 1 : 2;
 
-        const int w1_size
-                = rd.state_size * (rd.state_size + rd.input_size + 2);
-        const int wx_size
-                = rd.state_size * (rd.state_size + rd.state_size + 2);
+        const int w1_size = rd.state_size * (rd.state_size + rd.input_size + 2);
+        const int wx_size = rd.state_size * (rd.state_size + rd.state_size + 2);
         const int total_w = rd.num_layers == 1 ? dir * w1_size : dir
                         * (w1_size + (rd.num_layers - 1) * wx_size);
 
@@ -657,13 +661,13 @@ protected:
         }
 
         if (p.test_rd.state_outputs) {
-            auto l = rnn_forward(*rnn_fwd_prim_desc, *x, *hx, *weights, *y,
-                    *hy, *workspace);
+            auto l = rnn_forward(
+                    *rnn_fwd_prim_desc, *x, *hx, *weights, *y, *hy, *workspace);
             pipeline.push_back(l);
             s.submit(pipeline).wait();
         } else {
-            auto l = rnn_forward(*rnn_fwd_prim_desc, *x, *hx, *weights, *y,
-                    *workspace);
+            auto l = rnn_forward(
+                    *rnn_fwd_prim_desc, *x, *hx, *weights, *y, *workspace);
             pipeline.push_back(l);
             s.submit(pipeline).wait();
         }

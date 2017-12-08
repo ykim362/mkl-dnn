@@ -69,9 +69,10 @@ void compute_ref_lstm_fwd(const test_lstm_desc_t &ld, const memory::desc &x_d,
     int wa = w1_size + (num_layers - 1) * wx_size;
     int dl, rl, rt;
 
-    data_t* reordered_w = 
-        new data_t[((input_size > state_size) ? input_size : state_size +
-            state_size + 2) * state_size * 4];
+    data_t *reordered_w
+            = new data_t[((input_size > state_size) ? input_size : state_size
+                                                 + state_size + 2)
+                    * state_size * 4];
 
     for (int l = 0; l < total_layers; l++) {
         dl = l / num_layers;
@@ -79,33 +80,37 @@ void compute_ref_lstm_fwd(const test_lstm_desc_t &ld, const memory::desc &x_d,
         in_size = (rl == 0) ? input_size : state_size;
 
         // Wx
-        size_t offset = (rl == 0) ? 0 : 
-            4*(input_size*state_size + (rl - 1) * (state_size*state_size)) +
-            4*rl * (state_size*state_size);
-        for (size_t ii = 0; ii < 4*state_size; ii++) {
+        size_t offset = (rl == 0) ?
+                0 :
+                4 * (input_size * state_size
+                            + (rl - 1) * (state_size * state_size))
+                        + 4 * rl * (state_size * state_size);
+        for (size_t ii = 0; ii < 4 * state_size; ii++) {
             for (size_t jj = 0; jj < in_size; jj++) {
-                reordered_w[ii*(in_size + state_size + 2) + jj] = 
-                    weights_ptr[offset + ii*in_size + jj];
+                reordered_w[ii * (in_size + state_size + 2) + jj]
+                        = weights_ptr[offset + ii * in_size + jj];
             }
         }
 
         // Wh
-        offset += 4*in_size*state_size;
-        for (size_t ii = 0; ii < 4*state_size; ii++) {
+        offset += 4 * in_size * state_size;
+        for (size_t ii = 0; ii < 4 * state_size; ii++) {
             for (size_t jj = 0; jj < state_size; jj++) {
-                reordered_w[ii*(in_size + state_size + 2) + in_size + jj] = 
-                    weights_ptr[offset + ii*state_size + jj];
+                reordered_w[ii * (in_size + state_size + 2) + in_size + jj]
+                        = weights_ptr[offset + ii * state_size + jj];
             }
         }
 
         // bx
-        offset =  4*(input_size+state_size)*state_size;
+        offset = 4 * (input_size + state_size) * state_size;
         if (num_layers > 1)
-            offset += (num_layers - 1)*8*state_size*state_size + rl*8*state_size;
-        for (size_t ii = 0; ii < 4*state_size; ii++) {
+            offset += (num_layers - 1) * 8 * state_size * state_size
+                    + rl * 8 * state_size;
+        for (size_t ii = 0; ii < 4 * state_size; ii++) {
             for (size_t jj = 0; jj < 2; jj++) {
-                reordered_w[ii*(in_size + state_size + 2) + in_size + state_size + jj] = 
-                    weights_ptr[offset + ii + jj*state_size*4];
+                reordered_w[ii * (in_size + state_size + 2) + in_size
+                        + state_size + jj]
+                        = weights_ptr[offset + ii + jj * state_size * 4];
             }
         }
 
@@ -375,14 +380,14 @@ protected:
         }
 
         if (p.test_ld.state_outputs) {
-            auto l = rnn_forward(*rnn_fwd_prim_desc, *x, *hx, *cx, *weights,
-                    *y, *hy, *cy, *workspace);
+            auto l = rnn_forward(*rnn_fwd_prim_desc, *x, *hx, *cx, *weights, *y,
+                    *hy, *cy, *workspace);
 
             pipeline.push_back(l);
             s.submit(pipeline).wait();
         } else {
             auto l = rnn_forward(*rnn_fwd_prim_desc, *x, *hx, *cx,
-                (const primitive::at &)*weights, *y, *workspace);
+                    (const primitive::at &)*weights, *y, *workspace);
 
             pipeline.push_back(l);
             s.submit(pipeline).wait();
