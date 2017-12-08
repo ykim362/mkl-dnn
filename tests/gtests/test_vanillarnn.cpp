@@ -713,10 +713,6 @@ protected:
         compute_ref_rnn_bwd<data_t>(p.test_rd, *x_desc, *hx_desc, *y_desc,
                 *weights_desc, *x, *hx, *dy, *dhy, *weights, *workspace,
                 *ref_dx, *ref_dhx, *ref_dweights);
-
-        // compare_data_woinfnan<data_t>(*ref_dx, *dx);
-        // compare_data_woinfnan<data_t>(*ref_dhx, *dhx);
-        // compare_data_woinfnan<data_t>(*ref_dweights, *dweights);
     }
 };
 

@@ -770,11 +770,20 @@ protected:
                     = rnn_fwd_prim_desc->workspace_primitive_desc();
             workspace.reset(new memory(workspace_primitive_desc));
         }
-        auto l = rnn_forward(*rnn_fwd_prim_desc, *x, *hx, *cx, *weights,
-                *y, *hy, *cy, *workspace);
-        pipeline.push_back(l);
-        s.submit(pipeline).wait();
 
+        if (p.test_ld.state_outputs) {
+            auto l = rnn_forward(*rnn_fwd_prim_desc, *x, *hx, *cx, *weights,
+                    *y, *hy, *cy, *workspace);
+
+            pipeline.push_back(l);
+            s.submit(pipeline).wait();
+        } else {
+            auto l = rnn_forward(*rnn_fwd_prim_desc, *x, *hx, *cx,
+                (const primitive::at &)*weights, *y, *workspace);
+
+            pipeline.push_back(l);
+            s.submit(pipeline).wait();
+        }
         compute_ref_lstm_fwd<data_t>(p.test_ld, *x_desc, *hx_desc, *y_desc,
                 *weights_desc, *x, *hx, *cx, *weights, *ref_y, *ref_hy,
                 *ref_cy);
@@ -810,19 +819,20 @@ protected:
         // Execute
         std::vector<primitive> pipeline;
         auto s = stream(stream::kind::lazy);
-        auto l = rnn_backward(*rnn_bwd_prim_desc, *x, *hx, *cx, *dy, *dhy,
-                *dcy, *weights, *workspace, *dx, *dhx, *dcx, *dweights);
-        pipeline.push_back(l);
-        s.submit(pipeline).wait();
-
+        if (p.test_ld.state_outputs) {
+            auto l = rnn_backward(*rnn_bwd_prim_desc, *x, *hx, *cx, *dy, *dhy,
+                    *dcy, *weights, *workspace, *dx, *dhx, *dcx, *dweights);
+            pipeline.push_back(l);
+            s.submit(pipeline).wait();
+        } else {
+            auto l = rnn_backward(*rnn_bwd_prim_desc, *x, *hx, *cx, *dy, *weights,
+                    *workspace, *dx, *dhx, *dcx, *dweights);
+            pipeline.push_back(l);
+            s.submit(pipeline).wait();
+        }
         compute_ref_lstm_bwd<data_t>(p.test_ld, *x_desc, *hx_desc, *y_desc,
                 *weights_desc, *x, *hx, *cx, *dy, *dhy, *dcy, *weights,
                 *workspace, *ref_dx, *ref_dhx, *ref_dcx, *ref_dweights);
-
-        // compare_data<data_t>(*ref_dx, *dx);
-        // compare_data<data_t>(*ref_dhx, *dhx);
-        // compare_data<data_t>(*ref_dcx, *dcx);
-        // compare_data<data_t>(*ref_dweights, *dweights);
     }
 };
 
