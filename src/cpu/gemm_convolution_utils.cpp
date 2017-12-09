@@ -43,7 +43,8 @@ void im2col(
             const int ithr = omp_get_thread_num();
             const int nthr = omp_get_num_threads();
 
-            size_t start = 0, end = 0, oh = 0, kh = 0;
+            size_t start = 0, end = 0;
+            int oh = 0, kh = 0;
             balance211(work_amount, nthr, ithr, start, end);
             nd_iterator_init(start, kh, jcp.kh, oh, jcp.oh);
 
@@ -125,6 +126,7 @@ void col2im(
     const int iS = jcp.ih * jcp.iw;
 
     int num_thr = (jcp.mb != 1) ? omp_get_max_threads() : 1;
+    MAYBE_UNUSED(num_thr);
 #pragma omp parallel for  num_threads(num_thr)
     for (int ic = 0; ic < jcp.ic; ++ic) {
         for (int is = 0; is < iS; ++is) im[is] = 0.;
@@ -215,6 +217,8 @@ status_t prepare_workspace(
     if (ws_size != 0) {
         *ws = (float*)malloc(ws_size, 64);
         if (*ws == NULL) return status::out_of_memory;
+
+#       pragma omp parallel for
         for (size_t i = 0; i < jcp.im2col_size; ++i) (*ws)[i] = 0.;
     }
     return status::success;

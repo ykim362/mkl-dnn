@@ -16,15 +16,15 @@ and inner products of different data types. It also implicitly tests reorders.
 ## Usage (main driver)
 
 **benchdnn** itself is a driver for different implementation specific
-harnesses. So far it has harness for Intel MKL-DNN convolution and inner
-product.
+harnesses. So far it has harness for Intel MKL-DNN convolution, inner product,
+reorder, batch normalization, and harness for testing itself.
 The usage:
 ```
     $ ./benchdnn: [--HARNESS] [--mode=MODE] [-vN|--verbose=N] HARNESS-OPTS
 ```
 where:
 
- - `HARNESS` is either `conv` [default] or `ip`
+ - `HARNESS` is either `conv` [default], `ip`, `reorder`, `bnorm`, or `self`
 
  - `MODE` -- string that contains flags for benchmark mode. Use `C` or `c` for correctness (used by default), and `P` or `p` for performance
 
@@ -49,9 +49,10 @@ where *harness-knobs* are:
  - `--dir={FWD_D (forward data), FWD_B (forward data + bias), BWD_D (backward data), BWD_W (backward weights), BWD_WB (backward weights + bias)}` direction, default `FWD_B`
  - `--alg={DIRECT, WINO}` convolution algorithm, default DIRECT
  - `--merge={NONE, RELU}` merged primitive, default NONE (nothing merged)
+ - `--attr="attr_str"` convolution attributes (see in the section below), default `""` (no attributes set)
  - `--mb=N` override minibatch that is specified in convolution description, default `0` (use mb specified in conv desc)
  - `--match=regex` check only convolutions that match with regex, default is `".*"`. Notice: Windows may only interpret string arguments surrounded by double quotation marks.
- - `--skip-impl="str1[:str2]...` skip implementation (see mkldnn_query_impl_info_str), default `""`
+ - `--skip-impl="str1[:str2]..."` skip implementation (see mkldnn_query_impl_info_str), default `""`
  - `--allow-unimpl=true|false` do not treat unimplemented configuration as an error, default `false`
  - `--perf-template=template-str` set template for performance report (see section *Performance measurements*)
  - `--reset` reset all the parameters set before to default one
@@ -70,6 +71,30 @@ is not specified than it is assumed height == width. Special symbol `_` is
 ignored, hence maybe used as delimiter. See `str2desc()` in conv/conv_aux.cpp
 for more details and implicit rules :^)
 
+The attribute string *attr_str* is defined as (new lines for readability):
+```
+    [irmode={nearest,down};]
+    [oscale={none,common,per_oc}[:scale];]
+    [post_ops='[{relu,sum[:sum_scale]};]...';]
+```
+
+Here `irmode` defines the rounding mode for integer output (default is nearest).
+
+Next, `oscale` stands for output_scales. The first parameter is the policy that
+is defined below. The second optional parameter is a scale that specifies
+either the one common output scale (for `none` and `common` polices) or a
+starting point for `per_oc` policy, which uses many scales. The default scale
+is 1.0. Known policies are:
+
+  - `none` (default) means no output scales set (i.e. scale = 1.)
+  - `common` corresponds to `mask=0` with common scale factor
+  - `per_oc` corresponds to `mask=1<<1` (i.e. output channels) with different scale factors
+
+Next, `post_ops` stands for post operation sequence. Currently supported post
+ops are:
+
+  - `relu` with no parameters (i.e. corresponding scale is 1., alg = eltwise_relu, alpha = beta = 0.)
+  - `sum` with optional parameter scale (default 1.)
 
 ### convolution configurations (aka precision specification)
 
@@ -89,7 +114,8 @@ configurations for **benchdnn**:
 | s16     | s16      | s32      | s32      | s16s16s32s32 | optimized for processors with support of 4vnni, forward pass only (aka FWD_D, FWD_B)
 | s32     | s16      | s16      | s32      | s32s16s16s32 | optimized for processors with support of 4vnni, backward wrt data only (aka BWD_D)
 | s16     | s32      | s16      | s32      | s16s32s16s32 | optimized for processors with support of 4vnni, backward wrt weights (aka BWD_W, BWD_WB)
-| u8      | s8       | s32      | s32      | u8s8s32s32   | optimized for processors with support of avx512vl, forward pass only (aka FWD_D, FWD_B)
+| u8      | s8       | f32      | s32      | u8s8f32s32   | optimized for processors with support of avx512vl, forward pass only (aka FWD_D, FWD_B)
+| u8      | s8       | s32      | s32      | u8s8s32s32   | same notes as for u8s8s32s32
 | u8      | s8       | s8       | s32      | u8s8s8s32    | same notes as for u8s8s32s32
 | u8      | s8       | u8       | s32      | u8s8u8s32    | same notes as for u8s8s32s32
 
@@ -111,8 +137,10 @@ table of modifiers below.
 | %D            | expanded problem descriptor (conv parameters in csv format)
 | %n            | problem name
 | %z            | direction
+| %@F           | effective cpu frequency computed as clocks[@] / time[@]
 | %O            | number of ops required (padding is not taken into account)
 | %@t           | time in ms
+| %@c           | time in clocks
 | %@p           | ops per second
 
 | modifier  | description
@@ -130,13 +158,14 @@ The definition of expanded problem descriptor is:
 `g,mb,ic,ih,iw,oc,oh,ow,kh,kw,sh,sw,ph,pw`.
 
 The default template can be found in conv/bench_conv.cpp that is defined as
-`perf,%n,%d,%GO,%-t,%-Gp,%0t,%0Gp`. That will produce the following output
+`perf,%n,%d,%GO,%GF,%-t,%-Gp,%0t,%0Gp`. That will produce the following output
 in CSV format:
 ```
 string: perf
 convolution name
 full conv-desc
 number of giga ops calculated
+effective cpu frequency in GHz (amb clocks[min] / time[min])
 minimum time spent in ms
 best gigaops (since it corresponds to mimimum time)
 average time spent in ms
@@ -200,6 +229,25 @@ Winograd:
         --alg=WINO   --batch=convs.in
 ```
 
+Run the default set of u8s8u8s32 forward convolutions w/o bias, skipping
+reference implementations and not triggering unimplemented as an error, with
+one common output scale set to 0.5 with rounding mode set to down
+(via attributes):
+```
+    $ ./benchdnn --conv \
+        --cfg=u8s8u8s32 --dir=FWD_D --skip-impl="ref" --allow-unimpl=true \
+        --attr="irmode=down;oscale=common:.5"
+```
+
+Almost the same as above (with minor changes), but also add post operation
+sequence **(relu, then sum with scale .3, then relu)** using
+attributes/mkldnn_post_ops_t:
+```
+    $ ./benchdnn --conv \
+        --cfg=u8s8s32s32 --dir=FWD_B \
+        --attr="oscale=common:.5;post_ops='relu;sum:.3;relu'"
+```
+
 
 ## Notations / Glossary / Abbreviations
 
@@ -222,6 +270,41 @@ Winograd:
 | BWD_{D,W,WB}  | backward wrt data, weights, and weights and bias
 | DIRECT, WINO  | convolution algorithm: direct or Winograd based
 | NONE, RELU    | merged primitives: nothing or ReLU
+
+
+## Usage (batch normalization harness)
+
+The usage:
+```
+    ./benchdnn --bnorm [harness-knobs] bnorm-desc ...
+```
+
+where *harness-knobs* are:
+
+ - `--mb=N` override minibatch that is specified in batch normalization description, default `0` (use mb specified in bnorm-desc)
+ - `--dir={FWD_D (forward data /training), FWD_I (forward data /inference), BWD_D (backward data), BWD_DW (backward data + weights)` direction, default `FWD_D`
+ - `--dt={f32, s32, ...}` base data type, default `f32`
+ - `--fmt={nchw, nChw16c, ...}` data layout, default `nchw`
+ - `--attr="attr_str"` attributes (see in the convolution section above), default `""` (no attributes set)
+ - `--match=regex` check only convolutions that match with regex, default is `".*"`. Notice: Windows may only interpret string arguments surrounded by double quotation marks.
+ - `--skip-impl="str1[:str2]..."` skip implementation (see mkldnn_query_impl_info_str), default `""`
+ - `--perf-template=template-str` set template for performance report (very similar to the convolution one)
+ - `--reset` reset all the parameters set before to default one
+ - `-vN|--verbose=N` verbose level, default `0`
+ - `--batch=file` use options from the given file (see in subdirectory)
+
+and *bnorm-desc* is a batch normalization description. The canonical form is:
+```
+    mbXicXihXiwXepsYnS
+```
+Here X is an integer number, Y is a real number, and S is string (n stands for
+name). Special symbol `_` is ignored, hence maybe used as delimiter. There are
+some implicit rules:
+ - if mb is omitted set mb to 2
+
+ - if iw is omitted set iw to ih (and vice versa)
+
+ - if eps is omitted set eps to 1./16
 
 
 ## Installation

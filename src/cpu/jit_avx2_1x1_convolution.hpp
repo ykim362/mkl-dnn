@@ -37,8 +37,10 @@ struct _jit_avx2_1x1_convolution_fwd_t: public cpu_primitive_t {
     struct pd_t: public _cpu_convolution_fwd_pd_t<with_relu> {
         pd_t(engine_t *engine,
                 const typename pd_t::base_desc_t *adesc,
+                const primitive_attr_t *attr,
                 const typename pd_t::base_class *hint_fwd_pd)
-            : _cpu_convolution_fwd_pd_t<with_relu>(engine, adesc, hint_fwd_pd)
+            : _cpu_convolution_fwd_pd_t<with_relu>(engine, adesc, attr,
+                    hint_fwd_pd)
             , jcp_({}), rtus_({}) {}
 
         DECLARE_COMMON_PD_T(_jit_avx2_1x1_convolution_fwd_t<with_relu>);
@@ -65,7 +67,8 @@ struct _jit_avx2_1x1_convolution_fwd_t: public cpu_primitive_t {
 
             return jit_avx2_1x1_conv_kernel_f32::init_conf(jcp_,
                     *conv_d, *src_d, *this->weights_pd_.desc(),
-                    *this->dst_pd_.desc(), with_relu, this->negative_slope());
+                    *this->dst_pd_.desc(), *this->attr(),
+                    with_relu, this->negative_slope());
         }
 
         jit_1x1_conv_conf_t jcp_;
@@ -99,7 +102,7 @@ struct _jit_avx2_1x1_convolution_fwd_t: public cpu_primitive_t {
         , kernel_(nullptr), rtus_driver_(nullptr), ws_per_thread_(0)
         , scratch_(nullptr)
     {
-        kernel_ = new jit_avx2_1x1_conv_kernel_f32(conf_.jcp_);
+        kernel_ = new jit_avx2_1x1_conv_kernel_f32(conf_.jcp_, *conf_.attr());
         init_rtus_driver<avx2>(this);
     }
     ~_jit_avx2_1x1_convolution_fwd_t() {
@@ -133,8 +136,9 @@ struct jit_avx2_1x1_convolution_bwd_data_t: public cpu_primitive_t {
     struct pd_t: public cpu_convolution_bwd_data_pd_t {
         pd_t(engine_t *engine,
                 const convolution_desc_t *adesc,
+                const primitive_attr_t *attr,
                 const convolution_fwd_pd_t *hint_fwd_pd)
-            : cpu_convolution_bwd_data_pd_t(engine, adesc, hint_fwd_pd)
+            : cpu_convolution_bwd_data_pd_t(engine, adesc, attr, hint_fwd_pd)
             , jcp_({}), rtus_({}) {}
 
         DECLARE_COMMON_PD_T(jit_avx2_1x1_convolution_bwd_data_t);
@@ -158,7 +162,7 @@ struct jit_avx2_1x1_convolution_bwd_data_t: public cpu_primitive_t {
 
             return jit_avx2_1x1_conv_kernel_f32::init_conf(jcp_, *conv_d,
                     *diff_src_d, *this->weights_pd_.desc(),
-                    *this->diff_dst_pd_.desc());
+                    *this->diff_dst_pd_.desc(), *this->attr());
         }
 
         // TODO (Roma): structs conf header cleanup
@@ -192,7 +196,7 @@ struct jit_avx2_1x1_convolution_bwd_data_t: public cpu_primitive_t {
         , kernel_(nullptr), rtus_driver_(nullptr), ws_per_thread_(0)
         , scratch_(nullptr)
     {
-        kernel_ = new jit_avx2_1x1_conv_kernel_f32(conf_.jcp_);
+        kernel_ = new jit_avx2_1x1_conv_kernel_f32(conf_.jcp_, *conf_.attr());
         init_rtus_driver<avx2>(this);
     }
     ~jit_avx2_1x1_convolution_bwd_data_t() {
@@ -229,8 +233,9 @@ struct jit_avx2_1x1_convolution_bwd_weights_t: public cpu_primitive_t {
     struct pd_t: public cpu_convolution_bwd_weights_pd_t {
         pd_t(engine_t *engine,
                 const convolution_desc_t *adesc,
+                const primitive_attr_t *attr,
                 const convolution_fwd_pd_t *hint_fwd_pd)
-            : cpu_convolution_bwd_weights_pd_t(engine, adesc, hint_fwd_pd)
+            : cpu_convolution_bwd_weights_pd_t(engine, adesc, attr, hint_fwd_pd)
             , jcp_({}), rtus_({}) {}
 
         DECLARE_COMMON_PD_T(jit_avx2_1x1_convolution_bwd_weights_t);
@@ -256,7 +261,7 @@ struct jit_avx2_1x1_convolution_bwd_weights_t: public cpu_primitive_t {
 
             return jit_avx2_1x1_conv_kernel_f32::init_conf(jcp_, *conv_d,
                     *src_d, *this->diff_weights_pd_.desc(),
-                    *this->diff_dst_pd_.desc());
+                    *this->diff_dst_pd_.desc(), *this->attr());
         }
 
         // TODO (Roma): structs conf header cleanup
@@ -292,6 +297,8 @@ struct jit_avx2_1x1_convolution_bwd_weights_t: public cpu_primitive_t {
     ~jit_avx2_1x1_convolution_bwd_weights_t() {
         delete kernel_;
         delete rtus_driver_;
+        delete reducer_weights_;
+        delete reducer_bias_;
         free(scratch_);
     }
 

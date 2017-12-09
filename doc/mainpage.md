@@ -1,4 +1,4 @@
-A Performance Library for Deep Learning {#mainpage}
+A Performance Library for Deep Learning
 ================
 
 The Intel(R) Math Kernel Library for Deep Neural Networks (Intel(R) MKL-DNN) is an
@@ -311,4 +311,6 @@ use the topology: Convolution, ReLU, LRN, and pooling.
     - C: simple_training.c
     - C++: simple_training_net.cpp
 
-@subpage legal_information
+--------
+	
+[Legal information](legal_information.md)

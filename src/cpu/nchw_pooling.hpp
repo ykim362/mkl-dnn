@@ -35,8 +35,9 @@ template <impl::data_type_t data_type>
 struct nchw_pooling_fwd_t: public cpu_primitive_t {
     struct pd_t: public cpu_pooling_fwd_pd_t {
         pd_t(engine_t *engine, const pooling_desc_t *adesc,
+                const primitive_attr_t *attr,
                 const pooling_fwd_pd_t *hint_fwd_pd)
-            : cpu_pooling_fwd_pd_t(engine, adesc, hint_fwd_pd) {}
+            : cpu_pooling_fwd_pd_t(engine, adesc, attr, hint_fwd_pd) {}
 
         DECLARE_COMMON_PD_T(nchw_pooling_fwd_t);
 
@@ -54,7 +55,8 @@ struct nchw_pooling_fwd_t: public cpu_primitive_t {
                 && utils::everyone_is(data_type, src_pd()->desc()->data_type,
                         dst_pd()->desc()->data_type)
                 && utils::everyone_is(nchw, src_pd()->desc()->format,
-                        dst_pd()->desc()->format);
+                        dst_pd()->desc()->format)
+                && attr()->has_default_values();
             if (!ok) return status::unimplemented;
 
             bool is_training = desc_.prop_kind == forward_training;
@@ -87,8 +89,9 @@ template <impl::data_type_t data_type>
 struct nchw_pooling_bwd_t: public cpu_primitive_t {
     struct pd_t: public cpu_pooling_bwd_pd_t {
         pd_t(engine_t *engine, const pooling_desc_t *adesc,
+                const primitive_attr_t *attr,
                 const pooling_fwd_pd_t *hint_fwd_pd)
-            : cpu_pooling_bwd_pd_t(engine, adesc, hint_fwd_pd) {}
+            : cpu_pooling_bwd_pd_t(engine, adesc, attr, hint_fwd_pd) {}
 
         DECLARE_COMMON_PD_T(nchw_pooling_bwd_t);
 
@@ -105,7 +108,8 @@ struct nchw_pooling_bwd_t: public cpu_primitive_t {
                 && utils::everyone_is(data_type, diff_dst_pd()->desc()->data_type,
                         diff_src_pd()->desc()->data_type)
                 && utils::everyone_is(nchw, diff_dst_pd()->desc()->format,
-                        diff_src_pd()->desc()->format);
+                        diff_src_pd()->desc()->format)
+                && attr()->has_default_values();
             if (!ok) return status::unimplemented;
 
             if (desc()->alg_kind == pooling_max) {

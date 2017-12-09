@@ -35,19 +35,25 @@ struct cpu_reorder_pd_t: public reorder_pd_t {
     using cpu_memory_pd_t = cpu_memory_t::pd_t;
 
     cpu_reorder_pd_t(const cpu_memory_pd_t *input_pd,
-            const cpu_memory_pd_t *output_pd,
-            const float alpha, const float beta)
-        : reorder_pd_t(input_pd->engine(), alpha, beta)
+            const cpu_memory_pd_t *output_pd, const primitive_attr_t *attr)
+        : reorder_pd_t(input_pd->engine(), attr)
         , input_pd_(*input_pd), output_pd_(*output_pd) {}
     virtual ~cpu_reorder_pd_t() {}
+
+    virtual status_t init() const {
+        const auto &post_ops = attr()->post_ops_;
+        bool args_ok = true
+            && attr()->output_scales_.count_ == 1
+            && utils::implication(post_ops.len_ != 0,
+                post_ops.len_ == 1
+                    && post_ops.entry_[0].kind == primitive_kind::sum);
+        return args_ok ? success : unimplemented;
+    }
 
     virtual const cpu_memory_pd_t *input_pd(int index = 0) const override
     { return index == 0 ? &input_pd_ : nullptr; }
     virtual const cpu_memory_pd_t *output_pd(int index = 0) const override
     { return index == 0 ? &output_pd_ : nullptr; }
-
-    virtual int n_inputs() const override { return 1; }
-    virtual int n_outputs() const override { return 1; }
 
 protected:
     cpu_memory_pd_t input_pd_, output_pd_;

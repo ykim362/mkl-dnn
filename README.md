@@ -1,6 +1,6 @@
 # Intel(R) Math Kernel Library for Deep Neural Networks (Intel(R) MKL-DNN)
 [![Apache License Version 2.0](https://img.shields.io/badge/license-Apache_2.0-green.svg)](LICENSE)
-![v0.10 beta](https://img.shields.io/badge/v0.10-beta-orange.svg)
+![v0.11 beta](https://img.shields.io/badge/v0.11-beta-orange.svg)
 
 Intel(R) Math Kernel Library for Deep Neural Networks (Intel(R) MKL-DNN) is an
 open source performance library for Deep Learning (DL) applications intended
@@ -72,16 +72,20 @@ The software dependencies are:
 * C++ compiler with C++11 standard support
 
 The software was validated on RedHat\* Enterprise Linux 7 with
-* GNU\* Compiler Collection 4.8
-* GNU\* Compiler Collection 6.1
+* GNU\* Compiler Collection 4.8, 5.2, 6.1 and 7.2
 * Clang\* 3.8.0
 * [Intel(R) C/C++ Compiler](https://software.intel.com/en-us/intel-parallel-studio-xe)
-  17.0
+  17.0 and 18.0
 
-and on Windows Server\* 2012 R2 with
-* Visual Studio\* 2015
+on Windows Server\* 2012 R2 with
+* Microsoft\* Visual C++ 14.0 (Visual Studio 2015)
 * [Intel(R) C/C++ Compiler](https://software.intel.com/en-us/intel-parallel-studio-xe)
-  17.0
+  17.0 and 18.0
+
+on macOS\* 10.13 (High Sierra) with
+* Apple LLVM version 9.0.0 (XCode 9.0.0)
+* [Intel C/C++ Compiler](https://software.intel.com/en-us/intel-parallel-studio-xe)
+  18.0 (XCode 8.3.2)
 
 The implementation uses OpenMP\* 4.0 SIMD extensions. We recommend using
 Intel(R) Compiler for the best performance results.
@@ -186,3 +190,7 @@ same compiler correct OpenMP runtime will be used.
 ```
 	icpc -std=c++11 -qopenmp -I${MKLDNNROOT}/include -L${MKLDNNROOT}/lib simple_net.cpp -lmkldnn
 ```
+
+--------
+
+[Legal Information](doc/legal_information.md)

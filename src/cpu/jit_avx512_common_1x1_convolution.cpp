@@ -24,14 +24,6 @@
 
 #include "jit_generator.hpp"
 
-#if (defined(__INTEL_COMPILER) && __INTEL_COMPILER <= 1600) || defined(_MSC_VER)
-/* Excluding ICC 16.0 from adding simd because it results in accuracy issues.
- * MSC doesn't support simd in _pragma */
-#    define pragma_simd
-#else
-#    define pragma_simd _Pragma("simd")
-#endif
-
 namespace mkldnn {
 namespace impl {
 namespace cpu {
@@ -420,7 +412,7 @@ jit_avx512_common_1x1_convolution_bwd_weights_t ::
     , scratch_(nullptr), bctx_(nullptr), tr_src_(nullptr)
     , ws_reduction_(nullptr)
 {
-    kernel_ = new jit_avx512_common_1x1_conv_kernel(conf_.jcp_);
+    kernel_ = new jit_avx512_common_1x1_conv_kernel(conf_.jcp_, *conf_.attr());
 
     const auto &jcp = kernel_->jcp;
 
@@ -444,6 +436,7 @@ jit_avx512_common_1x1_convolution_bwd_weights_t ::
         const size_t tr_src_size =
             jcp.nthr_mb_ * jcp.ngroups * jcp.ic * jcp.tr_is;
         tr_src_ = (data_t *)malloc(tr_src_size * sizeof(data_t), 64);
+#       pragma omp parallel for
         for (size_t i = 0; i < tr_src_size; i++)
             tr_src_[i] = 0;
         jit_transpose4x16_src_t tp = {};
@@ -455,7 +448,6 @@ jit_avx512_common_1x1_convolution_bwd_weights_t ::
     }
 
     init_rtus_driver<avx512_common>(this);
-
 }
 
 void jit_avx512_common_1x1_convolution_bwd_weights_t::execute_backward_weights()

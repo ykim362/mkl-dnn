@@ -34,6 +34,7 @@ template <impl::data_type_t data_type>
 struct pgemm_rnn_fwd_t : public cpu_primitive_t {
     struct pd_t : public cpu_rnn_fwd_pd_t {
         pd_t(engine_t *engine, const rnn_desc_t *adesc,
+                const mkldnn::impl::primitive_attr_t *attr,
                 const rnn_fwd_pd_t *hint_fwd_pd)
             : cpu_rnn_fwd_pd_t(engine, adesc, hint_fwd_pd) {}
 
@@ -138,6 +139,7 @@ template <impl::data_type_t data_type>
 struct pgemm_rnn_bwd_t : public cpu_primitive_t {
     struct pd_t : public cpu_rnn_bwd_pd_t {
         pd_t(engine_t *engine, const rnn_desc_t *adesc,
+                const mkldnn::impl::primitive_attr_t *attr,
                 const rnn_fwd_pd_t *hint_fwd_pd)
             : cpu_rnn_bwd_pd_t(engine, adesc, hint_fwd_pd) {}
 

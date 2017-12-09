@@ -35,8 +35,9 @@ template <cpu_isa_t isa>
 struct jit_uni_inner_product_fwd_t : public cpu_primitive_t {
     struct pd_t : public cpu_inner_product_fwd_pd_t {
         pd_t(engine_t *engine, const inner_product_desc_t *adesc,
+                const primitive_attr_t *attr,
                 const inner_product_fwd_pd_t *hint_fwd_pd)
-            : cpu_inner_product_fwd_pd_t(engine, adesc, hint_fwd_pd)
+            : cpu_inner_product_fwd_pd_t(engine, adesc, attr, hint_fwd_pd)
         {
         }
 
@@ -74,7 +75,8 @@ struct jit_uni_inner_product_fwd_t : public cpu_primitive_t {
                     && dst_pd_.desc()->format == nc
                     && memory_desc_wrapper(src_pd()).is_dense()
                     && memory_desc_wrapper(dst_pd()).is_dense()
-                    && memory_desc_wrapper(weights_pd()).is_dense();
+                    && memory_desc_wrapper(weights_pd()).is_dense()
+                    && attr()->has_default_values();
             return ok ? status::success : status::unimplemented;
         }
     };
@@ -103,8 +105,10 @@ template <cpu_isa_t isa>
 struct jit_uni_inner_product_bwd_weights_t : public cpu_primitive_t {
     struct pd_t : public cpu_inner_product_bwd_weights_pd_t {
         pd_t(engine_t *engine, const inner_product_desc_t *adesc,
+                const primitive_attr_t *attr,
                 const inner_product_fwd_pd_t *hint_fwd_pd)
-            : cpu_inner_product_bwd_weights_pd_t(engine, adesc, hint_fwd_pd)
+            : cpu_inner_product_bwd_weights_pd_t(engine, adesc, attr,
+                    hint_fwd_pd)
         {
         }
 
@@ -122,17 +126,17 @@ struct jit_uni_inner_product_bwd_weights_t : public cpu_primitive_t {
             auto desired_weight_fmt = isa == avx2
                 ? memory_format::oIhw8i
                 : memory_format::oIhw16i;
-            bool ok = true
-                    && mayiuse(isa)
+            bool ok = true && mayiuse(isa)
                     && this->set_default_params() == status::success
                     && desc()->prop_kind == backward_weights
                     && everyone_is(data_type::f32, desc()->src_desc.data_type,
                                desc()->diff_weights_desc.data_type,
                                desc()->diff_dst_desc.data_type)
-                    && implication(this->with_bias(),
-                               data_type::f32 == desc()->diff_bias_desc.data_type)
+                    && implication(this->with_bias(), data_type::f32
+                                       == desc()->diff_bias_desc.data_type)
                     && implication(src_pd_.desc()->format == desired_data_fmt,
-                               diff_weights_pd_.desc()->format == desired_weight_fmt)
+                               diff_weights_pd_.desc()->format
+                                       == desired_weight_fmt)
                     && implication(src_pd_.desc()->format == nchw,
                                diff_weights_pd_.desc()->format == oihw)
                     && implication(src_pd_.desc()->format == nc,
@@ -140,7 +144,8 @@ struct jit_uni_inner_product_bwd_weights_t : public cpu_primitive_t {
                     && diff_dst_pd_.desc()->format == nc
                     && memory_desc_wrapper(src_pd()).is_dense()
                     && memory_desc_wrapper(diff_dst_pd()).is_dense()
-                    && memory_desc_wrapper(diff_weights_pd()).is_dense();
+                    && memory_desc_wrapper(diff_weights_pd()).is_dense()
+                    && attr()->has_default_values();
             return ok ? status::success : status::unimplemented;
         }
     };
@@ -169,8 +174,9 @@ template <cpu_isa_t isa>
 struct jit_uni_inner_product_bwd_data_t : public cpu_primitive_t {
     struct pd_t : public cpu_inner_product_bwd_data_pd_t {
         pd_t(engine_t *engine, const inner_product_desc_t *adesc,
+                const primitive_attr_t *attr,
                 const inner_product_fwd_pd_t *hint_fwd_pd)
-            : cpu_inner_product_bwd_data_pd_t(engine, adesc, hint_fwd_pd)
+            : cpu_inner_product_bwd_data_pd_t(engine, adesc, attr, hint_fwd_pd)
         {
         }
 
@@ -191,14 +197,15 @@ struct jit_uni_inner_product_bwd_data_t : public cpu_primitive_t {
                 ? memory_format::oIhw8i
                 : memory_format::oIhw16i;
 
-            bool ok = true
-                    && mayiuse(isa)
+            bool ok = true && mayiuse(isa)
                     && this->set_default_params() == status::success
                     && desc()->prop_kind == backward_data
-                    && everyone_is(data_type::f32, desc()->diff_src_desc.data_type,
+                    && everyone_is(data_type::f32,
+                               desc()->diff_src_desc.data_type,
                                desc()->weights_desc.data_type,
                                desc()->diff_dst_desc.data_type)
-                    && implication(diff_src_pd_.desc()->format == desired_data_fmt,
+                    && implication(
+                               diff_src_pd_.desc()->format == desired_data_fmt,
                                weights_pd_.desc()->format == desired_weight_fmt)
                     && implication(diff_src_pd_.desc()->format == nchw,
                                weights_pd_.desc()->format == oihw)
@@ -207,7 +214,8 @@ struct jit_uni_inner_product_bwd_data_t : public cpu_primitive_t {
                     && diff_dst_pd_.desc()->format == nc
                     && memory_desc_wrapper(diff_src_pd()).is_dense()
                     && memory_desc_wrapper(diff_dst_pd()).is_dense()
-                    && memory_desc_wrapper(weights_pd()).is_dense();
+                    && memory_desc_wrapper(weights_pd()).is_dense()
+                    && attr()->has_default_values();
             return ok ? status::success : status::unimplemented;
         }
     };

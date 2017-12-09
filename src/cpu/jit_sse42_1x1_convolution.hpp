@@ -36,8 +36,10 @@ struct _jit_sse42_1x1_convolution_fwd_t: public cpu_primitive_t {
     struct pd_t: public _cpu_convolution_fwd_pd_t<with_relu> {
         pd_t(engine_t *engine,
                 const typename pd_t::base_desc_t *adesc,
+                const primitive_attr_t *attr,
                 const typename pd_t::base_class *hint_fwd_pd)
-            : _cpu_convolution_fwd_pd_t<with_relu>(engine, adesc, hint_fwd_pd)
+            : _cpu_convolution_fwd_pd_t<with_relu>(engine, adesc, attr,
+                    hint_fwd_pd)
             , jcp_({}) {}
 
         DECLARE_COMMON_PD_T(_jit_sse42_1x1_convolution_fwd_t<with_relu>);
@@ -61,7 +63,8 @@ struct _jit_sse42_1x1_convolution_fwd_t: public cpu_primitive_t {
             status_t result = jit_sse42_1x1_conv_kernel_f32::init_conf(jcp_,
                     this->cdesc_(),
                     *this->src_pd_.desc(), *this->weights_pd_.desc(),
-                    *this->dst_pd_.desc(), with_relu, this->negative_slope());
+                    *this->dst_pd_.desc(), *this->attr(), with_relu,
+                    this->negative_slope());
 
             return result;
         }
@@ -87,7 +90,7 @@ struct _jit_sse42_1x1_convolution_fwd_t: public cpu_primitive_t {
     _jit_sse42_1x1_convolution_fwd_t(const pd_t *pd,
             const input_vector &inputs, const output_vector &outputs)
         : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd)
-    { kernel_ = new jit_sse42_1x1_conv_kernel_f32(conf_.jcp_); }
+    { kernel_ = new jit_sse42_1x1_conv_kernel_f32(conf_.jcp_, *conf_.attr()); }
     ~_jit_sse42_1x1_convolution_fwd_t() { delete kernel_; };
 
     typedef typename prec_traits<data_type::f32>::type data_t;

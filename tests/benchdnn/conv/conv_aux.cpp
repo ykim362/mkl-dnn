@@ -23,21 +23,10 @@
 #include "mkldnn.h"
 
 #include "mkldnn_common.hpp"
+#include "mkldnn_debug.hpp"
 #include "conv/conv.hpp"
 
 namespace conv {
-
-const char *inp_type2str(int what) {
-    switch (what) {
-    case SRC: return "SRC";
-    case WEI: return "WEI";
-    case BIA: return "BIA";
-    case DST: return "DST";
-    case ACC: return "ACC";
-    }
-    assert(!"incorrect input type");
-    return "incorrect input type";
-}
 
 alg_t str2alg(const char *str) {
 #define CASE(_alg) if (!strcasecmp(STRINGIFY(_alg), str)) return _alg
@@ -223,8 +212,30 @@ void prb_t::count_ops() {
     ops = 2 * this->mb * this->oc * this->ic / this->g * sp_ops;
 }
 
+void prb_t::generate_oscales() {
+    if (attr.oscale.policy != attr_t::scale_t::policy_t::PER_OC) return;
+
+    scales = (float *)zmalloc(sizeof(float) * oc, 64);
+    SAFE_V(scales != NULL ? OK : FAIL);
+
+    const float K = 32;
+    /* scale in [1/K .. K], with starting point at oscale.scale */
+    float s[2] = {attr.oscale.scale, attr.oscale.scale/2};
+    for (int i = 0; i < oc; ++i) {
+        int si = i % 2; // 0 -> left, 1 -> right
+        scales[i] = s[si];
+        if (si == 0) {
+            s[si] /= 2.;
+            if (s[si] < 1./K) s[si] *= K*K; // turn around to become ~K
+        } else {
+            s[si] *= 2.;
+            if (s[si] > K) s[si] /= K*K; // turn around to become ~K
+        }
+    }
+}
+
 void prb2str(const prb_t *p, char *buffer, bool canonical) {
-    char desc_buf[max_desc_len];
+    char desc_buf[max_desc_len], attr_buf[max_attr_len];
     char dir_str[32] = {0}, cfg_str[32] = {0}, alg_str[32] = {0},
          merge_str[32] = {0};
     desc2str(p, desc_buf, canonical);
@@ -232,49 +243,20 @@ void prb2str(const prb_t *p, char *buffer, bool canonical) {
     snprintf(cfg_str, sizeof(cfg_str), "--cfg=%s ", cfg2str(p->cfg));
     snprintf(alg_str, sizeof(alg_str), "--alg=%s ", alg2str(p->alg));
     snprintf(merge_str, sizeof(merge_str), "--merge=%s ", merge2str(p->merge));
-    snprintf(buffer, max_prb_len, "%s%s%s%s%s",
+    bool is_attr_def = p->attr.is_def();
+    if (!is_attr_def) {
+        int len = snprintf(attr_buf, max_attr_len, "--attr=\"");
+        attr2str(&p->attr, attr_buf + len);
+        len = strnlen(attr_buf, max_attr_len);
+        snprintf(attr_buf + len, max_attr_len - len, "\" ");
+    }
+    snprintf(buffer, max_prb_len, "%s%s%s%s%s%s",
             p->dir == FWD_B ? "" : dir_str,
             p->cfg == conf_f32 ? "" : cfg_str,
             p->alg == DIRECT ? "" : alg_str,
             p->merge == NONE ? "" : merge_str,
+            is_attr_def ? "" : attr_buf,
             desc_buf);
-}
-
-bool maybe_skip(const char *impl_str) {
-    if (skip_impl == NULL || *skip_impl == '\0')
-        return false;
-
-    const size_t max_len = 128;
-    char what[max_len] = {0};
-
-    const char *s_start = skip_impl;
-    while (1) {
-        if (*s_start == '"' || *s_start == '\'')
-            ++s_start;
-
-        const char *s_end = strchr(s_start, ':');
-        size_t len = s_end ? s_end - s_start : strlen(s_start);
-
-        if (s_start[len - 1] == '"' || s_start[len - 1] == '\'')
-            --len;
-
-        SAFE(len < max_len ? OK : FAIL, CRIT);
-        len = MIN2(len, max_len - 1);
-        strncpy(what, s_start, len);
-        what[len] = '\0';
-
-        if (strstr(impl_str, what))
-            return true;
-
-        if (s_end == NULL)
-            break;
-
-        s_start = s_end + 1;
-        if (*s_start == '\0')
-            break;
-    }
-
-    return false;
 }
 
 }

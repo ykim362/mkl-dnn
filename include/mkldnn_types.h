@@ -74,6 +74,14 @@ typedef enum {
     mkldnn_u8 = 6,
 } mkldnn_data_type_t;
 
+/** Rounding mode */
+typedef enum {
+    /** Round nearest */
+    mkldnn_round_nearest = 1,
+    /** Round down */
+    mkldnn_round_down = 2,
+} mkldnn_round_mode_t;
+
 /** Memory format specification.
  *
  * Intel(R) MKL-DNN uses the following notation for memory format names:
@@ -157,6 +165,9 @@ typedef enum {
     /** 4D weights tensor in the @c oihw format with both input and output
      * channels data laid out in memory in 16-element blocks. */
     mkldnn_OIhw16o16i,
+    /** 4D weights tensor in the @c oihw format with both input and output
+     * channels data laid out in memory in 16-element blocks. */
+    mkldnn_IOhw16o16i,
     /** 4D weights tensor in the format (output channels, input channels,
      * height, width) with output channels data laid out in memory in 8-element
      * blocks. */
@@ -203,6 +214,10 @@ typedef enum {
      * input and output channels data laid out in memory in 16-element blocks.
      */
     mkldnn_gOIhw16o16i,
+    /** 5D weights tensor in the blocked version of @c goihw format with both
+     * input and output channels data laid out in memory in 16-element blocks.
+     */
+    mkldnn_gIOhw16o16i,
     /** 5D weights tensor in the blocked version of @c goihw format with output
      * channels data laid out in memory in 8-element blocks. */
     mkldnn_gOihw8o,
@@ -790,6 +805,54 @@ typedef struct mkldnn_primitive_desc *mkldnn_primitive_desc_t;
 
 /** @brief A constant primitive descriptor handle. */
 typedef const struct mkldnn_primitive_desc *const_mkldnn_primitive_desc_t;
+
+/** @} */
+
+/** @addtogroup c_api_primitive_attr Primitive descriptor attributes
+ * @{ */
+
+/** @struct mkldnn_primitive_attr
+ * @brief An opaque structure for primitive descriptor attributes.
+ *
+ * Attributes may contain:
+ *  - rounding mode for integer based primitives (like convolution, reorders)
+ *  - output scales (to scale the result prior to storing it to the memory)
+ */
+struct mkldnn_primitive_attr;
+
+/** @brief A primitive descriptor attributes handle that controls primitive
+ * behavior. */
+typedef struct mkldnn_primitive_attr *mkldnn_primitive_attr_t;
+
+/** @brief A constant primitive descriptor attributes handle. */
+typedef const struct mkldnn_primitive_attr *const_mkldnn_primitive_attr_t;
+
+/** @struct mkldnn_post_ops
+ * @brief An opaque structure for a chain of post operations.
+ *
+ * mkldnn_post_ops can be used to perform some (trivial) operations like
+ * accumulation or eltwise after certain primitives like convolution.
+ *
+ * Post operations might be combined together, making a chain of post
+ * operations. For instance one can configure convolution followed by
+ * accumulation followed by eltwise (relu). This might be especially beneficial
+ * for residual learning blocks.
+ *
+ * @warning
+ *      Of course not all the combinations are supported, so user should handle
+ *      error accordingly.
+ *
+ * Supported post operations:
+ *  - accumulation (base primitive: convolution)
+ *  - eltwise (base primitive: convolution)
+ */
+struct mkldnn_post_ops;
+
+/** @brief A post operation chain handle. */
+typedef struct mkldnn_post_ops *mkldnn_post_ops_t;
+
+/** @brief A constant post operation chain handle. */
+typedef const struct mkldnn_post_ops *const_mkldnn_post_ops_t;
 
 /** @} */
 

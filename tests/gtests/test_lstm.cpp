@@ -24,8 +24,7 @@ void compute_ref_lstm_fwd(const test_lstm_desc_t &ld, const memory::desc &x_d,
         const memory::desc &hx_d, const memory::desc &y_d,
         const memory::desc &weights_d, const memory &x, const memory &hx,
         const memory &cx, const memory &weights, const memory &y,
-        const memory &hy, const memory &cy)
-{
+        const memory &hy, const memory &cy) {
     data_t *x_ptr = (data_t *)x.get_data_handle();
     data_t *hx_ptr = (data_t *)hx.get_data_handle();
     data_t *cx_ptr = (data_t *)cx.get_data_handle();
@@ -279,8 +278,7 @@ void compute_ref_lstm_bwd(const test_lstm_desc_t &ld, const memory::desc &x_d,
         const memory &cx, const memory &dy, const memory &dhy,
         const memory &dcy, const memory &weights, const memory &ws,
         const memory &dx, const memory &dhx, const memory &dcx,
-        const memory &dweights)
-{
+        const memory &dweights) {
     data_t *x_ptr = (data_t *)x.get_data_handle();
     data_t *hx_ptr = (data_t *)hx.get_data_handle();
     data_t *cx_ptr = (data_t *)cx.get_data_handle();
@@ -652,7 +650,8 @@ void compute_ref_lstm_bwd(const test_lstm_desc_t &ld, const memory::desc &x_d,
 }
 
 template <typename data_t>
-class lstm_test : public ::testing::TestWithParam<lstm_test_params> {
+class lstm_test : public ::testing::TestWithParam<lstm_test_params>
+{
 private:
     std::shared_ptr<memory> x;
     std::shared_ptr<memory> hx;
@@ -688,8 +687,7 @@ private:
     bool with_workspace;
 
 protected:
-    virtual void SetUp()
-    {
+    virtual void SetUp() {
         p = ::testing::TestWithParam<lstm_test_params>::GetParam();
         ASSERT_TRUE(p.engine_kind == engine::kind::cpu);
         ASSERT_TRUE(p.aalgorithm == algorithm::rnn_lstm);
@@ -754,8 +752,7 @@ protected:
         }
     }
 
-    void Forward()
-    {
+    void Forward() {
         auto rnn_fwd_desc = rnn_forward::desc(p.aprop_kind, p.aalgorithm,
                 p.adirection, p.ainput_mode, p.test_ld.state_size,
                 p.test_ld.num_layers, p.test_ld.seq_length,
@@ -805,8 +802,7 @@ protected:
             compare_data<data_t>(*ref_y, *y);
     }
 
-    void Backward()
-    {
+    void Backward() {
         auto pk = prop_kind::backward;
         auto rnn_bwd_desc = rnn_backward::desc(pk, p.aalgorithm, p.adirection,
                 p.ainput_mode, p.test_ld.state_size, p.test_ld.num_layers,
@@ -849,9 +845,7 @@ protected:
 using lstm_test_float = lstm_test<float>;
 using lstm_test_params_float = lstm_test_params;
 
-TEST_P(lstm_test_float, TestsLSTM)
-{
-}
+TEST_P(lstm_test_float, TestsLSTM) {}
 
 INSTANTIATE_TEST_CASE_P(
         TestLSTM0, lstm_test_float,

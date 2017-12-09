@@ -14,12 +14,17 @@
 * limitations under the License.
 *******************************************************************************/
 
+// Required for posix_memalign
+#define _POSIX_C_SOURCE 200112L
+
 #include <string.h>
-#include <malloc.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include "mkldnn.h"
+#ifdef WIN32
+#include <malloc.h>
+#endif
 
 #define BATCH 32
 
@@ -46,7 +51,8 @@ void *aligned_malloc(size_t size, size_t alignment) {
 #ifdef WIN32
     return _aligned_malloc(size, alignment);
 #else
-    return memalign(alignment, size);
+    void *p;
+    return !posix_memalign(&p, alignment, size) ? p : NULL;
 #endif
 }
 
@@ -72,7 +78,7 @@ static void init_net_data(float *data, uint32_t dim, const int *dims)
 {
     if (dim == 1) {
         for (int i = 0; i < dims[0]; ++i) {
-            data[i] = i % 1637;
+            data[i] = (float)(i % 1637);
         }
     } else if (dim == 4) {
         for (int in = 0; in < dims[0]; ++in) {
@@ -81,7 +87,7 @@ static void init_net_data(float *data, uint32_t dim, const int *dims)
                     for (int iw = 0; iw < dims[3]; ++iw) {
                         int indx = in * dims[1] * dims[2] * dims[3]
                                    + ic * dims[2] * dims[3] + ih * dims[3] + iw;
-                        data[indx] = indx % 1637;
+                        data[indx] = (float)(indx % 1637);
                     }
                 }
             }

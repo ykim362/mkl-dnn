@@ -37,8 +37,10 @@ template <cpu_isa_t isa>
 struct jit_uni_batch_normalization_fwd_t: public cpu_primitive_t {
     struct pd_t: public cpu_batch_normalization_fwd_pd_t {
         pd_t(engine_t *engine, const batch_normalization_desc_t *adesc,
+                const primitive_attr_t *attr,
                 const batch_normalization_fwd_pd_t *hint_fwd_pd)
-            : cpu_batch_normalization_fwd_pd_t(engine, adesc, hint_fwd_pd) {}
+            : cpu_batch_normalization_fwd_pd_t(engine, adesc, attr,
+                    hint_fwd_pd) {}
 
         DECLARE_COMMON_PD_T(jit_uni_batch_normalization_fwd_t<isa>);
 
@@ -55,7 +57,8 @@ struct jit_uni_batch_normalization_fwd_t: public cpu_primitive_t {
                 && desc()->data_desc.data_type == f32
                 && utils::implication(use_scaleshift(),
                         desc()->data_scaleshift_desc.data_type == f32)
-                && desc()->data_desc.format == desired_fmt;
+                && desc()->data_desc.format == desired_fmt
+                && (attr()->has_default_values() || this->with_relu_post_op());
             if (!ok) return status::unimplemented;
 
             if (stats_is_src() || is_training()) {
@@ -88,8 +91,10 @@ template <cpu_isa_t isa>
 struct jit_uni_batch_normalization_bwd_t: public cpu_primitive_t {
     struct pd_t: public cpu_batch_normalization_bwd_pd_t {
         pd_t(engine_t *engine, const batch_normalization_desc_t *adesc,
+                const primitive_attr_t *attr,
                 const batch_normalization_fwd_pd_t *hint_fwd_pd)
-            : cpu_batch_normalization_bwd_pd_t(engine, adesc, hint_fwd_pd) {}
+            : cpu_batch_normalization_bwd_pd_t(engine, adesc, attr,
+                    hint_fwd_pd) {}
 
         DECLARE_COMMON_PD_T(jit_uni_batch_normalization_bwd_t<isa>);
 
@@ -109,7 +114,8 @@ struct jit_uni_batch_normalization_bwd_t: public cpu_primitive_t {
                 && implication(use_scaleshift(),
                         desc()->data_scaleshift_desc.data_type == f32)
                 && everyone_is(desired_fmt, desc()->diff_data_desc.format,
-                        desc()->data_desc.format);
+                        desc()->data_desc.format)
+                && attr()->has_default_values();
             if (!ok) return status::unimplemented;
 
             /* TODO: extra checks required */

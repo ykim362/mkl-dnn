@@ -20,10 +20,10 @@
 #include "mkldnn.hpp"
 
 enum {
-    RELU = mkldnn::rnn_relu,
-    TANH = mkldnn::rnn_tanh,
-    LSTM = mkldnn::rnn_lstm,
-    GRU = mkldnn::rnn_gru
+    RELU = mkldnn_rnn_relu,
+    TANH = mkldnn_rnn_tanh,
+    LSTM = mkldnn_rnn_lstm,
+    GRU = mkldnn_rnn_gru
 };
 
 enum { UNIDIRECT = 1, BIDIRECT = 2 };

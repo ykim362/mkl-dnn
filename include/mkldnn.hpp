@@ -89,6 +89,10 @@ public:
 };
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
+template <> struct handle_traits<mkldnn_primitive_desc_t> {
+    static constexpr auto destructor = &mkldnn_primitive_desc_destroy;
+};
+
 template <> struct handle_traits<mkldnn_primitive_t> {
     static constexpr auto destructor = &mkldnn_primitive_destroy;
 };
@@ -101,6 +105,26 @@ class primitive: public handle<mkldnn_primitive_t> {
     friend class primitive_at;
     using handle::handle;
 public:
+    /// A proxy to C primitive kind enum
+    enum class kind {
+        undefined_primitive = mkldnn_undefined_primitive,
+        memory = mkldnn_memory,
+        view = mkldnn_view,
+        reorder = mkldnn_reorder,
+        concat = mkldnn_concat,
+        concat_inplace = mkldnn_concat_inplace,
+        sum = mkldnn_sum,
+        convolution = mkldnn_convolution,
+        eltwise = mkldnn_eltwise,
+        relu = mkldnn_relu,
+        softmax = mkldnn_softmax,
+        pooling = mkldnn_pooling,
+        lrn = mkldnn_lrn,
+        batch_normalization = mkldnn_batch_normalization,
+        inner_product = mkldnn_inner_product,
+        convolution_relu = mkldnn_convolution_relu,
+    };
+
     /// A wrapper structure to specify a particular output of a primitive.
     struct at {
         /// The underlying C API structure.
@@ -121,6 +145,10 @@ public:
     inline const_mkldnn_primitive_desc_t get_primitive_desc() const;
     // TODO: use the C++ API wrapper structure.
 };
+
+inline mkldnn_primitive_kind_t convert_to_c(primitive::kind akind) {
+    return static_cast<mkldnn_primitive_kind_t>(akind);
+}
 
 /// Intel(R) MKL-DNN exception class.
 ///
@@ -183,14 +211,80 @@ const_mkldnn_primitive_desc_t primitive::get_primitive_desc() const {
 }
 /// @}
 
-/// @addtogroup cpp_api_engine Engine
+/// @addtogroup cpp_api_enums Common data types and enumerations
 /// @{
 
-#ifndef DOXYGEN_SHOULD_SKIP_THIS
-template <> struct handle_traits<mkldnn_engine_t> {
-    static constexpr auto destructor = &mkldnn_engine_destroy;
+enum round_mode {
+    round_nearest = mkldnn_round_nearest,
+    round_down = mkldnn_round_down,
 };
-#endif
+
+inline mkldnn_round_mode_t convert_to_c(round_mode mode) {
+    return static_cast<mkldnn_round_mode_t>(mode);
+}
+
+enum padding_kind {
+    zero = mkldnn_padding_zero
+};
+
+inline mkldnn_padding_kind_t convert_to_c(padding_kind kind) {
+    return static_cast<mkldnn_padding_kind_t>(kind);
+}
+
+enum prop_kind {
+    forward_training = mkldnn_forward_training,
+    forward_scoring = mkldnn_forward_scoring,
+    forward_inference = mkldnn_forward_inference,
+    forward = mkldnn_forward,
+    backward = mkldnn_backward,
+    backward_data = mkldnn_backward_data,
+    backward_weights = mkldnn_backward_weights,
+    backward_bias = mkldnn_backward_bias
+};
+
+inline mkldnn_prop_kind_t convert_to_c(prop_kind kind) {
+    return static_cast<mkldnn_prop_kind_t>(kind);
+}
+
+enum algorithm {
+    convolution_direct = mkldnn_convolution_direct,
+    convolution_winograd = mkldnn_convolution_winograd,
+    eltwise_relu = mkldnn_eltwise_relu,
+    eltwise_tanh = mkldnn_eltwise_tanh,
+    eltwise_elu = mkldnn_eltwise_elu,
+    eltwise_square = mkldnn_eltwise_square,
+    eltwise_abs = mkldnn_eltwise_abs,
+    eltwise_sqrt = mkldnn_eltwise_sqrt,
+    eltwise_linear = mkldnn_eltwise_linear,
+    eltwise_bounded_relu = mkldnn_eltwise_bounded_relu,
+    eltwise_soft_relu = mkldnn_eltwise_soft_relu,
+    eltwise_logistic = mkldnn_eltwise_logistic,
+    lrn_across_channels = mkldnn_lrn_across_channels,
+    lrn_within_channel  = mkldnn_lrn_within_channel,
+    pooling_max = mkldnn_pooling_max,
+    pooling_avg = mkldnn_pooling_avg,
+    pooling_avg_include_padding = mkldnn_pooling_avg_include_padding,
+    pooling_avg_exclude_padding = mkldnn_pooling_avg_exclude_padding,
+    rnn_relu = mkldnn_rnn_relu,
+    rnn_tanh = mkldnn_rnn_tanh,
+    rnn_lstm = mkldnn_rnn_lstm,
+    rnn_gru = mkldnn_rnn_gru
+};
+
+inline mkldnn_alg_kind_t convert_to_c(algorithm aalgorithm) {
+    return static_cast<mkldnn_alg_kind_t>(aalgorithm);
+}
+
+enum batch_normalization_flag {
+    use_global_stats = mkldnn_use_global_stats,
+    use_scale_shift = mkldnn_use_scaleshift,
+    omit_stats = mkldnn_omit_stats
+};
+
+inline mkldnn_batch_normalization_flag_t convert_to_c(
+        batch_normalization_flag aflag) {
+    return static_cast<mkldnn_batch_normalization_flag_t>(aflag);
+}
 
 enum query {
     undef = mkldnn_query_undef,
@@ -228,9 +322,140 @@ enum query {
     diff_dst_pd = mkldnn_query_diff_dst_pd,
     workspace_pd = mkldnn_query_workspace_pd,
 };
+
 inline mkldnn_query_t convert_to_c(query aquery) {
     return static_cast<mkldnn_query_t>(aquery);
 }
+
+/// @}
+
+/// @addtogroup cpp_api_attr Attributes
+/// @{
+
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
+template <> struct handle_traits<mkldnn_post_ops_t> {
+    static constexpr auto destructor = &mkldnn_post_ops_destroy;
+};
+#endif
+
+struct post_ops: public handle<mkldnn_post_ops_t> {
+    post_ops() {
+        mkldnn_post_ops_t result;
+        error::wrap_c_api(mkldnn_post_ops_create(&result),
+                "could not create post operation sequence");
+        reset(result);
+    }
+
+    int len() const { return mkldnn_post_ops_len(get()); }
+
+    primitive::kind kind(int index) const {
+        error::wrap_c_api(
+                index < len() ? mkldnn_success : mkldnn_invalid_arguments,
+                "post_ops index is out of range");
+        return static_cast<primitive::kind>(mkldnn_post_ops_get_kind(get(),
+                    index));
+    }
+
+    void append_sum(float scale = 1.) {
+        error::wrap_c_api(mkldnn_post_ops_append_sum(get(), scale),
+                "could not append sum");
+    }
+
+    void get_params_sum(int index, float &scale) const {
+        error::wrap_c_api(mkldnn_post_ops_get_params_sum(get(), index, &scale),
+                "could not get sum params");
+    }
+
+    void append_eltwise(float scale, algorithm alg, float alpha,
+            float beta) {
+        error::wrap_c_api(mkldnn_post_ops_append_eltwise(get(), scale,
+                    convert_to_c(alg), alpha, beta),
+                "could not append eltwise");
+    }
+
+    void get_params_eltwise(int index, float &scale, algorithm &alg,
+            float &alpha, float &beta) const {
+        mkldnn_alg_kind_t c_alg;
+        error::wrap_c_api(mkldnn_post_ops_get_params_eltwise(get(), index,
+                    &scale, &c_alg, &alpha, &beta),
+                "could not get eltwise params");
+        alg = static_cast<algorithm>(c_alg);
+    }
+};
+
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
+template <> struct handle_traits<mkldnn_primitive_attr_t> {
+    static constexpr auto destructor = &mkldnn_primitive_attr_destroy;
+};
+#endif
+
+struct primitive_attr: public handle<mkldnn_primitive_attr_t> {
+    primitive_attr() {
+        mkldnn_primitive_attr_t result;
+        error::wrap_c_api(mkldnn_primitive_attr_create(&result),
+                "could not create a primitive attr");
+        reset(result);
+    }
+
+    round_mode get_int_output_round_mode() const {
+        mkldnn_round_mode_t result;
+        error::wrap_c_api(mkldnn_primitive_attr_get_int_output_round_mode(
+                    get(), &result), "could not get int output round mode");
+        return round_mode(result);
+    }
+
+    void set_int_output_round_mode(round_mode mode) {
+        error::wrap_c_api(mkldnn_primitive_attr_set_int_output_round_mode(
+                    get(), mkldnn::convert_to_c(mode)),
+                "could not set int output round mode");
+    }
+
+    void get_output_scales(int &mask, std::vector<float> &scales) const
+    {
+        int count, c_mask;
+        const float *c_scales;
+        error::wrap_c_api(mkldnn_primitive_attr_get_output_scales(get(),
+                    &count, &c_mask, &c_scales),
+                "could not get int output scales");
+        scales.resize(count);
+
+        mask = c_mask;
+        for (int c = 0; c < count; ++c)
+            scales[c] = c_scales[c];
+    }
+
+    void set_output_scales(int mask, const std::vector<float> &scales)
+    {
+        error::wrap_c_api(mkldnn_primitive_attr_set_output_scales(get(),
+                    (int)scales.size(), mask, &scales[0]),
+                "could not set int output scales");
+    }
+
+    const post_ops get_post_ops() const {
+        post_ops result;
+        const_mkldnn_post_ops_t c_result;
+        error::wrap_c_api(mkldnn_primitive_attr_get_post_ops(get(), &c_result),
+                "could not get post operation sequence");
+        result.reset(const_cast<mkldnn_post_ops_t>(c_result), true);
+        return result;
+    }
+
+    void set_post_ops(post_ops ops) {
+        error::wrap_c_api(mkldnn_primitive_attr_set_post_ops(get(), ops.get()),
+                "could not set post operation sequence");
+    }
+};
+
+/// @}
+
+/// @addtogroup cpp_api_engine Engine
+/// @{
+
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
+template <> struct handle_traits<mkldnn_engine_t> {
+    static constexpr auto destructor = &mkldnn_engine_destroy;
+};
+#endif
 
 /// An execution engine.
 struct engine: public handle<mkldnn_engine_t> {
@@ -299,14 +524,11 @@ private:
 
 /// @}
 
-/// @addtogroup cpp_api_memory Memory
+/// @addtogroup cpp_api_primitives Primitives
 /// @{
 
-#ifndef DOXYGEN_SHOULD_SKIP_THIS
-template <> struct handle_traits<mkldnn_primitive_desc_t> {
-    static constexpr auto destructor = &mkldnn_primitive_desc_destroy;
-};
-#endif
+/// @addtogroup cpp_api_memory Memory
+/// @{
 
 /// Memory primitive that describes the data.
 struct memory: public primitive  {
@@ -358,6 +580,7 @@ struct memory: public primitive  {
         OIhw16i16o = mkldnn_OIhw16i16o,
         OIhw8o8i = mkldnn_OIhw8o8i,
         OIhw16o16i = mkldnn_OIhw16o16i,
+        IOhw16o16i = mkldnn_IOhw16o16i,
         OIhw8i16o2i = mkldnn_OIhw8i16o2i,
         OIhw8o16i2o = mkldnn_OIhw8o16i2o,
         Oihw8o = mkldnn_Oihw8o,
@@ -376,6 +599,7 @@ struct memory: public primitive  {
         gOhwi16o = mkldnn_gOhwi16o,
         gOIhw8o8i = mkldnn_gOIhw8o8i,
         gOIhw16o16i = mkldnn_gOIhw16o16i,
+        gIOhw16o16i = mkldnn_gIOhw16o16i,
         gOhIw16o4i = mkldnn_gOhIw16o4i,
     };
 
@@ -521,7 +745,6 @@ struct memory: public primitive  {
     static mkldnn_memory_format_t convert_to_c(format aformat) {
         return static_cast<mkldnn_memory_format_t>(aformat);
     }
-
 };
 
 inline bool operator==(mkldnn_data_type_t a, memory::data_type b) {
@@ -550,61 +773,10 @@ inline bool operator!=(memory::format a, mkldnn_memory_format_t b) {
     return !(a == b);
 }
 
-enum padding_kind {
-    zero = mkldnn_padding_zero
-};
-inline mkldnn_padding_kind_t convert_to_c(padding_kind kind) {
-    return static_cast<mkldnn_padding_kind_t>(kind);
-}
+/// @}
 
-enum prop_kind {
-    forward_training = mkldnn_forward_training,
-    forward_scoring = mkldnn_forward_scoring,
-    forward_inference = mkldnn_forward_inference,
-    forward = mkldnn_forward,
-    backward = mkldnn_backward,
-    backward_data = mkldnn_backward_data,
-    backward_weights = mkldnn_backward_weights,
-    backward_bias = mkldnn_backward_bias
-};
-inline mkldnn_prop_kind_t convert_to_c(prop_kind kind) {
-    return static_cast<mkldnn_prop_kind_t>(kind);
-}
-
-enum algorithm {
-    convolution_direct = mkldnn_convolution_direct,
-    convolution_winograd = mkldnn_convolution_winograd,
-    eltwise_relu = mkldnn_eltwise_relu,
-    eltwise_tanh = mkldnn_eltwise_tanh,
-    eltwise_elu = mkldnn_eltwise_elu,
-    eltwise_square = mkldnn_eltwise_square,
-    eltwise_abs = mkldnn_eltwise_abs,
-    eltwise_sqrt = mkldnn_eltwise_sqrt,
-    eltwise_linear = mkldnn_eltwise_linear,
-    eltwise_bounded_relu = mkldnn_eltwise_bounded_relu,
-    eltwise_soft_relu = mkldnn_eltwise_soft_relu,
-    eltwise_logistic = mkldnn_eltwise_logistic,
-    lrn_across_channels = mkldnn_lrn_across_channels,
-    lrn_within_channel  = mkldnn_lrn_within_channel,
-    rnn_relu = mkldnn_rnn_relu,
-    rnn_tanh = mkldnn_rnn_tanh,
-    rnn_lstm = mkldnn_rnn_lstm,
-    rnn_gru = mkldnn_rnn_gru,
-    pooling_max = mkldnn_pooling_max,
-    pooling_avg = mkldnn_pooling_avg,
-    pooling_avg_include_padding = mkldnn_pooling_avg_include_padding,
-    pooling_avg_exclude_padding = mkldnn_pooling_avg_exclude_padding
-};
-
-enum batch_normalization_flag {
-    use_global_stats = mkldnn_use_global_stats,
-    use_scale_shift = mkldnn_use_scaleshift,
-    omit_stats = mkldnn_omit_stats
-};
-
-static mkldnn_alg_kind_t convert_to_c(algorithm aalgorithm) {
-    return static_cast<mkldnn_alg_kind_t>(aalgorithm);
-}
+/// @addtogroup cpp_api_reorder Reorder
+/// @{
 
 enum direction {
     rnn_unidirectional = mkldnn_rnn_unidirectional,
@@ -629,6 +801,16 @@ struct reorder : public primitive {
             mkldnn_primitive_desc_t result;
             error::wrap_c_api(mkldnn_reorder_primitive_desc_create(
                         &result, input.get(), output.get()),
+                    "could not create a reorder primitive descriptor");
+            reset(result);
+        }
+
+        primitive_desc(const memory::primitive_desc &input,
+                const memory::primitive_desc &output,
+                const primitive_attr &aattr) {
+            mkldnn_primitive_desc_t result;
+            error::wrap_c_api(mkldnn_reorder_primitive_desc_create_v2(
+                        &result, input.get(), output.get(), aattr.get()),
                     "could not create a reorder primitive descriptor");
             reset(result);
         }
@@ -662,6 +844,11 @@ struct reorder : public primitive {
         reset(result);
     }
 };
+
+/// @}
+
+/// @addtogroup cpp_api_view View
+/// @{
 
 struct view : public primitive {
     struct primitive_desc : public handle<mkldnn_primitive_desc_t> {
@@ -711,6 +898,11 @@ struct view : public primitive {
         reset(result);
     }
 };
+
+/// @}
+
+/// @addtogroup cpp_api_concat Concat
+/// @{
 
 struct concat : public primitive {
     struct primitive_desc : public handle<mkldnn_primitive_desc_t> {
@@ -781,6 +973,11 @@ struct concat : public primitive {
     }
 };
 
+/// @}
+
+/// @addtogroup cpp_api_sum Sum
+/// @{
+
 struct sum : public primitive {
     struct primitive_desc : public handle<mkldnn_primitive_desc_t> {
         std::vector<const_mkldnn_primitive_desc_t> cpp_to_c(
@@ -827,7 +1024,7 @@ struct sum : public primitive {
             mkldnn_primitive_desc_t result;
 
             auto c_api_inputs = cpp_to_c(inputs);
-            auto scale_f = std::vector<float>(scale.begin(), scale.end());
+            auto scale_f = scale_to_float(scale);
 
             error::wrap_c_api(mkldnn_sum_primitive_desc_create(
                     &result, &output.data, (int)c_api_inputs.size(),
@@ -843,7 +1040,7 @@ struct sum : public primitive {
             mkldnn_primitive_desc_t result;
 
             auto c_api_inputs = cpp_to_c(inputs);
-            auto scale_f = std::vector<float>(scale.begin(), scale.end());
+            auto scale_f = scale_to_float(scale);
 
             error::wrap_c_api(mkldnn_sum_primitive_desc_create(
                     &result, nullptr, (int)c_api_inputs.size(), &scale_f[0],
@@ -882,82 +1079,20 @@ struct sum : public primitive {
                 "could not create a sum primitive");
         reset(result);
     }
-};
-#ifndef DOXYGEN_SHOULD_SKIP_THIS
-template <> struct handle_traits<mkldnn_stream_t> {
-    static constexpr auto destructor = &mkldnn_stream_destroy;
-};
-#endif
 
-struct stream: public handle<mkldnn_stream_t> {
-    using handle::handle;
-
-    enum kind { any = mkldnn_stream_kind_t::mkldnn_any_stream,
-        eager = mkldnn_stream_kind_t::mkldnn_eager,
-        lazy = mkldnn_stream_kind_t::mkldnn_lazy };
-
-    static mkldnn_stream_kind_t convert_to_c(kind akind) {
-        return static_cast<mkldnn_stream_kind_t>(akind);
-    }
-    /// Constructs a stream.
-    stream(kind akind) {
-        mkldnn_stream_t astream;
-        error::wrap_c_api(mkldnn_stream_create(&astream,
-                    convert_to_c(akind)),
-                "could not create a stream");
-        reset(astream);
-    }
-
-    /// Submits a vector of primitives to a stream for computations.
-    ///
-    /// @param primitives The vector of primitives to submit.
-    /// @returns The stream.
-    stream &submit(std::vector<primitive> primitives) {
-        // TODO: find a proper way to convert vector<primitive> to
-        // vector<mkldnn_primitive_t>
-        if (primitives.size() == 0) return *this;
-        std::vector<mkldnn_primitive_t> c_api_primitives;
-        c_api_primitives.reserve(primitives.size());
-        auto convert_to_c = [](primitive p) { return p.get(); };
-        std::transform(primitives.begin(), primitives.end(),
-                std::back_inserter(c_api_primitives), convert_to_c);
-
-        mkldnn_primitive_t c_api_error_primitive;
-        error::wrap_c_api(
-                mkldnn_stream_submit(get(),
-                    c_api_primitives.size(), &c_api_primitives[0],
-                    &c_api_error_primitive),
-                "could not submit primitives to a stream",
-                &c_api_error_primitive);
-
-        return *this;
-    }
-
-    /// Waits for all computations submitted to the stream to complete.
-    ///
-    /// @param block Specifies whether the operation should wait indefinitely or return
-    ///              immediately.
-    /// @returns @c true if all computations completed.
-    /// @returns @c false if not all computations completed.
-    bool wait(bool block = true) {
-        mkldnn_primitive_t c_api_error_primitive;
-        mkldnn_status_t status = mkldnn_stream_wait(get(),
-                block, &c_api_error_primitive);
-        if (status != mkldnn_success
-                && status != mkldnn_try_again)
-            error::wrap_c_api(status, "could not wait on a stream",
-                    &c_api_error_primitive);
-        return (status == mkldnn_success);
-    }
-
-    stream &rerun() {
-        mkldnn_primitive_t c_api_error_primitive;
-        error::wrap_c_api(
-                mkldnn_stream_rerun(get(), &c_api_error_primitive),
-                "could not rerun a stream", &c_api_error_primitive);
-        return *this;
+private:
+    static std::vector<float> scale_to_float(const std::vector<double> &vd) {
+        std::vector<float> vf(vd.size());
+        std::transform(vd.begin(), vd.end(), vf.begin(),
+                [=](double x){return (float)x;});
+        return vf;
     }
 };
+
+/// @}
+
+/// @addtogroup cpp_api_convolution Convolution
+/// @{
 
 struct convolution_forward: public primitive {
     struct desc {
@@ -1050,6 +1185,16 @@ struct convolution_forward: public primitive {
             mkldnn_primitive_desc_t result;
             error::wrap_c_api(mkldnn_primitive_desc_create(
                         &result, &adesc.data, aengine.get(), nullptr),
+                    "could not create a convolution forward primitive descriptor");
+            reset(result);
+        }
+
+        primitive_desc(const desc &adesc, const primitive_attr &aattr,
+                const engine &aengine) {
+            mkldnn_primitive_desc_t result;
+            error::wrap_c_api(mkldnn_primitive_desc_create_v2(
+                        &result, &adesc.data, aattr.get(),
+                        aengine.get(), nullptr),
                     "could not create a convolution forward primitive descriptor");
             reset(result);
         }
@@ -1459,6 +1604,12 @@ struct convolution_relu_forward : public primitive {
         reset(result);
     }
 };
+
+/// @}
+
+/// @addtogroup cpp_api_lrn LRN
+/// @{
+
 struct lrn_forward : public primitive {
     struct desc {
         mkldnn_lrn_desc_t data;
@@ -1656,6 +1807,11 @@ struct lrn_backward : public primitive {
     }
 };
 
+/// @}
+
+/// @addtogroup cpp_api_pooling Pooling
+/// @{
+
 struct pooling_forward : public primitive {
     struct desc {
         mkldnn_pooling_desc_t data;
@@ -1815,6 +1971,11 @@ struct pooling_backward : public primitive {
     }
 };
 
+/// @}
+
+/// @addtogroup cpp_api_eltwise Eltwise
+/// @{
+
 struct eltwise_forward : public primitive {
     struct desc {
         mkldnn_eltwise_desc_t data;
@@ -1938,6 +2099,11 @@ struct eltwise_backward : public primitive {
 
 typedef eltwise_backward relu_backward;
 
+/// @}
+
+/// @addtogroup cpp_api_softmax Softmax
+/// @{
+
 struct softmax_forward : public primitive {
     struct desc {
         mkldnn_softmax_desc_t data;
@@ -1973,6 +2139,11 @@ struct softmax_forward : public primitive {
         reset(result);
     }
 };
+
+/// @}
+
+/// @addtogroup cpp_api_batch_norm Batch normalization
+/// @{
 
 struct batch_normalization_forward : public primitive {
     struct desc {
@@ -2286,6 +2457,11 @@ struct batch_normalization_backward : public primitive {
     }
 };
 
+/// @}
+
+/// @addtogroup cpp_api_inner_product Inner Product
+/// @{
+
 struct inner_product_forward: public primitive {
     struct desc {
         mkldnn_inner_product_desc_t data;
@@ -2320,6 +2496,16 @@ struct inner_product_forward: public primitive {
             reset(result);
         }
 
+        primitive_desc(const desc &adesc, const primitive_attr &aattr,
+                const engine &aengine) {
+            mkldnn_primitive_desc_t result;
+            error::wrap_c_api(mkldnn_primitive_desc_create_v2(
+                &result, &adesc.data, aattr.get(), aengine.get(), nullptr),
+                    "could not create a inner product "
+                    "forward primitive descriptor");
+            reset(result);
+        }
+
         memory::primitive_desc src_primitive_desc() const {
             memory::primitive_desc adesc;
             mkldnn_primitive_desc_t cdesc;
@@ -2327,7 +2513,7 @@ struct inner_product_forward: public primitive {
                 mkldnn_primitive_desc_query_pd(get(),
                                mkldnn::convert_to_c(src_pd), 0);
             error::wrap_c_api(mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
-                    "could not clone a src primititve descriptor");
+                    "could not clone a src primitive descriptor");
             adesc.reset(cdesc);
             return adesc;
         }
@@ -3090,6 +3276,92 @@ struct rnn_backward : public primitive {
         reset(result);
     }
 };
+/// @}
+
+/// @} Primitives
+
+/// @addtogroup cpp_api_stream Stream
+/// @{
+
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
+template <> struct handle_traits<mkldnn_stream_t> {
+    static constexpr auto destructor = &mkldnn_stream_destroy;
+};
+#endif
+
+struct stream: public handle<mkldnn_stream_t> {
+    using handle::handle;
+
+    enum kind { any = mkldnn_stream_kind_t::mkldnn_any_stream,
+        eager = mkldnn_stream_kind_t::mkldnn_eager,
+        lazy = mkldnn_stream_kind_t::mkldnn_lazy };
+
+    static mkldnn_stream_kind_t convert_to_c(kind akind) {
+        return static_cast<mkldnn_stream_kind_t>(akind);
+    }
+    /// Constructs a stream.
+    stream(kind akind) {
+        mkldnn_stream_t astream;
+        error::wrap_c_api(mkldnn_stream_create(&astream,
+                    convert_to_c(akind)),
+                "could not create a stream");
+        reset(astream);
+    }
+
+    /// Submits a vector of primitives to a stream for computations.
+    ///
+    /// @param primitives The vector of primitives to submit.
+    /// @returns The stream.
+    stream &submit(std::vector<primitive> primitives) {
+        // TODO: find a proper way to convert vector<primitive> to
+        // vector<mkldnn_primitive_t>
+        if (primitives.size() == 0) return *this;
+        std::vector<mkldnn_primitive_t> c_api_primitives;
+        c_api_primitives.reserve(primitives.size());
+        auto convert_to_c = [](primitive p) { return p.get(); };
+        std::transform(primitives.begin(), primitives.end(),
+                std::back_inserter(c_api_primitives), convert_to_c);
+
+        mkldnn_primitive_t c_api_error_primitive;
+        error::wrap_c_api(
+                mkldnn_stream_submit(get(),
+                    c_api_primitives.size(), &c_api_primitives[0],
+                    &c_api_error_primitive),
+                "could not submit primitives to a stream",
+                &c_api_error_primitive);
+
+        return *this;
+    }
+
+    /// Waits for all computations submitted to the stream to complete.
+    ///
+    /// @param block Specifies whether the operation should wait indefinitely or return
+    ///              immediately.
+    /// @returns @c true if all computations completed.
+    /// @returns @c false if not all computations completed.
+    bool wait(bool block = true) {
+        mkldnn_primitive_t c_api_error_primitive;
+        mkldnn_status_t status = mkldnn_stream_wait(get(),
+                block, &c_api_error_primitive);
+        if (status != mkldnn_success
+                && status != mkldnn_try_again)
+            error::wrap_c_api(status, "could not wait on a stream",
+                    &c_api_error_primitive);
+        return (status == mkldnn_success);
+    }
+
+    stream &rerun() {
+        mkldnn_primitive_t c_api_error_primitive;
+        error::wrap_c_api(
+                mkldnn_stream_rerun(get(), &c_api_error_primitive),
+                "could not rerun a stream", &c_api_error_primitive);
+        return *this;
+    }
+};
+
+/// @}
+
+/// @} C++ API
 
 } // namespace mkldnn
 

@@ -72,7 +72,7 @@ struct memory_desc_wrapper: public c_compatible {
                     OIhw16o16i, Oihw8o, Oihw16o, Ohwi8o, Ohwi16o, OhIw16o4i,
                     goihw, gOIhw8i8o, gOIhw16i16o, gOIhw8i16o2i, gOIhw8o16i2o,
                     gOIhw8o8i, gOIhw16o16i, gOihw8o, gOihw16o, gOhwi8o,
-                    gOhwi16o, gOhIw16o4i, rnx));
+                    gOhwi16o, gOhIw16o4i, IOhw16o16i, gIOhw16o16i, rnx));
 
         if (blocking_desc().offset_padding != 0) return 0;
 
@@ -235,7 +235,7 @@ private:
 
     template<typename T, typename ...Args>
     inline size_t _blk_off(Args ...args, T xn) const {
-        return size_t(xn)*blocking_desc().strides[0][sizeof...(args)] +
+        return (size_t)(xn)*blocking_desc().strides[0][sizeof...(args)] +
             _blk_off<Args...>(args...);
     }
 };

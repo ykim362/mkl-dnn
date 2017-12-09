@@ -34,6 +34,9 @@
 #elif defined(S16S16S32)
 #define FMT_WEIGHTS_BLOCKED16 OIhw8i16o2i
 #define FMT_WEIGHTS_BLOCKED16_G gOIhw8i16o2i
+#elif defined(U8S8)
+#define FMT_WEIGHTS_BLOCKED16 OhIw16o4i
+#define FMT_WEIGHTS_BLOCKED16_G gOhIw16o4i
 #endif
 #define TEST_CASE_NAME_PREFIX Forward
 #elif defined DIRECTION_BACKWARD_DATA
@@ -42,6 +45,8 @@
 #if defined(FP32)
 #define FMT_WEIGHTS_BLOCKED16 OIhw16o16i
 #define FMT_WEIGHTS_BLOCKED16_G gOIhw16o16i
+#define FMT_WEIGHTS_BLOCKED16_IOhw16o16i IOhw16o16i
+#define FMT_WEIGHTS_BLOCKED16_G_IOhw16o16i gIOhw16o16i
 #elif defined(S16S16S32)
 #define FMT_WEIGHTS_BLOCKED16 OIhw8o16i2o
 #define FMT_WEIGHTS_BLOCKED16_G gOIhw8o16i2o
@@ -69,7 +74,7 @@
         CONCAT_WITH_UNDERSCORE(TEST_CASE_NAME_PREFIX, str), __VA_ARGS__)
 
 #ifndef NEGATIVE_SLOPE
-#define NEGATIVE_SLOPE 0.0
+#define NEGATIVE_SLOPE 0.0f
 #else
 #undef INST_TEST_CASE
 #define INST_TEST_CASE(str, ...) INST_TEST_CASE_( \
@@ -79,9 +84,20 @@
 
 #define PARAMS(src, weights, bias, dst, ...) \
     test_convolution_params_t { ENGINE, ALGORITHM, NEGATIVE_SLOPE, \
-    EXPAND_FORMATS(src, weights, bias, dst), {__VA_ARGS__} }
+    EXPAND_FORMATS(src, weights, bias, dst), /* empty attributes */ {}, \
+    {__VA_ARGS__} }
 
+#define PARAMS_ATTR(src, weights, bias, dst, round_mode, scale, policy, ...) \
+    test_convolution_params_t { ENGINE, ALGORITHM, NEGATIVE_SLOPE, \
+    EXPAND_FORMATS(src, weights, bias, dst), \
+    {mkldnn::round_mode, scale, test_convolution_attr_t::scale_t::policy}, \
+    {__VA_ARGS__} }
+
+#ifdef TEST_PARAM_ATTR
+#include "convolution_attr.h"
+#else
 #include "convolution_simple_small.h"
+#endif
 //#include "convolution_alexnet.h"
 //#include "convolution_googlenet_v1.h"
 //#include "convolution_googlenet_v2.h"

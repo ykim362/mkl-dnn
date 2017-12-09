@@ -23,8 +23,7 @@ template <typename data_t>
 void compute_ref_rnn_fwd(const test_rnn_desc_t &rd, const memory::desc &x_d,
         const memory::desc &hx_d, const memory::desc &y_d,
         const memory::desc &weights_d, const memory &x, const memory &hx,
-        const memory &weights, const memory &y, const memory &hy)
-{
+        const memory &weights, const memory &y, const memory &hy) {
     data_t *x_ptr = (data_t *)x.get_data_handle();
     data_t *hx_ptr = (data_t *)hx.get_data_handle();
     data_t *weights_ptr = (data_t *)weights.get_data_handle();
@@ -247,8 +246,7 @@ void compute_ref_rnn_bwd(const test_rnn_desc_t &rd, const memory::desc &x_d,
         const memory::desc &weights_d, const memory &x, const memory &hx,
         const memory &dy, const memory &dhy, const memory &weights,
         const memory &ws, const memory &dx, const memory &dhx,
-        const memory &dweights)
-{
+        const memory &dweights) {
     data_t *x_ptr = (data_t *)x.get_data_handle();
     data_t *hx_ptr = (data_t *)hx.get_data_handle();
     data_t *dy_ptr = (data_t *)dy.get_data_handle();
@@ -545,7 +543,8 @@ void compute_ref_rnn_bwd(const test_rnn_desc_t &rd, const memory::desc &x_d,
 }
 
 template <typename data_t>
-class rnn_backward_test : public ::testing::TestWithParam<rnn_test_params> {
+class rnn_backward_test : public ::testing::TestWithParam<rnn_test_params>
+{
 private:
     std::shared_ptr<memory> x;
     std::shared_ptr<memory> hx;
@@ -576,8 +575,7 @@ private:
     bool with_workspace;
 
 protected:
-    virtual void SetUp()
-    {
+    virtual void SetUp() {
         // using namespace mkldnn::impl::utils;
         p = ::testing::TestWithParam<rnn_test_params>::GetParam();
         ASSERT_TRUE(p.engine_kind == engine::kind::cpu);
@@ -635,8 +633,7 @@ protected:
         Backward();
     }
 
-    void Forward()
-    {
+    void Forward() {
         auto rnn_fwd_desc = rnn_forward::desc(p.aprop_kind, p.aalgorithm,
                 p.adirection, p.ainput_mode, p.test_rd.state_size,
                 p.test_rd.num_layers, p.test_rd.seq_length,
@@ -681,8 +678,7 @@ protected:
             compare_data_woinfnan<data_t>(*ref_y, *y);
     }
 
-    void Backward()
-    {
+    void Backward() {
         auto pk = prop_kind::backward;
         auto rnn_bwd_desc = rnn_backward::desc(pk, p.aalgorithm, p.adirection,
                 p.ainput_mode, p.test_rd.state_size, p.test_rd.num_layers,
@@ -723,9 +719,7 @@ protected:
 using rnn_backward_test_float = rnn_backward_test<float>;
 using rnn_test_params_float = rnn_test_params;
 
-TEST_P(rnn_backward_test_float, TestsRNN)
-{
-}
+TEST_P(rnn_backward_test_float, TestsRNN) {}
 
 INSTANTIATE_TEST_CASE_P(
         TestRNNBackward0, rnn_backward_test_float,

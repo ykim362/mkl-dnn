@@ -34,8 +34,9 @@ struct batch_normalization_pd_t: public primitive_desc_t {
 
     batch_normalization_pd_t(mkldnn::impl::engine_t *engine,
             const batch_normalization_desc_t *adesc,
+            const primitive_attr_t *attr,
             const batch_normalization_fwd_pd_t *hint_fwd_pd)
-        : primitive_desc_t(engine, primitive_kind::batch_normalization)
+        : primitive_desc_t(engine, attr, primitive_kind::batch_normalization)
         , desc_(*adesc), hint_fwd_pd_(hint_fwd_pd) {}
     virtual ~batch_normalization_pd_t() {}
 
@@ -76,6 +77,11 @@ struct batch_normalization_pd_t: public primitive_desc_t {
     inline int C() const { return desc_.data_desc.dims[1]; }
     inline int H() const { return desc_.data_desc.dims[2]; }
     inline int W() const { return desc_.data_desc.dims[3]; }
+
+    bool with_relu_post_op() const {
+        const auto &p = this->attr()->post_ops_;
+        return p.len_ == 1 && p.entry_[0].is_relu(true, true);
+    }
 
 protected:
     batch_normalization_desc_t desc_;

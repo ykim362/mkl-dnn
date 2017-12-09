@@ -25,8 +25,7 @@ void compute_ref_lstm_fwd(const test_lstm_desc_t &ld, const memory::desc &x_d,
         const memory::desc &hx_d, const memory::desc &y_d,
         const memory::desc &weights_d, const memory &x, const memory &hx,
         const memory &cx, const memory &weights, const memory &y,
-        const memory &hy, const memory &cy)
-{
+        const memory &hy, const memory &cy) {
     data_t *x_ptr = (data_t *)x.get_data_handle();
     data_t *hx_ptr = (data_t *)hx.get_data_handle();
     data_t *cx_ptr = (data_t *)cx.get_data_handle();
@@ -274,7 +273,8 @@ void compute_ref_lstm_fwd(const test_lstm_desc_t &ld, const memory::desc &x_d,
 }
 
 template <typename data_t>
-class lstm_forward_test : public ::testing::TestWithParam<lstm_test_params> {
+class lstm_forward_test : public ::testing::TestWithParam<lstm_test_params>
+{
 private:
     std::shared_ptr<memory> x;
     std::shared_ptr<memory> hx;
@@ -298,8 +298,7 @@ private:
     bool with_workspace;
 
 protected:
-    virtual void SetUp()
-    {
+    virtual void SetUp() {
         p = ::testing::TestWithParam<lstm_test_params>::GetParam();
         ASSERT_TRUE(p.engine_kind == engine::kind::cpu);
         ASSERT_TRUE(p.aprop_kind == prop_kind::forward_training
@@ -349,8 +348,7 @@ protected:
         Forward();
     }
 
-    void Forward()
-    {
+    void Forward() {
         auto rnn_fwd_desc = rnn_forward::desc(p.aprop_kind, p.aalgorithm,
                 p.adirection, p.ainput_mode, p.test_ld.state_size,
                 p.test_ld.num_layers, p.test_ld.seq_length,
@@ -407,9 +405,7 @@ protected:
 using lstm_forward_test_float = lstm_forward_test<float>;
 using lstm_test_params_float = lstm_test_params;
 
-TEST_P(lstm_forward_test_float, TestsRNN)
-{
-}
+TEST_P(lstm_forward_test_float, TestsRNN) {}
 
 INSTANTIATE_TEST_CASE_P(
         TestRNNForward0, lstm_forward_test_float,

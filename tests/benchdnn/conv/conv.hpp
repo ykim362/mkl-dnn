@@ -21,16 +21,12 @@
 #include <limits.h>
 #include <assert.h>
 
-#include "mkldnn.h"
-
 #include "common.hpp"
+#include "dnn_types.hpp"
 #include "mkldnn_common.hpp"
 #include "mkldnn_memory.hpp"
 
 namespace conv {
-
-enum { SRC = 0, WEI = 1, BIA = 2, DST = 3, ACC = 4, DAT_TOTAL };
-const char *inp_type2str(int what);
 
 enum alg_t { DIRECT, WINO };
 alg_t str2alg(const char *str);
@@ -95,22 +91,32 @@ const char *cfg2str(const dt_conf_t *cfg);
 
 struct prb_t: public desc_t {
     prb_t(const desc_t &desc, dir_t dir, const dt_conf_t *cfg, alg_t alg,
-            merge_t merge, int mb = 0)
-        : desc_t(desc), dir(dir), cfg(cfg), alg(alg), merge(merge), ops(0) {
+            merge_t merge, const attr_t &attr, int mb = 0)
+        : desc_t(desc), dir(dir), cfg(cfg), alg(alg), merge(merge), attr(attr)
+        , ops(0), scales(NULL) {
         if (mb) this->mb = mb;
         count_ops();
+        generate_oscales();
     }
+    ~prb_t() { if (scales) zfree(scales); }
 
     dir_t dir;
     const dt_conf_t *cfg;
     alg_t alg;
     merge_t merge;
+    attr_t attr;
 
     double ops;
+    float *scales;
 
     void count_ops();
+    void generate_oscales();
+
+private:
+    prb_t(const prb_t &) = delete;
+    prb_t &operator=(const prb_t &) = delete;
 };
-const size_t max_prb_len = 392;
+const size_t max_prb_len = max_attr_len + max_desc_len + 196;
 void prb2str(const prb_t *p, char *buffer, bool canonical = false);
 
 /* some extra control parameters which shouldn't be placed in prb_t */
@@ -124,7 +130,7 @@ inline size_t src_off_f(const prb_t *p, int mb, int g, int ic, int ih, int iw)
         + iw;
 }
 
-inline void inv_src_off_f(const prb_t *p, int off, int &mb, int &g, int &ic,
+inline void inv_src_off_f(const prb_t *p, size_t off, int &mb, int &g, int &ic,
         int &ih, int &iw) {
     iw = off % p->iw; off /= p->iw;
     ih = off % p->ih; off /= p->ih;
@@ -140,7 +146,7 @@ inline size_t wei_off_f(const prb_t *p, int g, int oc, int ic, int kh, int kw)
         * p->kw + kw;
 }
 
-inline void inv_wei_off_f(const prb_t *p, int off, int &g, int &oc, int &ic,
+inline void inv_wei_off_f(const prb_t *p, size_t off, int &g, int &oc, int &ic,
         int &kh, int &kw) {
     kw = off % p->kw; off /= p->kw;
     kh = off % p->kh; off /= p->kh;
@@ -154,7 +160,7 @@ inline size_t bia_off_f(const prb_t *p, int g, int oc) {
     return (size_t)g * p->oc / p->g + oc;
 }
 
-inline void inv_bia_off_f(const prb_t *p, int off, int &g, int &oc) {
+inline void inv_bia_off_f(const prb_t *p, size_t off, int &g, int &oc) {
     oc = off % (p->oc / p->g); off /= (p->oc / p->g);
     g = off % p->g; off /= p->g;
     assert(off == 0);
@@ -166,7 +172,7 @@ inline size_t dst_off_f(const prb_t *p, int mb, int g, int oc, int oh, int ow)
         + ow;
 }
 
-inline void inv_dst_off_f(const prb_t *p, int off, int &mb, int &g, int &oc,
+inline void inv_dst_off_f(const prb_t *p, size_t off, int &mb, int &g, int &oc,
         int &oh, int &ow) {
     ow = off % p->ow; off /= p->ow;
     oh = off % p->oh; off /= p->oh;
@@ -175,6 +181,8 @@ inline void inv_dst_off_f(const prb_t *p, int off, int &mb, int &g, int &oc,
     mb = off % p->mb; off /= p->mb;
     assert(off == 0);
 }
+
+float oscale(const prb_t *p, int oc);
 
 void compute_ref_fwd(const prb_t *p, dnn_mem_t &src_m, dnn_mem_t &wei_m,
         dnn_mem_t &bia_m, dnn_mem_t &dst_m);
@@ -185,7 +193,6 @@ void compute_ref_bwd_w(const prb_t *p, dnn_mem_t &src_m, dnn_mem_t &diff_wei_m,
 
 void perf_report(const prb_t *p, const res_t *r, const char *pstr);
 
-bool maybe_skip(const char *impl_str);
 int doit(const prb_t *p, res_t *res);
 int bench(int argc, char **argv, bool main_bench = true);
 

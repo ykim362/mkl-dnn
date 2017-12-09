@@ -33,8 +33,9 @@ template <impl::data_type_t data_type>
 struct ref_eltwise_fwd_t: public cpu_primitive_t {
     struct pd_t: public cpu_eltwise_fwd_pd_t {
         pd_t(engine_t *engine, const eltwise_desc_t *adesc,
+                const primitive_attr_t *attr,
                 const eltwise_fwd_pd_t *hint_fwd_pd)
-            : cpu_eltwise_fwd_pd_t(engine, adesc, hint_fwd_pd)
+            : cpu_eltwise_fwd_pd_t(engine, adesc, attr, hint_fwd_pd)
             , is_dense(false) {}
 
         DECLARE_COMMON_PD_T(ref_eltwise_fwd_t);
@@ -48,7 +49,8 @@ struct ref_eltwise_fwd_t: public cpu_primitive_t {
                 && utils::one_of(desc()->prop_kind, forward_training,
                         forward_inference)
                 && utils::everyone_is(data_type, desc()->data_desc.data_type)
-                && utils::implication(!is_dense, src_pd()->desc()->ndims == 4);
+                && utils::implication(!is_dense, src_pd()->desc()->ndims == 4)
+                && attr()->has_default_values();
             if (!ok) return status::unimplemented;
 
             return status::success;
@@ -78,8 +80,9 @@ template <impl::data_type_t data_type>
 struct ref_eltwise_bwd_t: public cpu_primitive_t {
     struct pd_t: public cpu_eltwise_bwd_pd_t {
         pd_t(engine_t *engine, const eltwise_desc_t *adesc,
+                const primitive_attr_t *attr,
                 const eltwise_fwd_pd_t *hint_fwd_pd)
-            : cpu_eltwise_bwd_pd_t(engine, adesc, hint_fwd_pd)
+            : cpu_eltwise_bwd_pd_t(engine, adesc, attr, hint_fwd_pd)
             , is_dense_(false) {}
 
         DECLARE_COMMON_PD_T(ref_eltwise_bwd_t);
@@ -87,10 +90,11 @@ struct ref_eltwise_bwd_t: public cpu_primitive_t {
         virtual status_t init() override {
             using namespace prop_kind;
             assert(engine()->kind() == engine_kind::cpu);
-            bool ok = true
-                && desc()->prop_kind == backward_data
-                && utils::everyone_is(data_type, desc()->data_desc.data_type,
-                        desc()->diff_data_desc.data_type);
+            bool ok = true && desc()->prop_kind == backward_data
+                    && utils::everyone_is(data_type,
+                               desc()->data_desc.data_type,
+                               desc()->diff_data_desc.data_type)
+                    && attr()->has_default_values();
             if (!ok) return status::unimplemented;
 
             const bool same_fmt = memory_desc_wrapper(diff_dst_pd())

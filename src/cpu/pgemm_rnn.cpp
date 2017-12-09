@@ -53,8 +53,7 @@ template <typename data_t>
 #pragma OMP_SIMD
 #endif
 inline void lstm_fwd_ele_wise(
-        data_t *Gates, const data_t *Ct_1, data_t *Ct, data_t *Ht, int Length)
-{
+        data_t *Gates, const data_t *Ct_1, data_t *Ct, data_t *Ht, int Length) {
 #if defined(_OPENMP)
 #pragma OMP_FOR_SIMD
 #endif
@@ -78,8 +77,7 @@ template <typename data_t>
 #endif
 inline void lstm_bwd_ele_wise(const data_t *Gates, data_t *dGates,
         const data_t *Ct_1, data_t *dCt_1, const data_t *Ct, data_t *dCt,
-        const data_t *dHt, int Length)
-{
+        const data_t *dHt, int Length) {
 #if defined(_OPENMP)
 #pragma OMP_FOR_SIMD
 #endif
@@ -106,8 +104,7 @@ template <typename data_t>
 inline void lstm_fwd_prop_single(const int input_size, const int state_size,
         const int batch_size, const data_t *x, int tranx, const data_t *ht_1,
         int tranht_1, const data_t *ct_1, int tranct_1, const data_t *w,
-        data_t *ht, data_t *ct, data_t *gates, data_t *tmp)
-{
+        data_t *ht, data_t *ct, data_t *gates, data_t *tmp) {
 #ifdef USE_MKL
     auto x_size = input_size * batch_size;
     auto h_size = state_size * batch_size;
@@ -152,8 +149,7 @@ inline void lstm_bwd_prop_single(const int input_size, const int state_size,
         int tranht_1, const data_t *ct_1, int tranct_1, const data_t *ct,
         const data_t *w, const data_t *gates, data_t *dht, data_t *dct,
         data_t *dw, data_t *dx, data_t *dht_1, data_t *dct_1, data_t *dgates,
-        data_t *tmp)
-{
+        data_t *tmp) {
 #ifdef USE_MKL
     auto x_size = input_size * batch_size;
     auto h_size = state_size * batch_size;
@@ -221,8 +217,8 @@ inline void lstm_fwd_prop(const int seq_length, const int num_layers,
         const int gates_size, const int gates_nlayer_size,
         const int gates_space_size, const int h_space_size, const data_t *x,
         const data_t *hx, const data_t *cx, const data_t *w, data_t *y,
-        data_t *hy, data_t *cy, data_t *ws, data_t *ts_, data_t **weights_pack)
-{
+        data_t *hy, data_t *cy, data_t *ws, data_t *ts_,
+        data_t **weights_pack) {
 #ifdef USE_MKL
     const int total_layers = num_layers * direction;
     const int gates_space_off = 0;
@@ -451,8 +447,7 @@ inline void lstm_bwd_prop(const int seq_length, const int num_layers,
         const data_t *cx, const data_t *dy, const data_t *dhy,
         const data_t *dcy, const data_t *w, const data_t *ws, data_t *dx,
         data_t *dhx, data_t *dcx, data_t *dw, data_t *ts_,
-        data_t **weights_pack)
-{
+        data_t **weights_pack) {
 #ifdef USE_MKL
     const int total_layers = num_layers * direction;
     const int gates_space_off = 0;
@@ -765,8 +760,7 @@ inline void lstm_bwd_prop(const int seq_length, const int num_layers,
 
 template <typename data_t>
 inline void rnn_fwd_ele_wise(
-        const data_t *Gates, data_t *Ht, const int Length, const int alg_kind)
-{
+        const data_t *Gates, data_t *Ht, const int Length, const int alg_kind) {
 #ifdef USE_MKL
     if (alg_kind == rnn_relu) {
 #if defined(_OPENMP)
@@ -790,8 +784,7 @@ template <typename data_t>
 inline void rnn_fwd_prop_single(const int input_size, const int state_size,
         const int batch_size, const int alg_kind, const data_t *x, int tranx,
         const data_t *ht_1, int tranht_1, const data_t *w, data_t *ht,
-        data_t *gates, data_t *tmp)
-{
+        data_t *gates, data_t *tmp) {
 #ifdef USE_MKL
     auto x_size = input_size * batch_size;
     auto h_size = state_size * batch_size;
@@ -829,8 +822,7 @@ inline void rnn_fwd_prop_single(const int input_size, const int state_size,
 
 template <typename data_t>
 inline void rnn_bwd_ele_wise(const data_t *Gates, data_t *dGates,
-        const data_t *dHt, int Length, const int alg_kind)
-{
+        const data_t *dHt, int Length, const int alg_kind) {
 #ifdef USE_MKL
     if (alg_kind == rnn_relu) {
 #if defined(_OPENMP)
@@ -856,8 +848,7 @@ inline void rnn_bwd_prop_single(const int input_size, const int state_size,
         const int batch_size, const int alg_kind, const data_t *x, int tranx,
         const data_t *ht_1, int tranht_1, const data_t *w, const data_t *gates,
         data_t *dht, data_t *dw, data_t *dx, data_t *dht_1, data_t *dgates,
-        data_t *tmp)
-{
+        data_t *tmp) {
 #ifdef USE_MKL
     auto x_size = input_size * batch_size;
     auto h_size = state_size * batch_size;
@@ -919,8 +910,7 @@ inline void rnn_fwd_prop(const int seq_length, const int num_layers,
         const int gates_nlayer_size, const int gates_space_size,
         const int hout_space_size, const data_t *x, const data_t *hx,
         const data_t *cx, const data_t *w, data_t *y, data_t *hy, data_t *cy,
-        data_t *ws, data_t *ts_, data_t **weights_pack)
-{
+        data_t *ws, data_t *ts_, data_t **weights_pack) {
 #ifdef USE_MKL
     const int total_layers = num_layers * direction;
     const int gates_space_off = 0;
@@ -1115,8 +1105,7 @@ inline void rnn_bwd_prop(const int seq_length, const int num_layers,
         const data_t *hx, const data_t *cx, const data_t *dy, const data_t *dhy,
         const data_t *dcy, const data_t *w, const data_t *ws, data_t *dx,
         data_t *dhx, data_t *dcx, data_t *dw, data_t *ts_,
-        data_t **weights_pack)
-{
+        data_t **weights_pack) {
 #ifdef USE_MKL
     const int total_layers = num_layers * direction;
     const int gates_space_off = 0;
@@ -1379,8 +1368,7 @@ inline void rnn_bwd_prop(const int seq_length, const int num_layers,
 }
 
 template <impl::data_type_t data_type>
-void pgemm_rnn_fwd_t<data_type>::execute_forward()
-{
+void pgemm_rnn_fwd_t<data_type>::execute_forward() {
 #ifdef USE_MKL
     auto x = reinterpret_cast<const data_t *>(this->input_memory(0));
     auto hx = reinterpret_cast<const data_t *>(this->input_memory(1));
@@ -1438,8 +1426,7 @@ void pgemm_rnn_fwd_t<data_type>::execute_forward()
 }
 
 template <impl::data_type_t data_type>
-void pgemm_rnn_bwd_t<data_type>::execute_backward()
-{
+void pgemm_rnn_bwd_t<data_type>::execute_backward() {
 #ifdef USE_MKL
     auto x = reinterpret_cast<const data_t *>(this->input_memory(0));
     auto hx = reinterpret_cast<const data_t *>(this->input_memory(1));

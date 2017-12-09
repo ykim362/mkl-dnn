@@ -38,9 +38,10 @@ dir_t dir = FWD_B;
 int mb = 0;
 alg_t alg = DIRECT;
 merge_t merge = NONE;
+attr_t attr;
 const char *skip_impl = "";
 bool allow_unimpl = false;
-const char *perf_template = "perf,%n,%d,%GO,%-t,%-Gp,%0t,%0Gp";
+const char *perf_template = "perf,%n,%d,%GO,%GF,%-t,%-Gp,%0t,%0Gp";
 
 void reset_parameters() {
     cfg = conf_f32;
@@ -49,12 +50,13 @@ void reset_parameters() {
     mb = 0;
     alg = DIRECT;
     merge = NONE;
+    attr = attr_t();
     skip_impl = "";
     allow_unimpl = false;
 }
 
 void check_correctness(const desc_t *c) {
-    const prb_t p(*c, dir, cfg, alg, merge, mb);
+    const prb_t p(*c, dir, cfg, alg, merge, attr, mb);
     char pstr[max_prb_len];
     prb2str(&p, pstr);
 
@@ -68,61 +70,18 @@ void check_correctness(const desc_t *c) {
 
     bool want_perf_report = false;
 
-    auto &bs = benchdnn_stat;
-    const char *state = state2str(res.state);
-
-    switch (res.state) {
-    case UNTESTED:
-        if (!(bench_mode & CORR)) {
-            want_perf_report = true;
-            break;
-        }
-    case FAILED:
-        assert(status == FAIL);
-        bs.failed++;
-        print(0, "%d:%s (errors:%d total:%d) __REPRO: %s\n", bs.tests, state,
-                res.errors, res.total, pstr);
-        break;
-    case SKIPPED:
-        assert(status == OK);
-        print(0, "%d:%s __REPRO: %s\n", bs.tests, state, pstr);
-        bs.skipped++;
-        break;
-    case UNIMPLEMENTED:
-        assert(status == OK);
-        print(0, "%d:%s __REPRO: %s\n", bs.tests, state, pstr);
-        bs.unimplemented++;
-        bs.failed += !allow_unimpl;
-        break;
-    case MISTRUSTED:
-        assert(status == OK);
-        bs.mistrusted++;
-        print(0, "%d:%s __REPRO: %s\n", bs.tests, state, pstr);
-        // bs.failed++; /* temporal workaround for some tests */
-        break;
-    case PASSED:
-        assert(status == OK);
-        print(0, "%d:%s __REPRO: %s\n", bs.tests, state, pstr);
-        want_perf_report = true;
-        bs.passed++;
-        break;
-    default:
-        assert(!"unknown state");
-        { []() { SAFE(FAIL, CRIT); return 0; }(); }
-    }
+    parse_result(res, want_perf_report, allow_unimpl, status, pstr);
 
     if (want_perf_report && bench_mode & PERF)
         perf_report(&p, &res, pstr);
 
-    bs.tests++;
+    benchdnn_stat.tests++;
 }
-
-int batch(const char *fname);
 
 int bench(int argc, char **argv, bool main_bench) {
     for (int arg = 0; arg < argc; ++arg) {
         if (!strncmp("--batch=", argv[arg], 8))
-            SAFE(batch(argv[arg] + 8), CRIT);
+            SAFE(batch(argv[arg] + 8, bench), CRIT);
         else if (!strncmp("--cfg=", argv[arg], 6))
             cfg = str2cfg(argv[arg] + 6);
         else if (!strncmp("--match=", argv[arg], 8))
@@ -135,6 +94,8 @@ int bench(int argc, char **argv, bool main_bench) {
             alg = str2alg(argv[arg] + 6);
         else if (!strncmp("--merge=", argv[arg], 8))
             merge = str2merge(argv[arg] + 8);
+        else if (!strncmp("--attr=", argv[arg], 7))
+            SAFE(str2attr(&attr, argv[arg] + 7), CRIT);
         else if (!strncmp("--skip-impl=", argv[arg], 12))
             skip_impl = argv[arg] + 12;
         else if (!strncmp("--allow-unimpl=", argv[arg], 15))
@@ -167,93 +128,6 @@ int bench(int argc, char **argv, bool main_bench) {
         for (int n = 0; n < N; ++n)
             check_correctness(&default_list[n]);
     }
-
-    return OK;
-}
-
-#ifdef _WIN32
-#include <windows.h>
-#define PATH_MAX MAX_PATH
-static char *dirname(char *path) {
-    char drive[_MAX_DRIVE];
-    char dir[_MAX_DIR];
-    _splitpath(path, drive, dir, NULL, NULL);
-    path[0] = '\0';
-    if (drive != NULL) strncat(path, drive, _MAX_DRIVE);
-    if (dir != NULL) strncat(path, dir, MAX_PATH);
-    if (path[0] == '\0') strcat(path, ".");
-    return path;
-}
-#else
-#include <libgen.h>
-#endif /* WIN32 */
-
-FILE *open_batch_file(const char *fname) {
-    const int max_paths = 4;
-
-    static int n_paths = 0;
-    static char search_paths[max_paths][PATH_MAX] = {{0}};
-
-    char *fdir = NULL;
-    {
-        char fname_copy[PATH_MAX];
-        strncpy(fname_copy, fname, PATH_MAX);
-        fdir = dirname(fname_copy);
-    }
-
-    bool dir_found = false;
-    for (int n = 0; n_paths < max_paths && n < n_paths; ++n)
-        if (!strcmp(fdir, search_paths[n])) {
-            dir_found = true;
-            break;
-        }
-    if (!dir_found)
-        strcpy(search_paths[n_paths++], fdir);
-
-    FILE *fp = fopen(fname, "r");
-    if (fp) return fp;
-
-    for (int n = 0; n < n_paths; ++n) {
-        char fullname[PATH_MAX];
-        snprintf(fullname, PATH_MAX, "%s/%s", search_paths[n], fname);
-        fp = fopen(fullname, "r");
-        print(50, "batch file used: %s\n", fullname);
-        if (fp) break;
-    }
-
-    return fp;
-}
-
-int batch(const char *fname) {
-    FILE *fp = open_batch_file(fname);
-    SAFE(fp ? OK : FAIL, CRIT);
-
-    const size_t maxlen = 1024;
-    char *opts[8*1024] = {0}, buf[maxlen + 1];
-    char line[1024];
-    int n_opts = 0;
-    while (fgets(line, sizeof(line), fp)) {
-        int offset = 0;
-        const char *l = line;
-        while (sscanf(l, "%s%n", buf, &offset) == 1) {
-            if (buf[0] == '#')
-                break; /* stop reading till eol */
-
-            const int len = strnlen(buf, maxlen) + 1;
-            opts[n_opts] = (char *)malloc(len);
-            SAFE(opts[n_opts] ? OK : FAIL, CRIT);
-            strncpy(opts[n_opts], buf, len);
-            ++n_opts;
-
-            l += offset;
-        }
-    }
-    bench(n_opts, opts, false);
-
-    for (int n = 0; n < n_opts; ++n)
-        free(opts[n]);
-
-    fclose(fp);
 
     return OK;
 }

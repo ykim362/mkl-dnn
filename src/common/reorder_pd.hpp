@@ -23,6 +23,7 @@
 #include "c_types_map.hpp"
 #include "memory_pd.hpp"
 #include "nstl.hpp"
+#include "primitive_attr.hpp"
 #include "type_helpers.hpp"
 #include "utils.hpp"
 
@@ -30,19 +31,27 @@ namespace mkldnn {
 namespace impl {
 
 struct reorder_pd_t: public primitive_desc_t {
-    reorder_pd_t(engine_t *engine, const float alpha, const float beta)
-        : primitive_desc_t(engine, primitive_kind::reorder)
-        , alpha_(alpha), beta_(beta)
-    {  }
+    reorder_pd_t(engine_t *engine, const primitive_attr_t *attr)
+        : primitive_desc_t(engine, attr, primitive_kind::reorder) {}
     virtual ~reorder_pd_t() {}
 
     virtual const op_desc_t *op_desc() const override { return nullptr; }
 
-    float alpha() const { return alpha_; }
-    float beta() const { return beta_; }
+    virtual int n_inputs() const override { return 1; }
+    virtual int n_outputs() const override { return 1; }
 
-protected:
-    float alpha_, beta_;
+    float alpha() const {
+        assert(attr()->output_scales_.count_ == 1);
+        return attr()->output_scales_.scales_[0];
+    }
+    float beta() const {
+        int sum_idx = attr()->post_ops_.find(primitive_kind::sum);
+        if (sum_idx == -1) {
+            return 0.0;
+        } else {
+            return attr()->post_ops_.entry_[sum_idx].sum.scale;
+        }
+    }
 };
 
 }

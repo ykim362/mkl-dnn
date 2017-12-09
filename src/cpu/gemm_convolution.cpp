@@ -57,6 +57,7 @@ void _gemm_convolution_fwd_t<with_relu, run_jit, isa>::execute_forward() {
     int num_thr = ((jcp.oh * jcp.ow) / omp_get_max_threads() < 256 && jcp.mb != 1)
         ? omp_get_max_threads()
         : 1;
+    MAYBE_UNUSED(num_thr);
 #pragma omp parallel num_threads(num_thr)
     {
         const int ithr = omp_get_thread_num();
@@ -93,7 +94,8 @@ void _gemm_convolution_fwd_t<with_relu, run_jit, isa>::execute_forward() {
                     for (int oS = 0; oS < jcp.os; ++oS) {
                         if (jcp.with_bias) d[oS] += b;
                         if (jcp.with_relu)
-                            d[oS] *= (d[oS] > 0) ? 1. : jcp.relu_negative_slope;
+                            d[oS] *= (d[oS] > 0)
+                                ? (data_t)1.0 : jcp.relu_negative_slope;
                     }
                     d += jcp.os;
                 }
@@ -122,6 +124,7 @@ void _gemm_convolution_bwd_data_t<run_jit, isa>::execute_backward_data() {
 
     const size_t work_amount = jcp.ngroups * jcp.mb;
     int num_thr = (jcp.mb != 1) ? omp_get_max_threads() : 1;
+    MAYBE_UNUSED(num_thr);
 #pragma omp parallel num_threads(num_thr)
     {
         const int ithr = omp_get_thread_num();
@@ -173,6 +176,7 @@ void _gemm_convolution_bwd_weights_t<run_jit, isa>::execute_backward_weights() {
     const data_t zero = 0.0, one = 1.0;
 
     int num_thr = (jcp.mb != 1) ? omp_get_max_threads() : 1;
+    MAYBE_UNUSED(num_thr);
 #pragma omp parallel num_threads(num_thr)
     {
         const int ithr = omp_get_thread_num();
@@ -243,13 +247,13 @@ void _gemm_convolution_bwd_weights_t<run_jit, isa>::execute_backward_weights() {
             balance211(work_amount, nthr, ithr, start, end);
             nd_iterator_init(start, g, jcp.ngroups, oc, jcp.oc);
             for (size_t iwork = start; iwork < end; ++iwork) {
-                data_t *db = &diff_bias[diff_bias_d.off(g*jcp.oc+oc)];
-                *db = data_t(0);
+                data_t db = 0;
                 for (int mb = 0; mb < jcp.mb; ++mb)
                     for (int oh = 0; oh < jcp.oh; ++oh)
-#                       pragma omp simd
+#                       pragma omp simd reduction(+:db)
                         for (int ow = 0; ow < jcp.ow; ++ow)
-                            *db += diff_dst[diff_dst_d.off(mb,g*jcp.oc+oc,oh,ow)];
+                            db += diff_dst[diff_dst_d.off(mb,g*jcp.oc+oc,oh,ow)];
+                diff_bias[diff_bias_d.off(g*jcp.oc+oc)] = db;
                 nd_iterator_step(g, jcp.ngroups, oc, jcp.oc);
             }
         }

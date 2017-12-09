@@ -48,6 +48,12 @@ template <> inline void assert_eq<float>(float a, float b) {
     ASSERT_FLOAT_EQ(a, b);
 }
 
+template <typename data_t> inline data_t out_round(float x,
+        mkldnn_round_mode_t rmode = mkldnn_round_nearest)
+{ return (data_t)(rmode == mkldnn_round_down ? floorf(x) : rintf(x)); }
+template <> inline float out_round<float>(float x, mkldnn_round_mode_t rmode)
+{ (void)rmode; return x; }
+
 inline size_t map_index(const mkldnn::memory::desc &md, size_t index) {
     using fmt = mkldnn::memory::format;
     const fmt fwd_weights_g = fmt::gOIhw8i16o2i;
@@ -134,8 +140,10 @@ inline mkldnn::memory::desc create_md(mkldnn::memory::dims dims,
     case f::OIhw8o16i2o:
     case f::OIhw8o8i:
     case f::OIhw16o16i:
+    case f::IOhw16o16i:
     case f::Ohwi8o:
     case f::Ohwi16o:
+    case f::OhIw16o4i:
         ndims = 4; break;
     case f::goihw:
     case f::gOIhw8i8o:
@@ -144,6 +152,8 @@ inline mkldnn::memory::desc create_md(mkldnn::memory::dims dims,
     case f::gOIhw8o16i2o:
     case f::gOIhw8o8i:
     case f::gOIhw16o16i:
+    case f::gIOhw16o16i:
+    case f::gOhIw16o4i:
         ndims = 5; break;
     case f::rnx:
         ndims = 3; break;
@@ -241,9 +251,10 @@ static void compare_data(mkldnn::memory& ref, mkldnn::memory& dst)
 
         if (data_traits<data_t>::data_type == data_type::f32) {
             data_t diff = got - ref;
-            data_t e = std::abs(ref) > 1e-4 ? diff / ref : diff;
-            EXPECT_NEAR(e, 0.0, 1e-4) << "Index: " << i << " Total: " << num;
-        } else if (data_traits<data_t>::data_type == data_type::s32) {
+            data_t e = (std::abs(ref) > (data_t)1e-4) ? diff / ref : diff;
+            EXPECT_NEAR(e, (data_t)0.0, (data_t)1e-4)
+                << "Index: " << i << " Total: " << num;
+        } else {
             EXPECT_EQ(ref, got) << "Index: " << i << " Total: " << num;
         }
     }
@@ -271,7 +282,20 @@ static void compare_data_woinfnan(mkldnn::memory& ref, mkldnn::memory& dst)
         data_t e = std::abs(ref) > 1e-4 ? diff / ref : diff;
         EXPECT_NEAR(e, 0.0, 1e-4) << "Index: " << i << " Total: " << num;
     }
-}
+};
+inline const char *query_impl_info(const_mkldnn_primitive_desc_t pd) {
+    const char *str;
+    mkldnn_primitive_desc_query(pd, mkldnn_query_impl_info_str, 0, &str);
+    return str;
+};
+
+mkldnn_status_t get_conv_impl_status(const_mkldnn_primitive_desc_t pd, const char *match_str){
+    const char* conv_str = query_impl_info(pd);
+
+    if( strstr(conv_str, match_str) != NULL)
+        return mkldnn_status_t::mkldnn_success;
+    return mkldnn_status_t::mkldnn_unimplemented;
+};
 
 struct test_convolution_sizes_t {
     test_convolution_sizes_t(
@@ -302,6 +326,43 @@ struct test_convolution_sizes_t {
     int dilh, dilw;
 };
 
+struct test_convolution_attr_t {
+    struct scale_t {
+        enum policy_t { NONE = 0, COMMON };
+
+        bool is_def() const { return policy != NONE; }
+
+        scale_t (float s, policy_t p = NONE) :
+            scale(s) { policy = p; }
+
+        policy_t policy;
+        float scale;
+    };
+
+    void mkldnn_attr_recreate() {
+        mkl_attr = mkldnn::primitive_attr();
+        mkl_attr.set_int_output_round_mode(rmode);
+        if (oscale.is_def()) {
+            const int count = 1;
+            const int mask = 0;
+            std::vector<float> s(count, oscale.scale);
+            mkl_attr.set_output_scales(mask, s);
+        }
+    }
+
+    test_convolution_attr_t(mkldnn::round_mode rm, float s,
+        scale_t::policy_t p = scale_t::policy_t::NONE) :
+            rmode(rm), oscale(s, p), mkl_attr() {}
+
+    test_convolution_attr_t() :
+        rmode(mkldnn::round_mode::round_nearest),
+        oscale(1.0), mkl_attr() {}
+
+    mkldnn::round_mode rmode;
+    scale_t oscale;
+    mkldnn::primitive_attr mkl_attr;
+};
+
 struct test_convolution_formats_t {
     mkldnn::memory::format src_format;
     mkldnn::memory::format weights_format;
@@ -314,6 +375,7 @@ struct test_convolution_params_t {
     mkldnn::algorithm aalgorithm;
     const float relu_negative_slope;
     test_convolution_formats_t formats;
+    test_convolution_attr_t attr;
     test_convolution_sizes_t sizes;
 };
 

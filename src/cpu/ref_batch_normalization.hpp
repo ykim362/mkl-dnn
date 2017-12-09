@@ -33,8 +33,10 @@ template <impl::data_type_t data_type>
 struct ref_batch_normalization_fwd_t: public cpu_primitive_t {
     struct pd_t: public cpu_batch_normalization_fwd_pd_t {
         pd_t(engine_t *engine, const batch_normalization_desc_t *adesc,
+                const primitive_attr_t *attr,
                 const batch_normalization_fwd_pd_t *hint_fwd_pd)
-            : cpu_batch_normalization_fwd_pd_t(engine, adesc, hint_fwd_pd) {}
+            : cpu_batch_normalization_fwd_pd_t(engine, adesc, attr,
+                    hint_fwd_pd) {}
 
         DECLARE_COMMON_PD_T(ref_batch_normalization_fwd_t);
 
@@ -45,7 +47,8 @@ struct ref_batch_normalization_fwd_t: public cpu_primitive_t {
                 && utils::one_of(desc()->prop_kind, forward_training,
                         forward_inference)
                 && utils::everyone_is(data_type, desc()->data_desc.data_type,
-                        desc()->data_scaleshift_desc.data_type);
+                        desc()->data_scaleshift_desc.data_type)
+                && (attr()->has_default_values() || this->with_relu_post_op());
             if (!ok) return status::unimplemented;
 
             if (stats_is_src() || is_training()) {
@@ -80,8 +83,10 @@ template <impl::data_type_t data_type>
 struct ref_batch_normalization_bwd_t: public cpu_primitive_t {
     struct pd_t: public cpu_batch_normalization_bwd_pd_t {
         pd_t(engine_t *engine, const batch_normalization_desc_t *adesc,
+                const primitive_attr_t *attr,
                 const batch_normalization_fwd_pd_t *hint_fwd_pd)
-            : cpu_batch_normalization_bwd_pd_t(engine, adesc, hint_fwd_pd) {}
+            : cpu_batch_normalization_bwd_pd_t(engine, adesc, attr,
+                    hint_fwd_pd) {}
 
         DECLARE_COMMON_PD_T(ref_batch_normalization_bwd_t);
 
@@ -93,7 +98,8 @@ struct ref_batch_normalization_bwd_t: public cpu_primitive_t {
                 && utils::everyone_is(data_type, desc()->data_desc.data_type,
                         desc()->diff_data_desc.data_type,
                         desc()->data_desc.data_type,
-                        desc()->data_scaleshift_desc.data_type);
+                        desc()->data_scaleshift_desc.data_type)
+                && attr()->has_default_values();
             if (!ok) return status::unimplemented;
 
 

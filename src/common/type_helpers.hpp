@@ -18,6 +18,7 @@
 #define TYPE_HELPERS_HPP
 
 #include <assert.h>
+#include <math.h>
 
 #include "mkldnn.h"
 
@@ -25,6 +26,7 @@
 #include "mkldnn_traits.hpp"
 #include "nstl.hpp"
 #include "utils.hpp"
+#include "math_utils.hpp"
 
 namespace mkldnn {
 namespace impl {
@@ -35,6 +37,22 @@ status_t safe_ptr_assign(T * &lhs, T* rhs) {
     lhs = rhs;
     return status::success;
 }
+
+template <typename T, typename U> struct is_subset
+{ static constexpr bool value = false; };
+template <typename T> struct is_subset<T, T>
+{ static constexpr bool value = true; };
+template <typename T> struct is_subset<T,
+         typename utils::enable_if<nstl::is_integral<T>::value, float>::type>
+{ static constexpr bool value = true; };
+#define ISSPEC(t1, t2) template <> \
+    struct is_subset<t1, t2> { static constexpr bool value = true; }
+ISSPEC(int16_t, int32_t);
+ISSPEC(int8_t, int32_t);
+ISSPEC(uint8_t, int32_t);
+ISSPEC(int8_t, int16_t);
+ISSPEC(uint8_t, int16_t);
+#undef ISSPEC
 
 namespace types {
 
@@ -60,7 +78,7 @@ inline memory_format_t format_normalize(const memory_format_t fmt) {
                 Oihw16o, Ohwi8o, Ohwi16o, OhIw16o4i, goihw, gOIhw8i8o,
                 gOIhw16i16o, gOIhw8i16o2i, gOIhw8o16i2o, gOIhw8o8i,
                 gOIhw16o16i, gOihw8o, gOihw16o, gOhwi8o, gOhwi16o, gOhIw16o4i,
-                rnx))
+                IOhw16o16i, gIOhw16o16i, rnx))
         return blocked;
     return fmt;
 }
@@ -133,7 +151,7 @@ inline data_type_t default_accum_data_type(data_type_t src_dt,
         if (src_dt == s16 && wei_dt == s16 && dst_dt == s32)
             return s32;
 
-        if (src_dt == u8 && wei_dt == s8 && one_of(dst_dt, s32, s8, u8))
+        if (src_dt == u8 && wei_dt == s8 && one_of(dst_dt, f32, s32, s8, u8))
             return s32;
     } else if (prop_kind == backward_data) {
         if (src_dt == s32 && wei_dt == s16 && dst_dt == s16)
