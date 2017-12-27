@@ -26,6 +26,8 @@
 #include "cpu_math_util.hpp"
 #include "utils.hpp"
 
+
+
 namespace mkldnn {
 namespace impl {
 namespace cpu {
@@ -49,7 +51,8 @@ struct pgemm_rnn_fwd_t : public cpu_primitive_t {
                         prop_kind::forward_training,
                         prop_kind::forward_inference)
                 && utils::one_of(desc()->alg_kind, alg_kind::rnn_relu,
-                        alg_kind::rnn_tanh, alg_kind::rnn_lstm)
+                        alg_kind::rnn_tanh, alg_kind::rnn_lstm,
+                        alg_kind::rnn_gru)
                 && utils::everyone_is(data_type, desc()->x_desc.data_type,
                         desc()->hx_desc.data_type, desc()->y_desc.data_type,
                         desc()->weights_desc.data_type);
@@ -78,10 +81,16 @@ struct pgemm_rnn_fwd_t : public cpu_primitive_t {
         auto insize = conf_.input_size() > conf_.hidden_size()
             ? conf_.input_size() : conf_.hidden_size();
         auto tmp = insize + conf_.hidden_size() + 2;
-        auto ts_size_ = tmp * conf_.batch();
-        if (conf_.desc()->prop_kind != prop_kind::forward_training)
-            ts_size_ += conf_.workspace_size();
-        ts_ = (data_t *)malloc(ts_size_ * sizeof(data_t), 64);
+        if (conf_.desc()->alg_kind == alg_kind::rnn_gru) {
+            auto ts_size_ = conf_.hidden_size() * 3 * conf_.batch() * 3;
+            ts_ = (data_t *)malloc(ts_size_ * sizeof(data_t), 64);
+        } else {
+            auto ts_size_ = tmp * conf_.batch() ;
+            if (conf_.desc()->prop_kind != prop_kind::forward_training)
+                ts_size_ += conf_.workspace_size();
+            ts_ = (data_t *)malloc(ts_size_ * sizeof(data_t), 64);
+        }
+
         int total_layers = conf_.layers() * conf_.direction();
         weights_pack_ = new data_t *[total_layers];
         int rl, in_size, m;

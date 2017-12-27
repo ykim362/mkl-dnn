@@ -58,6 +58,7 @@ file(GLOB PRIM_TEST_CASES_SRC
 if (HAVE_MKL)
     file(GLOB MKL_PRIM_TEST_CASES_SRC
                                   test_lstm_forward.cpp
+                                  test_gru_forward.cpp
                                   test_lstm.cpp
                                   test_vanillarnn_forward.cpp
                                   test_vanillarnn.cpp

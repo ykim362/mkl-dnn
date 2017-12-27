@@ -24,6 +24,7 @@ namespace impl {
 namespace cpu {
 
 enum { NOTRANS = 1, TRANS = 2 };
+enum { UNIDIRECT = 1, BIDIRECT = 2 };
 
 using namespace mkldnn::impl::status;
 using namespace mkldnn::impl::prop_kind;
@@ -1090,6 +1091,229 @@ inline void rnn_bwd_prop(const int seq_length, const int num_layers,
 #endif
 }
 
+// TODO(xiaohui): inference optimization for GRU
+// This will require more memory
+template <typename data_t>
+inline void gru_inference_single_fuseTimeStep(const int T, const int D,
+        const int N, const int I, const int H, const data_t *x,
+        const data_t *hx, const data_t *w, data_t *y, data_t *hy,
+        data_t *ws, data_t * ts) {
+}
+
+/**
+ * @brief:      gru_inference_single_sequential
+ *              single layer gru inference computation
+ *
+ * @params:     T:  seq_length
+ *              D:  direction, D = 2 if bidirectional else 1
+ *              N:  batch_size
+ *              I:  input_size
+ *              H:  hidden_size
+ *              x:  [T, N, I]  input features
+ *              hx: [D, N, H] initial hidden state
+ *              w:  include wx[I, 3H], wh[H, 3H], bx[3H] and bh[3H]
+ *              y:  [T, N, H] output features for each time step
+ *              hy: [D, N, H] output feature for the last time step
+ *              ws: workspace, as buffer between layers(not used yet)
+ *              ts: temporary space, malloc/free in every call
+ *
+ * @formula_list:   rt = sigmoid(xt * Wrx + brx + ht-1 * Wrh + brh)
+ *                  zt = sigmoid(xt * Wzx + bzx + ht-1 * Wzh + bzh)
+ *                  nt = tanh(xt * Wnx + bnx + rt * (ht-1 * Wnh + bnh))
+ *                  ht = (1 - zt) * nt + zt * ht-1
+ *
+ */
+
+template <typename data_t>
+inline void gru_inference_single_sequential(const int T, const int D,
+        const int N, const int I, const int H, const data_t *x,
+        const data_t *hx, const data_t *w, data_t *y, data_t *hy,
+        data_t *ws, data_t * ts) {
+#ifdef USE_MKL
+    int m = N;
+    int n = 3*H;
+    int k = I;
+    data_t *ht = y;
+    data_t *ht_1 = y;
+    data_t *back_ht_1 = y + (T-1)*N*H*D + H;
+    data_t *back_ht = back_ht_1;
+
+    data_t *gemmC1  = ts;              // get gemmC1 from workspace, N*3H
+    data_t *gemmC2  = gemmC1 + N*3*H;  // get gemmC2 from workspace, N*3H
+    data_t *gatebuf = gemmC2 + N*3*H;  // get gatebuf from workspace, N*3H
+    data_t *rt = gatebuf;
+    data_t *zt = rt + N*H;
+    data_t *nt = zt + N*H;
+    const data_t *Wx = w;                   // get Wx from w
+    const data_t *Wh = Wx + I * 3 * H;      // get Wh from w
+    const data_t *bx = Wh + H * 3 * H;      // get bx from w
+    const data_t *bh = bx + 3 * H;          // get bh from w
+    const data_t *back_Wx = bh + 3 * H;                // get Wx from w
+    const data_t *back_Wh = back_Wx + I * 3 * H;       // get Wh from w
+    const data_t *back_bx = back_Wh + H * 3 * H;       // get bx from w
+    const data_t *back_bh = back_bx + 3 * H;           // get bh from w
+
+
+    if (D == UNIDIRECT) {
+#if defined(_OPENMP)
+        #pragma omp parallel for collapse(2)
+#endif
+        for (int i = 0; i < N; i++)
+            for (int j = 0; j < H; j++) {
+                y[i * H + j] = hx[i * H + j];
+            }
+    } else {
+#if defined(_OPENMP)
+        #pragma omp parallel for collapse(2)
+#endif
+        for (int i = 0; i < N; i++)
+            for (int j = 0; j < H; j++) {
+                y[i * D * H + j] = hx[i * H + j];
+                back_ht_1[i *D * H + j] = hx[N * H + i * H + j];
+            }
+    }
+    for (int t =0; t < T; t++) {
+        //  perform the first direction, X*Wx and H * Wh for each step
+        //  x*Wx, x:[N,I] Wx:[I, 3H]
+        cblas_gemm<data_traits<data_t>::data_type>(CblasRowMajor, CblasNoTrans,
+            CblasNoTrans, m, n, k, 1, x+t*m*k, k, Wx, n, 0.0, gemmC1, n);
+        //  ht-1*Wh, ht-1:[N,H] Wh:[H, 3H]
+        cblas_gemm<data_traits<data_t>::data_type>(CblasRowMajor, CblasNoTrans,
+            CblasNoTrans, m, n, H, 1, ht_1, D*H, Wh, n, 0.0, gemmC2, n);
+
+#if defined(_OPENMP)
+        #pragma omp parallel for collapse(2)
+#endif
+        for (int i = 0; i < N; ++i) {
+            for (int j = 0; j < H; ++j) {
+                int rtb = i * 3 * H;
+                int ztb = i * 3 * H + H;
+                int ntb = i * 3 * H + 2 * H;
+                rt[i * H + j] = 1/(1 + exp(-gemmC1[rtb + j] - gemmC2[rtb + j]
+                    - bx[j] - bh[j]));
+                zt[i * H + j] = 1/(1 + exp(-gemmC1[ztb + j]-gemmC2[ztb + j]
+                    - bx[H + j] - bh[H + j]));
+                nt[i * H + j] = tanh(gemmC1[ntb + j] + bx[2 * H + j] +
+                    rt[i * H + j] * (gemmC2[ztb + j] + bh[2 * H + j]));
+                ht[i * D * H + j] = (1-zt[i * H + j]) * nt[i * H + j] +
+                    zt[i * H + j] * ht_1[i * D * H + j];
+            }
+        }
+        ht_1 = ht;
+        ht = ht + D * H * N;
+        //  perform the second direction
+        if (D == BIDIRECT) {
+            cblas_gemm<data_traits<data_t>::data_type>(CblasRowMajor,
+                CblasNoTrans, CblasNoTrans, m, n, k, 1, x + (T - 1 - t)* m * k,
+                k, back_Wx, n, 0.0, gemmC1, n);
+            cblas_gemm<data_traits<data_t>::data_type>(CblasRowMajor,
+                CblasNoTrans, CblasNoTrans, m, n, H, 1, back_ht_1, D * H,
+                back_Wh, n, 0.0, gemmC2, n);
+#if defined(_OPENMP)
+            #pragma omp parallel for collapse(2)
+#endif
+            for (int i = 0; i < N; ++i) {
+                for (int j = 0; j < H; ++j) {
+                    int rtb = i * 3 * H;
+                    int ztb = i * 3 * H + H;
+                    int ntb = i * 3 * H + 2 * H;
+                    rt[i * H + j] = 1 / (1 + exp(-gemmC1[rtb + j] -
+                        gemmC2[rtb + j] - back_bx[j] - back_bh[j]));
+                    zt[i * H + j] = 1 / (1 + exp(-gemmC1[ztb + j] -
+                        gemmC2[ztb + j] - back_bx[H + j]- back_bh[H + j]));
+                    nt[i * H + j] = tanh(gemmC1[ntb + j] + back_bx[ 2 * H + j]
+                        + rt[i * H + j] * (gemmC2[ntb + j] + back_bh[2*H+j]));
+                    back_ht[i * D * H + j] = (1 - zt[i * H + j]) * nt[i * H + j]
+                        + zt[i * H + j] * back_ht_1[i * D * H + j];
+                }
+            }
+            back_ht_1 = back_ht;
+            back_ht = back_ht - D * H * N;
+        }
+    }
+    //  copy last state to hy, from(N,H*D) to (D,N,H)
+    if (hy != 0) {
+        if (D == UNIDIRECT) {
+            data_t *y_start = y + (T - 1) * N * H * D;
+#if defined(_OPENMP)
+            #pragma omp parallel for collapse(2)
+#endif
+            for (int i = 0; i < N; i++)
+                for (int j = 0; j < H; j++) {
+                    hy[i * H + j] = y_start[i * H + j];
+                }
+        } else {
+            data_t *y_start = y + (T - 1) * N * H * D;
+            data_t *y_back_start = y + (T - 1) * N * H * D + H;
+#if defined(_OPENMP)
+            #pragma omp parallel for collapse(2)
+#endif
+            for (int i = 0; i < N; i++)
+                for (int j = 0; j < H; j++) {
+                    hy[i * H + j] = y_start[i * D * H + j];
+                    hy[N * H + i * H + j] = y_back_start[i *D * H + j];
+                }
+        }
+    }
+#endif
+}
+
+
+template <typename data_t>
+inline void gru_fwd_prop_inference(const int seq_length, const int num_layers,
+        const int batch_size, const int input_size,
+        const int state_size, const int direction, const int alg_kind,
+        const int w1_size, const int wx_size, const int h_size,
+        const int x_size, const int h_nlayer_size,
+        const int gates_size, const int gates_nlayer_size,
+        const int gates_space_size, const int hout_space_size,
+        const data_t *x, const data_t *hx, const data_t *w,
+        data_t *y, data_t *hy, data_t *ws, data_t *ts_,
+        data_t **weights_pack) {
+        const int L = num_layers;
+        const int D = direction;
+        int T = seq_length;
+        int N = batch_size;
+        int I = input_size;
+        int H = state_size;
+        const data_t* weight_l = w;
+        const data_t * hx_l = hx;
+        data_t *hy_l = hy;
+        data_t *layer_buffer = reinterpret_cast<data_t *>(malloc((T * N * H * D)
+            * sizeof(data_t), 64));
+        data_t *layer_input;
+        data_t *layer_output;
+        for (int l = 0; l < L; l++) {  //  for each Layer
+            if (l == 0) {
+                layer_input = (data_t *)x;
+                layer_output = y;
+            } else {
+                if ((L - l) % 2 == 1) {
+                    layer_input = layer_buffer;
+                    layer_output = y;
+                } else {
+                    layer_input = y;
+                    layer_output = layer_buffer;
+                }
+            }
+            gru_inference_single_sequential(T, D, N, I, H, layer_input,
+                hx_l, weight_l, layer_output, hy_l, ws, ts_);
+
+            hx_l = hx_l + D * N * H;
+            if (hy_l != 0) {
+                hy_l = hy_l + D * N * H;
+            }
+            if (l == 0) {
+                weight_l = weight_l + (I + H + 2) * H * 3 * D;
+            } else {
+                weight_l = weight_l + (D * H + H + 2) * H * 3 * D;
+            }
+        }
+        // TODO(xiaohui): move this buffer to workspace
+        free(layer_buffer);
+}
+
+
 template <impl::data_type_t data_type>
 void pgemm_rnn_fwd_t<data_type>::execute_forward() {
 #ifdef USE_MKL
@@ -1144,8 +1368,15 @@ void pgemm_rnn_fwd_t<data_type>::execute_forward() {
                 state_size, direction, w1_size, wx_size, h_size, x_size,
                 h_nlayer_size, gates_size, gates_nlayer_size, gates_space_size,
                 h_space_size, x, hx, cx, w, y, hy, cy, ws, ts_, weights_pack_);
+    } else if (conf_.desc()->alg_kind == rnn_gru) {
+        auto w = reinterpret_cast<const data_t *>(this->input_memory(2));
+        gru_fwd_prop_inference(seq_length, num_layers, batch_size, input_size,
+                state_size, direction, alg_kind, w1_size, wx_size, h_size,
+                x_size, h_nlayer_size, gates_size, gates_nlayer_size,
+                gates_space_size, h_space_size, x, hx, w, y, hy, ws, ts_,
+                weights_pack_);
     }
-#endif // USE_MKL
+#endif  // USE_MKL
 }
 
 template <impl::data_type_t data_type>
@@ -1237,12 +1468,12 @@ void pgemm_rnn_bwd_t<data_type>::execute_backward() {
                 h_space_size, state_outputs, x, hx, cx, dy, dhy, dcy, w, ws, dx,
                 dhx, dcx, dw, ts_, weights_pack_);
     }
-#endif // USE_MKL
+#endif  // USE_MKL
 }
 
 template struct pgemm_rnn_fwd_t<data_type::f32>;
 template struct pgemm_rnn_bwd_t<data_type::f32>;
 
-} // namespace cpu
-} // namespace impl
-} // namespace mkldnn
+}  // namespace cpu
+}  // namespace impl
+}  // namespace mkldnn

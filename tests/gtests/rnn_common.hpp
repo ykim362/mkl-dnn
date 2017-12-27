@@ -40,6 +40,15 @@ struct test_lstm_desc_t {
     int input_mode;
     int state_outputs;
 };
+struct test_gru_desc_t {
+    size_t state_size, input_size;
+    size_t seq_length, num_layers;
+    size_t batch_size;
+    int alg_kind;
+    int direction;
+    int input_mode;
+    int state_outputs;
+};
 struct test_rnn_desc_t {
     size_t state_size, input_size;
     size_t seq_length, num_layers;
@@ -128,6 +137,15 @@ struct lstm_test_params {
     input_mode ainput_mode;
     memory::format rnx_format;
     test_lstm_desc_t test_ld;
+};
+struct gru_test_params {
+    prop_kind aprop_kind;
+    engine::kind engine_kind;
+    algorithm aalgorithm;
+    direction adirection;
+    input_mode ainput_mode;
+    memory::format rnx_format;
+    test_gru_desc_t test_ld;
 };
 struct rnn_test_params {
     prop_kind aprop_kind;
