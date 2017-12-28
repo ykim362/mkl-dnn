@@ -241,7 +241,7 @@ protected:
         const int nl = static_cast<int>(gd.num_layers);
         // size1 & size2 equals wx_size + wh_size + bx_size + bh_size
         const int size1 = (I + H + 2) * H * 3 * nd;  // first layer
-        const int size2 = (nd*H + H + 2) * H * 3 * nd;  // other layers
+        const int size2 = (nd * H + H + 2) * H * 3 * nd;  // other layers
         x_desc.reset(new memory::desc({T, N, I},
                      data_type_all, gru_param.rnx_format));
         hx_desc.reset(new memory::desc({nl * nd, N, H},
@@ -273,13 +273,21 @@ protected:
         rnn_fwd_prim_desc.reset(
                 new rnn_forward::primitive_desc(rnn_fwd_desc, eng));
         // random fill inputs and param
+        data_t x_mean  = 0;
+        data_t x_var   = 1;
+        data_t hx_mean = 0.1;
+        data_t hx_var  = 1;
+        data_t w_mean  = 0.2;
+        data_t w_var   = 1;
+
         fill_data<data_t>(x->get_primitive_desc().get_size() / sizeof(data_t),
-                static_cast<data_t*>(x->get_data_handle()));
+                static_cast<data_t*>(x->get_data_handle()), x_mean, x_var);
         fill_data<data_t>(hx->get_primitive_desc().get_size() / sizeof(data_t),
-                static_cast<data_t*>(hx->get_data_handle()));
+                static_cast<data_t*>(hx->get_data_handle()), hx_mean, hx_var);
         fill_data<data_t>(
                 weights->get_primitive_desc().get_size() / sizeof(data_t),
-                static_cast<data_t*>(weights->get_data_handle()));
+                static_cast<data_t*>(weights->get_data_handle()), w_mean,
+                w_var);
         // Execute
         std::vector<primitive> pipeline;
         auto s = stream(stream::kind::lazy);
@@ -325,7 +333,7 @@ INSTANTIATE_TEST_CASE_P(
             direction::rnn_unidirectional,
             input_mode::rnn_skip_input,
             memory::format::rnx,
-            { 128, 128, 10, 1, 32, GRU, UNIDIRECT, SKIP, 0 }
+            { 16, 16, 4, 1, 4, GRU, UNIDIRECT, SKIP, 0 }
         },
         test_gru_params_t {
             prop_kind::forward_inference,
@@ -334,7 +342,7 @@ INSTANTIATE_TEST_CASE_P(
             direction::rnn_unidirectional,
             input_mode::rnn_skip_input,
             memory::format::rnx,
-            { 800, 800, 10, 3, 32, GRU, UNIDIRECT, SKIP, 0 }
+            { 16, 16, 4, 3, 4, GRU, UNIDIRECT, SKIP, 0 }
         },
         test_gru_params_t {
             prop_kind::forward_inference,
@@ -343,7 +351,7 @@ INSTANTIATE_TEST_CASE_P(
             direction::rnn_bidirectional,
             input_mode::rnn_skip_input,
             memory::format::rnx,
-            { 128, 128, 10, 1, 32, GRU, BIDIRECT, SKIP, 0 }
+            { 16, 16, 4, 1, 4, GRU, BIDIRECT, SKIP, 0 }
         },
         test_gru_params_t {
             prop_kind::forward_inference,
@@ -352,7 +360,7 @@ INSTANTIATE_TEST_CASE_P(
             direction::rnn_bidirectional,
             input_mode::rnn_skip_input,
             memory::format::rnx,
-            { 800, 800, 10, 3, 32, GRU, BIDIRECT, SKIP, 0 }
+            { 16, 16, 4, 3, 4, GRU, BIDIRECT, SKIP, 0 }
         }
     )
 );
@@ -367,28 +375,28 @@ INSTANTIATE_TEST_CASE_P(
                           direction::rnn_unidirectional,
                           input_mode::rnn_skip_input,
                           memory::format::rnx,
-                          { 128, 128, 10, 1, 32, GRU, UNIDIRECT, SKIP, 1 }},
+                          { 16, 16, 4, 1, 4, GRU, UNIDIRECT, SKIP, 1 }},
         test_gru_params_t{prop_kind::forward_inference,
                           engine::kind::cpu,
                           algorithm::rnn_gru,
                           direction::rnn_unidirectional,
                           input_mode::rnn_skip_input,
                           memory::format::rnx,
-                          { 800, 800, 10, 3, 32, GRU, UNIDIRECT, SKIP, 1 }},
+                          { 16, 16, 4, 3, 4, GRU, UNIDIRECT, SKIP, 1 }},
         test_gru_params_t{prop_kind::forward_inference,
                           engine::kind::cpu,
                           algorithm::rnn_gru,
                           direction::rnn_bidirectional,
                           input_mode::rnn_skip_input,
                           memory::format::rnx,
-                          { 128, 128, 10, 1, 32, GRU, BIDIRECT, SKIP, 1 }},
+                          { 16, 16, 4, 1, 4, GRU, BIDIRECT, SKIP, 1 }},
         test_gru_params_t{prop_kind::forward_inference,
                           engine::kind::cpu,
                           algorithm::rnn_gru,
                           direction::rnn_bidirectional,
                           input_mode::rnn_skip_input,
                           memory::format::rnx,
-                          { 800, 800, 10, 3, 32, GRU, BIDIRECT, SKIP, 1 }}
+                          { 16, 16, 4, 3, 4, GRU, BIDIRECT, SKIP, 1 }}
     )
 );
 

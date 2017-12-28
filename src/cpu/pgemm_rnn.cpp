@@ -16,7 +16,6 @@
 
 #include "c_types_map.hpp"
 #include "type_helpers.hpp"
-
 #include "pgemm_rnn.hpp"
 
 namespace mkldnn {
@@ -1135,12 +1134,12 @@ inline void gru_inference_single_sequential(const int T, const int D,
     int k = I;
     data_t *ht = y;
     data_t *ht_1 = y;
-    data_t *back_ht_1 = y + (T-1)*N*H*D + H;
+    data_t *back_ht_1 = y + (T-1) * N * H * D + H;
     data_t *back_ht = back_ht_1;
 
-    data_t *gemmC1  = ts;              // get gemmC1 from workspace, N*3H
-    data_t *gemmC2  = gemmC1 + N*3*H;  // get gemmC2 from workspace, N*3H
-    data_t *gatebuf = gemmC2 + N*3*H;  // get gatebuf from workspace, N*3H
+    data_t *gemmC1  = ts;                  // get gemmC1 from workspace, N*3H
+    data_t *gemmC2  = gemmC1 + N * 3 * H;  // get gemmC2 from workspace, N*3H
+    data_t *gatebuf = gemmC2 + N * 3 * H;  // get gatebuf from workspace, N*3H
     data_t *rt = gatebuf;
     data_t *zt = rt + N*H;
     data_t *nt = zt + N*H;
@@ -1152,6 +1151,7 @@ inline void gru_inference_single_sequential(const int T, const int D,
     const data_t *back_Wh = back_Wx + I * 3 * H;       // get Wh from w
     const data_t *back_bx = back_Wh + H * 3 * H;       // get bx from w
     const data_t *back_bh = back_bx + 3 * H;           // get bh from w
+
 
 
     if (D == UNIDIRECT) {
@@ -1194,7 +1194,7 @@ inline void gru_inference_single_sequential(const int T, const int D,
                 zt[i * H + j] = 1/(1 + exp(-gemmC1[ztb + j]-gemmC2[ztb + j]
                     - bx[H + j] - bh[H + j]));
                 nt[i * H + j] = tanh(gemmC1[ntb + j] + bx[2 * H + j] +
-                    rt[i * H + j] * (gemmC2[ztb + j] + bh[2 * H + j]));
+                    rt[i * H + j] * (gemmC2[ntb + j] + bh[2 * H + j]));
                 ht[i * D * H + j] = (1-zt[i * H + j]) * nt[i * H + j] +
                     zt[i * H + j] * ht_1[i * D * H + j];
             }
@@ -1244,7 +1244,7 @@ inline void gru_inference_single_sequential(const int T, const int D,
                 }
         } else {
             data_t *y_start = y + (T - 1) * N * H * D;
-            data_t *y_back_start = y + (T - 1) * N * H * D + H;
+            data_t *y_back_start = y + H;
 #if defined(_OPENMP)
             #pragma omp parallel for collapse(2)
 #endif
@@ -1284,21 +1284,19 @@ inline void gru_fwd_prop_inference(const int seq_length, const int num_layers,
         data_t *layer_input;
         data_t *layer_output;
         for (int l = 0; l < L; l++) {  //  for each Layer
-            if (l == 0) {
-                layer_input = (data_t *)x;
+            if ((L - l) % 2 == 1) {
+                layer_input = layer_buffer;
                 layer_output = y;
             } else {
-                if ((L - l) % 2 == 1) {
-                    layer_input = layer_buffer;
-                    layer_output = y;
-                } else {
-                    layer_input = y;
-                    layer_output = layer_buffer;
-                }
+                layer_input = y;
+                layer_output = layer_buffer;
             }
-            gru_inference_single_sequential(T, D, N, I, H, layer_input,
+            if (l == 0) {
+                layer_input = (data_t *)x;
+            }
+            int input_size = (l == 0) ? I : (D*H);
+            gru_inference_single_sequential(T, D, N, input_size, H, layer_input,
                 hx_l, weight_l, layer_output, hy_l, ws, ts_);
-
             hx_l = hx_l + D * N * H;
             if (hy_l != 0) {
                 hy_l = hy_l + D * N * H;
