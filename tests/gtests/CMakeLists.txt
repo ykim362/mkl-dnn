@@ -55,7 +55,17 @@ file(GLOB PRIM_TEST_CASES_SRC
                               test_convolution_backward_weights.cpp
                               ) #temporary
 
-foreach(TEST_FILE ${PRIM_TEST_CASES_SRC})
+if (HAVE_MKL)
+    file(GLOB MKL_PRIM_TEST_CASES_SRC
+                                  test_lstm_forward.cpp
+                                  test_gru_forward.cpp
+                                  test_lstm.cpp
+                                  test_vanillarnn_forward.cpp
+                                  test_vanillarnn.cpp
+                                  )
+endif()
+
+foreach(TEST_FILE ${PRIM_TEST_CASES_SRC} ${MKL_PRIM_TEST_CASES_SRC})
     get_filename_component (TEST_FILE_WE ${TEST_FILE} NAME_WE)
     set(CURR_APP_NAME ${TEST_FILE_WE})
     add_executable(${CURR_APP_NAME} ${MAIN_SRC_GTEST} ${TEST_FILE})

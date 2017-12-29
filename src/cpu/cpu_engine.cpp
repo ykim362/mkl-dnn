@@ -48,6 +48,7 @@
 #include "cpu/ref_batch_normalization.hpp"
 #include "cpu/ref_inner_product.hpp"
 #include "cpu/gemm_inner_product.hpp"
+#include "cpu/pgemm_rnn.hpp"
 #include "cpu/jit_uni_inner_product.hpp"
 
 namespace mkldnn {
@@ -225,6 +226,9 @@ static const pd_create_f cpu_impl_list[] = {
     INSTANCE(ref_convolution_relu_t<u8, s8, s32, s32>),
     INSTANCE(ref_convolution_relu_t<u8, s8, s8, s32>),
     INSTANCE(ref_convolution_relu_t<u8, s8, u8, s32>),
+    /* rnn */
+    INSTANCE(pgemm_rnn_fwd_t<data_type::f32>),
+    INSTANCE(pgemm_rnn_bwd_t<data_type::f32>),
     /* eol */
     nullptr,
 };

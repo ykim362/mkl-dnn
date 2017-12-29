@@ -157,6 +157,8 @@ inline mkldnn::memory::desc create_md(mkldnn::memory::dims dims,
     case f::gIOhw16o16i:
     case f::gOhIw16o4i:
         ndims = 5; break;
+    case f::rnx:
+        ndims = 3; break;
     case f::format_undef:
         ndims = 0; break;
     case f::any:
@@ -260,6 +262,29 @@ static void compare_data(mkldnn::memory& ref, mkldnn::memory& dst)
     }
 }
 
+// compares only valid numbers
+template <typename data_t>
+static void compare_data_woinfnan(mkldnn::memory& ref, mkldnn::memory& dst)
+{
+    // Only true for dense format
+    size_t num = ref.get_primitive_desc().get_size() / sizeof(data_t);
+    data_t *ref_data = (data_t *)ref.get_data_handle();
+    data_t *dst_data = (data_t *)dst.get_data_handle();
+#   pragma omp parallel for schedule(static)
+    for (size_t i = 0; i < num; ++i) {
+        data_t ref = ref_data[i];
+        data_t got = dst_data[i];
+        if (std::isinf(ref_data[i]) && std::isinf(dst_data[i])) {
+            continue;
+        }
+        if (std::isnan(ref_data[i]) && std::isnan(dst_data[i])) {
+            continue;
+        }
+        data_t diff = got - ref;
+        data_t e = std::abs(ref) > 1e-4 ? diff / ref : diff;
+        EXPECT_NEAR(e, 0.0, 1e-4) << "Index: " << i << " Total: " << num;
+    }
+};
 inline const char *query_impl_info(const_mkldnn_primitive_desc_t pd) {
     const char *str;
     mkldnn_primitive_desc_query(pd, mkldnn_query_impl_info_str, 0, &str);

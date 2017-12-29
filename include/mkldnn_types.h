@@ -118,6 +118,8 @@ typedef enum {
     mkldnn_x,
     /** 2D data tensor. */
     mkldnn_nc,
+    /** 3D RNN input, output tensor in the @c rnx format (recurrence, batch, inputs). */
+    mkldnn_rnx,
     /** 4D data tensor in the @c nchw format typically used in Caffe. */
     mkldnn_nchw,
     /** 4D data tensor in the @c nhwc format typically used in TensorFlow. */
@@ -309,6 +311,8 @@ typedef enum {
     mkldnn_inner_product,
     /** A convolution primitive merged with relu */
     mkldnn_convolution_relu,
+    /** An RNN primitive */
+    mkldnn_rnn,
 } mkldnn_primitive_kind_t;
 
 /** Kinds of algorithms. */
@@ -348,7 +352,31 @@ typedef enum {
     mkldnn_lrn_across_channels = 65,
     /** LRN within a single channel */
     mkldnn_lrn_within_channel = 66,
+    /** A vanillar-RNN with relu */
+    mkldnn_rnn_relu = 81,
+    /** A vanillar-RNN with tanh */
+    mkldnn_rnn_tanh = 82,
+    /** An LSTM (Long Short-Term Memory) */
+    mkldnn_rnn_lstm = 83,
+    /** A GRU (Gated Recurrent Unit) */
+    mkldnn_rnn_gru = 84,
 } mkldnn_alg_kind_t;
+
+/** Kinds of directions for RNN. */
+typedef enum {
+    /** Uni-directional */
+    mkldnn_rnn_unidirectional = 1,
+    /** Bi-directional */
+    mkldnn_rnn_bidirectional = 2,
+} mkldnn_rnn_direction_t;
+
+/** Kinds of input mode for RNN. */
+typedef enum {
+    /** Linear input - an operation is performed for the first layer's input */
+    mkldnn_rnn_linear_input = 1,
+    /** Skip input - no operation is performed for the first layer's input */
+    mkldnn_rnn_skip_input = 2,
+} mkldnn_rnn_input_mode_t;
 
 /** Flags for batch-normalization primititve. */
 typedef enum {
@@ -687,6 +715,44 @@ typedef struct {
     float negative_slope;
 } mkldnn_convolution_relu_desc_t;
 
+/** A descriptor of an RNN operation. */
+typedef struct {
+    /** The kind of primitive. Used for self identifying the primitive
+     * descriptor. Must be #mkldnn_rnn. */
+    mkldnn_primitive_kind_t primitive_kind;
+    /** The kind of propagation. Possible values: #mkldnn_forward_training,
+     * #mkldnn_forward_inference, #mkldnn_backward_data,
+     * and #mkldnn_backward_weights. */
+    mkldnn_prop_kind_t prop_kind;
+    /** The kind of the RNN algorithm. Possible values:
+     * #mkldnn_rnn_relu, #mkldnn_rnn_tanh, #mkldnn_rnn_lstm, #mkldnn_rnn_gru. */
+    mkldnn_alg_kind_t alg_kind;
+    /** The direction of the RNN. Possible values:
+     * #mkldnn_rnn_unidirectional, #mkldnn_rnn_bidirectional.*/
+    mkldnn_rnn_direction_t direction;
+    /** The input mode of the RNN. Possible values:
+     * #mkldnn_rnn_linear_input, #mkldnn_rnn_skip_input.*/
+    mkldnn_rnn_input_mode_t input_mode;
+    /** The number of hidden states in one cell */
+    int num_states;
+    /** The number of layers in entire RNN network */
+    int num_layers;
+    /** The length of sequences in entire RNN network */
+    int num_seqs;
+    /** state and cell output in entire RNN network */
+    int state_outputs;
+    /** Input(x) memory descriptor. [seq, batch, input_size] */
+    mkldnn_memory_desc_t x_desc;
+    /** State input(hx) memory descriptor. [layer, batch, hidden_size] */
+    mkldnn_memory_desc_t hx_desc;
+    /** Output(y) memory descriptor. [seq, batch, hidden_size] */
+    mkldnn_memory_desc_t y_desc;
+    /** Weights memory descriptor. */
+    mkldnn_memory_desc_t weights_desc;
+
+    // @TODO check if we need dropout descriptor
+} mkldnn_rnn_desc_t;
+
 /** @} */
 
 /** @addtogroup c_api_engine_types Engine
@@ -871,6 +937,7 @@ typedef enum {
     mkldnn_query_batch_normalization_d, /**< batch normalization descriptor */
     mkldnn_query_inner_product_d, /**< inner product descriptor */
     mkldnn_query_convolution_relu_d, /**< convolution-relu descriptor */
+    mkldnn_query_rnn_d, /**< rnn descriptor */
 
     /* (memory) primitive descriptor section */
     mkldnn_query_some_pd = 128, /**< stub */

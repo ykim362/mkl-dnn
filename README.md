@@ -6,8 +6,9 @@ Intel(R) Math Kernel Library for Deep Neural Networks (Intel(R) MKL-DNN) is an
 open source performance library for Deep Learning (DL) applications intended
 for acceleration of DL frameworks on Intel(R) architecture. Intel(R) MKL-DNN
 includes highly vectorized and threaded building blocks for implementation of
-convolutional neural networks (CNN) with C and C++ interfaces. We created this
-project to enable the DL community to innovate on Intel(R) processors.
+convolutional neural networks (CNN) and recurrent neural networks (RNN) with C
+and C++ interfaces. We created this project to enable the DL community to
+innovate on Intel(R) processors.
 
 Intel MKL-DNN includes functionality similar to [Intel(R) Math Kernel
 Library (Intel(R) MKL) 2017](https://software.intel.com/en-us/intel-mkl), 
@@ -18,6 +19,8 @@ This release contains a range of performance critical functions used in modern
 image recognition (AlexNet, VGG, GoogleNet\*, ResNet), semantic
 segmentation (FCNs, SegNet), and object detection topologies (SSD,
 Fast/Faster R-CNN) optimized for wide range of Intel processors.
+In addition, this release include functionality necessary to accelerate
+recurrent neural network architectures, by far including LSTM, Relu RNN and Tanh RNN.
 
 **WARNING** Functionality related to `s16` data type is experimental 
 and might change without prior notification in future releases.
